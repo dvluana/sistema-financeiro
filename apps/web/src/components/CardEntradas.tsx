@@ -49,6 +49,7 @@ export function CardEntradas({
             {entradas.map((entrada) => (
               <ItemLista
                 key={entrada.id}
+                tipo="entrada"
                 nome={entrada.nome}
                 valor={entrada.valor}
                 dataPrevista={entrada.data_prevista}

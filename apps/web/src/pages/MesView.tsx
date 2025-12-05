@@ -5,7 +5,7 @@
  * Suporta filtro de pendentes quando acessado via dashboard.
  */
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { motion, AnimatePresence, PanInfo } from 'framer-motion'
 import { X } from 'lucide-react'
 import { useFinanceiroStore } from '@/stores/useFinanceiroStore'
@@ -13,7 +13,7 @@ import { Header } from '@/components/Header'
 import { CardEntradas } from '@/components/CardEntradas'
 import { CardSaidas } from '@/components/CardSaidas'
 import { CardResultado } from '@/components/CardResultado'
-import { LoadingSkeleton } from '@/components/LoadingSkeleton'
+import { MesLoadingSkeleton } from '@/components/MesLoadingSkeleton'
 import type { Lancamento } from '@/lib/api'
 
 export type FiltroPendentes = 'pendentes-entrada' | 'pendentes-saida' | null
@@ -50,11 +50,33 @@ export function MesView({
   } = useFinanceiroStore()
 
   const [slideDirection, setSlideDirection] = useState(0)
+  const [showSkeleton, setShowSkeleton] = useState(false)
+  const skeletonTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     carregarMes(mesAtual)
     carregarConfiguracoes()
   }, [])
+
+  // Mostra skeleton apenas se loading demorar mais de 150ms
+  useEffect(() => {
+    if (isLoading) {
+      skeletonTimeoutRef.current = setTimeout(() => {
+        setShowSkeleton(true)
+      }, 150)
+    } else {
+      if (skeletonTimeoutRef.current) {
+        clearTimeout(skeletonTimeoutRef.current)
+      }
+      setShowSkeleton(false)
+    }
+
+    return () => {
+      if (skeletonTimeoutRef.current) {
+        clearTimeout(skeletonTimeoutRef.current)
+      }
+    }
+  }, [isLoading])
 
   const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     const threshold = 50
@@ -118,10 +140,10 @@ export function MesView({
       )}
 
       <main className="max-w-[720px] mx-auto">
-        {isLoading && !totais ? (
-          <LoadingSkeleton />
-        ) : (
-          <AnimatePresence mode="wait" initial={false}>
+        <AnimatePresence mode="wait" initial={false}>
+          {showSkeleton && isLoading ? (
+            <MesLoadingSkeleton key="skeleton" />
+          ) : (
             <motion.div
               key={mesAtual}
               initial={{ x: slideDirection * 100, opacity: 0 }}
@@ -160,8 +182,8 @@ export function MesView({
                 saldo={totais?.saldo ?? 0}
               />
             </motion.div>
-          </AnimatePresence>
-        )}
+          )}
+        </AnimatePresence>
       </main>
     </div>
   )

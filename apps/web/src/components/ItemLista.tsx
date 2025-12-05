@@ -1,7 +1,8 @@
 import * as LucideIcons from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { StatusCircle } from "./StatusCircle"
-import { formatarMoeda } from "@/lib/utils"
+import { formatarMoeda, cn } from "@/lib/utils"
 import type { Categoria } from "@/lib/api"
 
 // Função para obter o componente de ícone do Lucide dinamicamente
@@ -12,6 +13,7 @@ function getIconComponent(iconName: string | null): LucideIcon | null {
 }
 
 interface ItemListaProps {
+  tipo: 'entrada' | 'saida'
   nome: string
   valor: number
   dataPrevista?: string | null
@@ -23,6 +25,7 @@ interface ItemListaProps {
 }
 
 export function ItemLista({
+  tipo,
   nome,
   valor,
   dataPrevista,
@@ -35,6 +38,12 @@ export function ItemLista({
   // Obter ícone da categoria
   const CategoriaIcon = categoria?.icone ? getIconComponent(categoria.icone) : null
 
+  // Label da tag baseado no tipo
+  const tagLabel = tipo === 'entrada' ? 'Recebido' : 'Pago'
+  const tagColor = tipo === 'entrada'
+    ? 'bg-verde/10 text-verde border-verde/20'
+    : 'bg-vermelho/10 text-vermelho border-vermelho/20'
+
   return (
     <div className="flex items-center gap-2 min-h-[64px] border-b border-neutro-200 last:border-0">
       <StatusCircle checked={concluido} onChange={onToggle} />
@@ -42,11 +51,12 @@ export function ItemLista({
       <button
         type="button"
         onClick={onEdit}
-        className={`flex-1 flex justify-between items-start py-3 text-left min-h-touch ${
-          concluido && mostrarConcluidosDiscretos ? "opacity-50" : ""
-        }`}
+        className="flex-1 flex justify-between items-center py-3 text-left min-h-touch"
       >
-        <div className="flex items-center gap-2">
+        <div className={cn(
+          'flex items-center gap-2 min-w-0 flex-1',
+          concluido && mostrarConcluidosDiscretos && 'opacity-50'
+        )}>
           {/* Ícone da categoria */}
           {CategoriaIcon && categoria && (
             <span
@@ -57,7 +67,7 @@ export function ItemLista({
             </span>
           )}
 
-          <div className="flex flex-col min-w-0">
+          <div className="flex flex-col min-w-0 flex-1">
             <span className="text-corpo text-neutro-900 truncate">{nome}</span>
             <div className="flex items-center gap-2 text-micro text-neutro-400">
               {categoria && (
@@ -72,9 +82,33 @@ export function ItemLista({
             </div>
           </div>
         </div>
-        <span className="text-corpo-medium text-neutro-900 shrink-0 ml-2">
-          {formatarMoeda(valor)}
-        </span>
+
+        <div className="flex items-center gap-2 shrink-0 ml-2">
+          {/* Tag Recebido/Pago com animação (sempre viva, sem opacity) */}
+          <AnimatePresence>
+            {concluido && (
+              <motion.span
+                initial={{ opacity: 0, scale: 0.8, x: 10 }}
+                animate={{ opacity: 1, scale: 1, x: 0 }}
+                exit={{ opacity: 0, scale: 0.8, x: 10 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                className={cn(
+                  'text-[10px] font-medium px-1.5 py-0.5 rounded border',
+                  tagColor
+                )}
+              >
+                {tagLabel}
+              </motion.span>
+            )}
+          </AnimatePresence>
+
+          <span className={cn(
+            'text-corpo-medium text-neutro-900',
+            concluido && mostrarConcluidosDiscretos && 'opacity-50'
+          )}>
+            {formatarMoeda(valor)}
+          </span>
+        </div>
       </button>
     </div>
   )

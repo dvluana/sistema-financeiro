@@ -185,9 +185,12 @@ export function LancamentoSheet({
   }
 
   const sharedContent = (
-    <div className={cn('flex flex-col h-full', isDesktop ? 'p-6' : 'p-4')}>
+    <div className={cn(
+      'flex flex-col overflow-hidden',
+      isDesktop ? 'h-full p-6' : 'max-h-[calc(92vh-12px)] p-4'
+    )}>
       {/* Header com abas */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 shrink-0">
         <DrawerPrimitive.Title className="text-titulo-card text-neutro-900">
           {isEditing ? 'Editar lançamento' : 'Novo lançamento'}
         </DrawerPrimitive.Title>
@@ -198,7 +201,7 @@ export function LancamentoSheet({
 
       {/* Seletor de tipo (Entrada/Saída) */}
       {!isEditing && (
-        <div className="flex gap-2 p-1 bg-neutro-100 rounded-xl mb-6">
+        <div className="flex gap-2 p-1 bg-neutro-100 rounded-xl mb-6 shrink-0">
           <button
             type="button"
             onClick={() => setTipo('entrada')}
@@ -252,8 +255,12 @@ export function LancamentoSheet({
         </div>
       )}
 
-      {/* Formulário */}
-      <form onSubmit={handleSubmit} className="flex-1 flex flex-col space-y-5">
+      {/* Área scrollável com campos (data-vaul-no-drag permite scroll dentro do drawer) */}
+      <div
+        className="flex-1 overflow-y-auto min-h-0 overscroll-contain -mx-4 px-4"
+        data-vaul-no-drag
+      >
+        <form id="lancamento-form" onSubmit={handleSubmit} className="space-y-5 pb-4">
         {/* Nome */}
         <div className="space-y-2">
           <Label htmlFor="nome">{labels.nome}</Label>
@@ -438,45 +445,44 @@ export function LancamentoSheet({
             </AnimatePresence>
           </>
         )}
+        </form>
+      </div>
 
-        {/* Spacer */}
-        <div className="flex-1" />
+      {/* Botões fixos no final (fora do scroll) */}
+      <div className={cn(
+        'space-y-3 pt-4 border-t border-neutro-200 shrink-0',
+        !isDesktop && 'pb-safe'
+      )}>
+        <Button
+          type="submit"
+          form="lancamento-form"
+          className="w-full"
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Salvando...
+            </>
+          ) : recorrente ? (
+            'Criar lançamentos'
+          ) : (
+            'Salvar'
+          )}
+        </Button>
 
-        {/* Botões */}
-        <div className={cn(
-          'space-y-3 pt-4 border-t border-neutro-200',
-          !isDesktop && 'pb-safe'
-        )}>
+        {isEditing && onDelete && (
           <Button
-            type="submit"
+            type="button"
+            variant="destructive"
             className="w-full"
+            onClick={onDelete}
             disabled={isLoading}
           >
-            {isLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Salvando...
-              </>
-            ) : recorrente ? (
-              'Criar lançamentos'
-            ) : (
-              'Salvar'
-            )}
+            Excluir
           </Button>
-
-          {isEditing && onDelete && (
-            <Button
-              type="button"
-              variant="destructive"
-              className="w-full"
-              onClick={onDelete}
-              disabled={isLoading}
-            >
-              Excluir
-            </Button>
-          )}
-        </div>
-      </form>
+        )}
+      </div>
     </div>
   )
 

@@ -6,8 +6,8 @@
  */
 
 import { useEffect } from 'react'
-import { Settings, LogOut, User } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Settings, LogOut } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
 import { HeroCard } from '@/components/HeroCard'
 import { PendingCard } from '@/components/PendingCard'
@@ -50,30 +50,54 @@ export function Dashboard({
     await logout()
   }
 
+  // Extrai nome do usuário (primeiro nome apenas)
+  const primeiroNome = usuario?.nome?.split(' ')[0] || 'Usuário'
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-neutro-100 to-neutro-200 pb-20">
-      {/* Header simplificado */}
-      <header className="sticky top-0 z-10 bg-white border-b border-neutro-200">
-        <div className="flex items-center justify-between px-4 py-3 max-w-[720px] mx-auto">
-          <div className="flex items-center gap-2 text-pequeno text-neutro-700">
-            <User className="w-4 h-4" />
-            <span className="font-medium">{usuario?.nome}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onOpenConfig}
-              aria-label="Configurações"
-            >
-              <Settings className="w-5 h-5 text-neutro-900" />
-            </Button>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-1 text-pequeno text-neutro-600 hover:text-vermelho transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
+      {/* Header moderno (mesmo padrão da MesView) */}
+      <header className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-neutro-200">
+        <div className="max-w-[720px] mx-auto">
+          <div className="flex items-center justify-between px-4 py-2.5">
+            <div className="flex items-center gap-2">
+              {/* Avatar com inicial */}
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-rosa to-rosa/80 text-white text-pequeno font-semibold">
+                {primeiroNome.charAt(0).toUpperCase()}
+              </div>
+              <span className="text-corpo text-neutro-700 font-medium">
+                {primeiroNome}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1">
+              {/* Botão de configurações */}
+              <button
+                type="button"
+                onClick={onOpenConfig}
+                className={cn(
+                  'flex items-center justify-center w-10 h-10 rounded-xl',
+                  'text-neutro-600 hover:text-neutro-900 hover:bg-neutro-100',
+                  'transition-colors active:scale-95'
+                )}
+                aria-label="Configurações"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
+
+              {/* Botão de logout */}
+              <button
+                type="button"
+                onClick={handleLogout}
+                className={cn(
+                  'flex items-center justify-center w-10 h-10 rounded-xl',
+                  'text-neutro-500 hover:text-vermelho hover:bg-vermelho/5',
+                  'transition-colors active:scale-95'
+                )}
+                aria-label="Sair"
+              >
+                <LogOut className="w-[18px] h-[18px]" />
+              </button>
+            </div>
           </div>
         </div>
       </header>

@@ -4,9 +4,9 @@
  * Lista dos últimos lançamentos com data relativa.
  */
 
+import { motion, AnimatePresence } from 'framer-motion'
 import { StatusCircle } from './StatusCircle'
-import { formatarMoeda } from '@/lib/utils'
-import { cn } from '@/lib/utils'
+import { formatarMoeda, cn } from '@/lib/utils'
 import type { Lancamento } from '@/lib/api'
 
 interface RecentListProps {
@@ -69,7 +69,10 @@ export function RecentList({
             onClick={() => onItemClick(lancamento)}
             className="flex-1 flex justify-between items-center py-3 text-left min-h-touch"
           >
-            <div className="flex flex-col">
+            <div className={cn(
+              'flex flex-col',
+              lancamento.concluido && 'opacity-50'
+            )}>
               <span className="text-corpo text-neutro-900 truncate">
                 {lancamento.nome}
               </span>
@@ -77,15 +80,37 @@ export function RecentList({
                 {formatarDataRelativa(lancamento.created_at)}
               </span>
             </div>
-            <span
-              className={cn(
-                'text-corpo-medium',
-                lancamento.tipo === 'entrada' ? 'text-verde' : 'text-vermelho'
-              )}
-            >
-              {lancamento.tipo === 'entrada' ? '+' : '-'}
-              {formatarMoeda(lancamento.valor)}
-            </span>
+            <div className="flex items-center gap-2">
+              {/* Tag Recebido/Pago (sempre viva) */}
+              <AnimatePresence>
+                {lancamento.concluido && (
+                  <motion.span
+                    initial={{ opacity: 0, scale: 0.8, x: 10 }}
+                    animate={{ opacity: 1, scale: 1, x: 0 }}
+                    exit={{ opacity: 0, scale: 0.8, x: 10 }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    className={cn(
+                      'text-[10px] font-medium px-1.5 py-0.5 rounded border',
+                      lancamento.tipo === 'entrada'
+                        ? 'bg-verde/10 text-verde border-verde/20'
+                        : 'bg-vermelho/10 text-vermelho border-vermelho/20'
+                    )}
+                  >
+                    {lancamento.tipo === 'entrada' ? 'Recebido' : 'Pago'}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+              <span
+                className={cn(
+                  'text-corpo-medium',
+                  lancamento.tipo === 'entrada' ? 'text-verde' : 'text-vermelho',
+                  lancamento.concluido && 'opacity-50'
+                )}
+              >
+                {lancamento.tipo === 'entrada' ? '+' : '-'}
+                {formatarMoeda(lancamento.valor)}
+              </span>
+            </div>
           </button>
         </div>
       ))}

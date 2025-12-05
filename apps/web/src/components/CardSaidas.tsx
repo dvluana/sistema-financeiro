@@ -49,6 +49,7 @@ export function CardSaidas({
             {saidas.map((saida) => (
               <ItemLista
                 key={saida.id}
+                tipo="saida"
                 nome={saida.nome}
                 valor={saida.valor}
                 dataPrevista={saida.data_prevista}
