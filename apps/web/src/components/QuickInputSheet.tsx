@@ -374,7 +374,6 @@ export function QuickInputSheet({
     }
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      console.error('Erro no reconhecimento de voz:', event.error, event.message)
       setIsListening(false)
 
       switch (event.error) {
@@ -388,7 +387,7 @@ export function QuickInputSheet({
           setErro('Nenhum microfone encontrado. Verifique se o microfone está conectado.')
           break
         case 'network':
-          setErro('Erro de rede. Verifique sua conexão com a internet.')
+          setErro('Erro de conexão com o serviço de voz. Verifique sua internet e tente novamente.')
           break
         case 'aborted':
           // Usuário cancelou - não mostra erro
@@ -410,7 +409,6 @@ export function QuickInputSheet({
     try {
       recognition.start()
     } catch (error) {
-      console.error('Erro ao iniciar reconhecimento:', error)
       setIsListening(false)
       setErro('Não foi possível iniciar o reconhecimento de voz. Verifique as permissões do navegador.')
     }
