@@ -20,6 +20,8 @@ import {
   Loader2,
   AlertCircle,
   Sparkles,
+  Mic,
+  MicOff,
 } from 'lucide-react'
 import { Drawer as DrawerPrimitive } from 'vaul'
 import { cn } from '@/lib/utils'
@@ -266,6 +268,11 @@ export function QuickInputSheet({
   const [isParsing, setIsParsing] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
+  // Estado do reconhecimento de voz
+  const [isListening, setIsListening] = useState(false)
+  const [speechSupported, setSpeechSupported] = useState(false)
+  const recognitionRef = useRef<SpeechRecognition | null>(null)
+
   // Histórico de inputs
   const [historico, setHistorico] = useState<string[]>([])
 
@@ -274,6 +281,12 @@ export function QuickInputSheet({
 
   // Ref para o textarea
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Verifica se o navegador suporta Speech Recognition
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    setSpeechSupported(!!SpeechRecognition)
+  }, [])
 
   // Carrega histórico do localStorage
   useEffect(() => {
@@ -301,14 +314,100 @@ export function QuickInputSheet({
       setLancamentos([])
       setExpandedGroups(new Set())
       setErro(null)
+      // Para o reconhecimento de voz se estiver ativo
+      if (recognitionRef.current) {
+        recognitionRef.current.stop()
+        setIsListening(false)
+      }
     }
   }, [open])
+
+  /**
+   * Inicia/para o reconhecimento de voz
+   */
+  const toggleVoiceRecognition = useCallback(() => {
+    if (!speechSupported) {
+      setErro('Seu navegador não suporta reconhecimento de voz. Use Chrome ou Edge.')
+      return
+    }
+
+    if (isListening) {
+      // Para o reconhecimento
+      recognitionRef.current?.stop()
+      setIsListening(false)
+      return
+    }
+
+    // Inicia o reconhecimento
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const recognition = new SpeechRecognition()
+
+    recognition.lang = 'pt-BR'
+    recognition.continuous = true
+    recognition.interimResults = true
+
+    recognition.onstart = () => {
+      setIsListening(true)
+      setErro(null)
+    }
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      let finalTranscript = ''
+      let interimTranscript = ''
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript
+        } else {
+          interimTranscript += transcript
+        }
+      }
+
+      // Adiciona o texto reconhecido ao campo
+      if (finalTranscript) {
+        setTexto(prev => {
+          const newText = prev ? `${prev} ${finalTranscript}` : finalTranscript
+          return newText.trim()
+        })
+      }
+    }
+
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      console.error('Erro no reconhecimento de voz:', event.error)
+      setIsListening(false)
+
+      if (event.error === 'not-allowed') {
+        setErro('Permissão de microfone negada. Habilite nas configurações do navegador.')
+      } else if (event.error === 'no-speech') {
+        setErro('Nenhuma fala detectada. Tente novamente.')
+      } else {
+        setErro('Erro no reconhecimento de voz. Tente novamente.')
+      }
+    }
+
+    recognition.onend = () => {
+      setIsListening(false)
+    }
+
+    recognitionRef.current = recognition
+    recognition.start()
+  }, [speechSupported, isListening])
+
+  // Limite máximo de lançamentos na lista
+  const MAX_LANCAMENTOS = 50
 
   /**
    * Processa o texto digitado usando IA
    */
   const handleSubmitTexto = useCallback(async () => {
     if (!texto.trim()) return
+
+    // Verifica se já atingiu o limite
+    if (lancamentos.length >= MAX_LANCAMENTOS) {
+      setErro(`Limite de ${MAX_LANCAMENTOS} lançamentos atingido. Confirme os atuais primeiro.`)
+      return
+    }
 
     setIsParsing(true)
     setErro(null)
@@ -318,13 +417,26 @@ export function QuickInputSheet({
 
       if (result.erro) {
         setErro(result.erro)
-        setLancamentos([])
         return
       }
 
+      if (result.lancamentos.length === 0) {
+        setErro('Não consegui identificar lançamentos no texto. Tente ser mais específico.')
+        return
+      }
+
+      // Calcula quantos lançamentos ainda cabem
+      const espacoDisponivel = MAX_LANCAMENTOS - lancamentos.length
+      const lancamentosParaAdicionar = result.lancamentos.slice(0, espacoDisponivel)
+
+      if (result.lancamentos.length > espacoDisponivel) {
+        setErro(`Apenas ${espacoDisponivel} dos ${result.lancamentos.length} lançamentos foram adicionados (limite: ${MAX_LANCAMENTOS})`)
+      }
+
       // Converte resposta da IA para formato ParsedLancamento
-      const lancamentosParsed: ParsedLancamento[] = result.lancamentos.map((l, index) => {
-        const id = `ia-${Date.now()}-${index}`
+      const timestamp = Date.now()
+      const novosLancamentos: ParsedLancamento[] = lancamentosParaAdicionar.map((l, index) => {
+        const id = `ia-${timestamp}-${index}`
 
         return {
           id,
@@ -335,19 +447,22 @@ export function QuickInputSheet({
           diaPrevisto: l.diaPrevisto,
           status: 'completo' as const,
           camposFaltantes: [],
-          groupId: id, // Cada lançamento da IA tem seu próprio grupo
+          groupId: id,
         }
       })
 
-      setLancamentos(lancamentosParsed)
+      // ADICIONA aos existentes ao invés de substituir
+      setLancamentos(prev => [...prev, ...novosLancamentos])
+
+      // Limpa o texto após adicionar com sucesso
+      setTexto('')
     } catch (e) {
       console.error('Erro ao processar com IA:', e)
       setErro('Erro ao processar com IA. Tente novamente.')
-      setLancamentos([])
     } finally {
       setIsParsing(false)
     }
-  }, [texto, mesAtual])
+  }, [texto, mesAtual, lancamentos.length])
 
   /**
    * Atualiza campo de um lançamento incompleto
@@ -514,35 +629,63 @@ export function QuickInputSheet({
               handleSubmitTexto()
             }
           }}
-          placeholder="Ex: Salário 5000 dia 5&#10;Parcela carro 800 out/25 até dez/25&#10;Aluguel 1500 por 12 meses"
+          placeholder={isListening ? 'Ouvindo... fale agora' : 'Ex: Salário 5000 dia 5\nLuz 150, água 80\nNetflix 55.90'}
           className={cn(
-            'w-full resize-none rounded-xl border-2 border-border bg-secondary p-4 pr-14',
+            'w-full resize-none rounded-xl border-2 bg-secondary p-4 pr-28',
             'text-corpo text-foreground placeholder:text-muted-foreground',
             'focus:outline-none focus:ring-2 focus:ring-rosa/20 focus:border-rosa focus:bg-card',
             'transition-all',
             isDesktop ? 'min-h-[100px]' : 'min-h-[80px]',
-            'max-h-[160px]'
+            'max-h-[160px]',
+            isListening ? 'border-rosa bg-rosa/5' : 'border-border'
           )}
           rows={3}
         />
-        <button
-          type="button"
-          onClick={handleSubmitTexto}
-          disabled={!texto.trim() || isParsing}
-          className={cn(
-            'absolute right-3 bottom-3 p-2.5 rounded-xl',
-            'transition-all',
-            texto.trim() && !isParsing
-              ? 'bg-rosa text-white hover:bg-rosa/90 shadow-sm hover:shadow active:scale-95'
-              : 'bg-muted text-muted-foreground cursor-not-allowed'
+
+        {/* Botões de ação */}
+        <div className="absolute right-3 bottom-3 flex items-center gap-2">
+          {/* Botão de microfone */}
+          {speechSupported && (
+            <button
+              type="button"
+              onClick={toggleVoiceRecognition}
+              disabled={isParsing}
+              className={cn(
+                'p-2.5 rounded-xl transition-all',
+                isListening
+                  ? 'bg-rosa text-white animate-pulse shadow-sm'
+                  : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'
+              )}
+              title={isListening ? 'Parar de ouvir' : 'Falar'}
+            >
+              {isListening ? (
+                <MicOff className="w-5 h-5" />
+              ) : (
+                <Mic className="w-5 h-5" />
+              )}
+            </button>
           )}
-        >
-          {isParsing ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          ) : (
-            <Send className="w-5 h-5" />
-          )}
-        </button>
+
+          {/* Botão de enviar */}
+          <button
+            type="button"
+            onClick={handleSubmitTexto}
+            disabled={!texto.trim() || isParsing}
+            className={cn(
+              'p-2.5 rounded-xl transition-all',
+              texto.trim() && !isParsing
+                ? 'bg-rosa text-white hover:bg-rosa/90 shadow-sm hover:shadow active:scale-95'
+                : 'bg-muted text-muted-foreground cursor-not-allowed'
+            )}
+            title="Processar com IA"
+          >
+            {isParsing ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Send className="w-5 h-5" />
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Sugestões do histórico */}

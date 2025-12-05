@@ -19,51 +19,117 @@ interface ParseResult {
   erro?: string
 }
 
-const SYSTEM_PROMPT = `Você é um assistente financeiro que interpreta textos em português brasileiro e extrai lançamentos financeiros.
+// Limite máximo de lançamentos por requisição (segurança)
+const MAX_LANCAMENTOS_POR_REQUEST = 20
 
-REGRAS:
-1. Identifique cada lançamento mencionado no texto
-2. Determine se é ENTRADA (receita/ganho) ou SAÍDA (despesa/gasto)
-3. Extraia o nome/descrição do lançamento
-4. Extraia o valor numérico
-5. Se mencionado, extraia o dia do mês (1-31)
+const SYSTEM_PROMPT = `Você é um assistente financeiro. Extraia lançamentos do texto do usuário.
 
-CRITÉRIOS PARA TIPO:
-- ENTRADA: salário, freelance, pagamento recebido, venda, renda, mesada, 13º, férias, bônus, comissão, aluguel recebido, dividendos, restituição
-- SAÍDA: conta, boleto, fatura, aluguel (a pagar), luz, água, internet, telefone, mercado, gasolina, combustível, uber, transporte, comida, restaurante, delivery, ifood, netflix, spotify, academia, plano de saúde, seguro, parcela, empréstimo, cartão, escola, faculdade, curso, remédio, farmácia, pet, veterinário, manutenção, conserto
+## REGRAS CRÍTICAS
 
-FORMATO DE RESPOSTA (JSON válido):
-{
-  "lancamentos": [
-    {
-      "tipo": "entrada" ou "saida",
-      "nome": "descrição do lançamento",
-      "valor": 1234.56,
-      "diaPrevisto": 15 ou null
-    }
-  ]
-}
+### VALORES ABREVIADOS (MUITO IMPORTANTE!)
+- "5k" = 5000 (k = mil)
+- "2k" = 2000
+- "1.5k" = 1500
+- "10k" = 10000
+- "mil" ou "2mil" = 2000
+- Valores NUNCA devem ser menores que o contexto sugere (salário não é R$ 5!)
 
-EXEMPLOS:
+### TIPO DO LANÇAMENTO
 
-Entrada: "salário 5000 dia 5"
-Saída: {"lancamentos":[{"tipo":"entrada","nome":"Salário","valor":5000,"diaPrevisto":5}]}
+**ENTRADA** (receita - dinheiro que ENTRA):
+- sal, salário, salario → ENTRADA
+- freela, freelance → ENTRADA
+- vendi, venda, vendas → ENTRADA
+- recebi, recebido → ENTRADA
+- bonus, bônus → ENTRADA
+- comissão → ENTRADA
+- renda, rendimento → ENTRADA
+- dividendos, lucros → ENTRADA
+- restituição → ENTRADA
 
-Entrada: "luz 150, internet 99.90 dia 10, água 80"
-Saída: {"lancamentos":[{"tipo":"saida","nome":"Luz","valor":150,"diaPrevisto":null},{"tipo":"saida","nome":"Internet","valor":99.90,"diaPrevisto":10},{"tipo":"saida","nome":"Água","valor":80,"diaPrevisto":null}]}
+**SAÍDA** (despesa - dinheiro que SAI):
+- luz, água, gas, internet, telefone → SAÍDA
+- aluguel, condomínio → SAÍDA
+- parcela, fatura, boleto → SAÍDA
+- mercado, supermercado → SAÍDA
+- gasolina, combustível, uber → SAÍDA
+- netflix, spotify, prime, streaming → SAÍDA
+- farmácia, remédio → SAÍDA
+- academia, escola, faculdade → SAÍDA
+- paguei, gastei, comprei → SAÍDA
 
-Entrada: "recebi 500 de freelance"
-Saída: {"lancamentos":[{"tipo":"entrada","nome":"Freelance","valor":500,"diaPrevisto":null}]}
+### NOME DO LANÇAMENTO
+- Preserve o contexto: "parcela do carro" → "Parcela do carro"
+- Mapeie abreviações:
+  - "sal" → "Salário"
+  - "freela" → "Freelance"
+  - "merc" → "Mercado"
+  - "net" → "Internet"
+- Primeira letra maiúscula
+- Marcas: Netflix, Spotify, Uber, iFood
 
-Entrada: "netflix 55.90, spotify 21.90, amazon prime 14.90"
-Saída: {"lancamentos":[{"tipo":"saida","nome":"Netflix","valor":55.90,"diaPrevisto":null},{"tipo":"saida","nome":"Spotify","valor":21.90,"diaPrevisto":null},{"tipo":"saida","nome":"Amazon Prime","valor":14.90,"diaPrevisto":null}]}
+## FORMATO
+{"lancamentos":[{"tipo":"entrada","nome":"Nome","valor":1234.56,"diaPrevisto":5}]}
 
-IMPORTANTE:
-- Retorne APENAS o JSON, sem explicações
-- Capitalize a primeira letra do nome
-- Valores devem ser números, não strings
-- Se não conseguir interpretar, retorne {"lancamentos":[],"erro":"mensagem"}
+## EXEMPLOS CRÍTICOS
+
+"sal 5k dia 5" → {"lancamentos":[{"tipo":"entrada","nome":"Salário","valor":5000,"diaPrevisto":5}]}
+
+"freela 1200" → {"lancamentos":[{"tipo":"entrada","nome":"Freelance","valor":1200,"diaPrevisto":null}]}
+
+"freela design 800" → {"lancamentos":[{"tipo":"entrada","nome":"Freelance design","valor":800,"diaPrevisto":null}]}
+
+"vendi o celular por 500" → {"lancamentos":[{"tipo":"entrada","nome":"Venda celular","valor":500,"diaPrevisto":null}]}
+
+"vendi notebook 2k" → {"lancamentos":[{"tipo":"entrada","nome":"Venda notebook","valor":2000,"diaPrevisto":null}]}
+
+"luz 150 agua 80 gas 60" → {"lancamentos":[{"tipo":"saida","nome":"Luz","valor":150,"diaPrevisto":null},{"tipo":"saida","nome":"Água","valor":80,"diaPrevisto":null},{"tipo":"saida","nome":"Gás","valor":60,"diaPrevisto":null}]}
+
+"parcela do carro 800" → {"lancamentos":[{"tipo":"saida","nome":"Parcela do carro","valor":800,"diaPrevisto":null}]}
+
+"netflix 55 spotify 22" → {"lancamentos":[{"tipo":"saida","nome":"Netflix","valor":55,"diaPrevisto":null},{"tipo":"saida","nome":"Spotify","valor":22,"diaPrevisto":null}]}
+
+"recebi 1000 do aluguel" → {"lancamentos":[{"tipo":"entrada","nome":"Aluguel recebido","valor":1000,"diaPrevisto":null}]}
+
+"paguei aluguel 1500" → {"lancamentos":[{"tipo":"saida","nome":"Aluguel","valor":1500,"diaPrevisto":null}]}
+
+## IMPORTANTE
+- "k" após número = multiplicar por 1000
+- "freela" e "vendi" são SEMPRE entrada
+- Retorne APENAS JSON válido
+- Máximo ${MAX_LANCAMENTOS_POR_REQUEST} lançamentos
 `
+
+// Palavras que SEMPRE indicam entrada
+const PALAVRAS_ENTRADA = [
+  'salário', 'salario', 'sal',
+  'freelance', 'freela',
+  'vendi', 'venda', 'vendas',
+  'recebi', 'recebido', 'receber',
+  'bonus', 'bônus', 'bonificação',
+  'comissão', 'comissao',
+  'renda', 'rendimento', 'rendimentos',
+  'dividendo', 'dividendos', 'lucro', 'lucros',
+  'restituição', 'restituicao',
+  '13º', 'decimo terceiro',
+  'mesada', 'pensão'
+]
+
+// Palavras que indicam saída
+const PALAVRAS_SAIDA = [
+  'luz', 'água', 'agua', 'gás', 'gas', 'internet', 'telefone', 'celular',
+  'aluguel', 'condomínio', 'condominio', 'iptu',
+  'parcela', 'fatura', 'boleto', 'prestação',
+  'mercado', 'supermercado', 'feira',
+  'gasolina', 'combustível', 'combustivel', 'uber', '99', 'taxi',
+  'netflix', 'spotify', 'prime', 'disney', 'hbo', 'streaming',
+  'farmácia', 'farmacia', 'remédio', 'remedio',
+  'academia', 'pilates', 'crossfit',
+  'escola', 'faculdade', 'curso', 'mensalidade',
+  'plano de saúde', 'plano de saude', 'seguro',
+  'empréstimo', 'emprestimo', 'financiamento',
+  'paguei', 'pago', 'pagar', 'gastei', 'gasto', 'gastar', 'comprei', 'compra'
+]
 
 export class AIService {
   private ai: GoogleGenAI | null = null
@@ -75,14 +141,56 @@ export class AIService {
     }
   }
 
+  /**
+   * Pré-processa o texto para normalizar valores como "5k"
+   */
+  private preprocessTexto(texto: string): string {
+    // Converte "5k" para "5000", "2k" para "2000", etc.
+    return texto.replace(/(\d+(?:\.\d+)?)\s*k\b/gi, (match, num) => {
+      return String(parseFloat(num) * 1000)
+    }).replace(/(\d+)\s*mil\b/gi, (match, num) => {
+      return String(parseInt(num) * 1000)
+    })
+  }
+
+  /**
+   * Determina o tipo correto baseado no texto original e nome do lançamento
+   */
+  private corrigirTipo(nome: string, textoOriginal: string): 'entrada' | 'saida' {
+    const nomeL = nome.toLowerCase()
+    const textoL = textoOriginal.toLowerCase()
+
+    // Verifica se alguma palavra de entrada está presente
+    for (const palavra of PALAVRAS_ENTRADA) {
+      if (nomeL.includes(palavra) || textoL.includes(palavra)) {
+        // Exceção: "paguei aluguel" é saída, "recebi aluguel" é entrada
+        if (palavra === 'aluguel') {
+          if (textoL.includes('paguei') || textoL.includes('pagar')) {
+            return 'saida'
+          }
+          if (textoL.includes('recebi') || textoL.includes('receber')) {
+            return 'entrada'
+          }
+        }
+        return 'entrada'
+      }
+    }
+
+    // Se não encontrou entrada, assume saída
+    return 'saida'
+  }
+
   async parseLancamentos(texto: string, mes: string): Promise<ParseResult> {
+    // Pré-processa o texto
+    const textoProcessado = this.preprocessTexto(texto)
+
     if (!this.ai) {
       // Fallback: tenta parsing básico sem IA
-      return this.parseBasico(texto)
+      return this.parseBasico(textoProcessado, texto)
     }
 
     try {
-      const prompt = `${SYSTEM_PROMPT}\n\nTexto do usuário: "${texto}"\n\nRetorne o JSON:`
+      const prompt = `${SYSTEM_PROMPT}\n\nTexto do usuário: "${textoProcessado}"\n\nJSON:`
 
       const response = await this.ai.models.generateContent({
         model: 'gemini-2.0-flash',
@@ -101,11 +209,26 @@ export class AIService {
       const lancamentos: ParsedLancamento[] = []
 
       for (const l of parsed.lancamentos || []) {
+        // Limite de segurança
+        if (lancamentos.length >= MAX_LANCAMENTOS_POR_REQUEST) {
+          break
+        }
+
         if (l.nome && typeof l.valor === 'number' && l.valor > 0) {
+          // Normaliza o nome (primeira letra maiúscula, limita tamanho)
+          let nome = String(l.nome).trim()
+          if (nome.length > 50) {
+            nome = nome.substring(0, 50)
+          }
+          nome = nome.charAt(0).toUpperCase() + nome.slice(1)
+
+          // Corrige o tipo baseado nas palavras-chave
+          const tipoCorrigido = this.corrigirTipo(nome, texto)
+
           lancamentos.push({
-            tipo: l.tipo === 'entrada' ? 'entrada' : 'saida',
-            nome: String(l.nome).trim(),
-            valor: Number(l.valor),
+            tipo: tipoCorrigido,
+            nome,
+            valor: Math.round(Number(l.valor) * 100) / 100,
             diaPrevisto: l.diaPrevisto && l.diaPrevisto >= 1 && l.diaPrevisto <= 31
               ? Number(l.diaPrevisto)
               : null
@@ -121,22 +244,15 @@ export class AIService {
     } catch (error) {
       console.error('Erro ao chamar Gemini:', error)
       // Fallback para parsing básico
-      return this.parseBasico(texto)
+      return this.parseBasico(textoProcessado, texto)
     }
   }
 
   /**
    * Parser básico como fallback (sem IA)
    */
-  private parseBasico(texto: string): ParseResult {
+  private parseBasico(textoProcessado: string, textoOriginal: string): ParseResult {
     const lancamentos: ParsedLancamento[] = []
-
-    // Palavras-chave de entrada
-    const palavrasEntrada = [
-      'salário', 'salario', 'freelance', 'renda', 'recebi', 'recebido',
-      'venda', 'vendas', 'pagamento recebido', 'bônus', 'bonus', '13º',
-      'décimo terceiro', 'ferias', 'férias', 'comissão', 'comissao'
-    ]
 
     // Regex para encontrar padrões como "nome 123.45" ou "nome R$ 123,45"
     const patterns = [
@@ -145,14 +261,19 @@ export class AIService {
     ]
 
     // Tenta extrair dia do texto
-    const diaMatch = texto.match(/dia\s*(\d{1,2})/i)
+    const diaMatch = textoProcessado.match(/dia\s*(\d{1,2})/i)
     const diaPrevisto = diaMatch ? parseInt(diaMatch[1]) : null
 
     for (const pattern of patterns) {
       let match
-      while ((match = pattern.exec(texto)) !== null) {
+      while ((match = pattern.exec(textoProcessado)) !== null) {
+        // Limite de segurança
+        if (lancamentos.length >= MAX_LANCAMENTOS_POR_REQUEST) {
+          break
+        }
+
         let nome = match[1]?.trim() || match[2]?.trim()
-        let valorStr = match[2] || match[1]
+        const valorStr = match[2] || match[1]
 
         // Pula se parece ser um dia
         if (/^dia$/i.test(nome) || /^\d+$/.test(nome)) continue
@@ -160,14 +281,16 @@ export class AIService {
         const valor = parseFloat(valorStr.replace(',', '.'))
         if (isNaN(valor) || valor <= 0) continue
 
-        // Determina tipo baseado em palavras-chave
-        const nomeNormalizado = nome.toLowerCase()
-        const isEntrada = palavrasEntrada.some(p => nomeNormalizado.includes(p))
+        // Normaliza o nome
+        nome = nome.charAt(0).toUpperCase() + nome.slice(1).toLowerCase()
+
+        // Usa a função de correção de tipo
+        const tipo = this.corrigirTipo(nome, textoOriginal)
 
         lancamentos.push({
-          tipo: isEntrada ? 'entrada' : 'saida',
-          nome: nome.charAt(0).toUpperCase() + nome.slice(1).toLowerCase(),
-          valor,
+          tipo,
+          nome,
+          valor: Math.round(valor * 100) / 100,
           diaPrevisto: diaPrevisto && diaPrevisto >= 1 && diaPrevisto <= 31 ? diaPrevisto : null
         })
       }
