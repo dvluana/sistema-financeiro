@@ -37,7 +37,7 @@ app.get('/health', async () => {
 })
 
 // Serve frontend static files in production
-const clientDistPath = path.join(__dirname, '../web')
+const clientDistPath = path.join(__dirname, 'web')
 await app.register(fastifyStatic, {
   root: clientDistPath,
   prefix: '/',
