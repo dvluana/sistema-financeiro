@@ -1,11 +1,10 @@
 /**
  * UpcomingCard Component
  *
- * Carrossel horizontal de cards com próximos vencimentos.
- * Mostra até 3 vencimentos com opção de ver todos.
+ * Grid responsivo de cards com próximos vencimentos.
+ * Design minimalista e adaptativo.
  */
 
-import { useRef } from 'react'
 import { ChevronRight } from 'lucide-react'
 import { formatarMoeda, cn } from '@/lib/utils'
 
@@ -25,7 +24,7 @@ interface UpcomingCardProps {
 /**
  * Formata a data para exibição amigável
  */
-function formatarData(dataStr: string): { dia: number; label: string } {
+function formatarData(dataStr: string): string {
   const hoje = new Date()
   hoje.setHours(0, 0, 0, 0)
 
@@ -36,18 +35,16 @@ function formatarData(dataStr: string): { dia: number; label: string } {
   const dia = parseInt(diaStr, 10)
   const diffDias = Math.ceil((data.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
 
-  if (diffDias === 0) return { dia, label: 'Hoje' }
-  if (diffDias === 1) return { dia, label: 'Amanhã' }
-  if (diffDias < 0) return { dia, label: 'Atrasado' }
-  return { dia, label: `Dia ${dia}` }
+  if (diffDias === 0) return 'Hoje'
+  if (diffDias === 1) return 'Amanhã'
+  if (diffDias < 0) return 'Atrasado'
+  return `Dia ${dia}`
 }
 
 export function UpcomingCard({ vencimentos, onItemClick, onVerTodos }: UpcomingCardProps) {
-  const scrollRef = useRef<HTMLDivElement>(null)
-
-  // Limita a 3 itens no carrossel
-  const vencimentosExibidos = vencimentos.slice(0, 3)
-  const temMais = vencimentos.length > 3
+  // Limita a 4 itens no grid
+  const vencimentosExibidos = vencimentos.slice(0, 4)
+  const temMais = vencimentos.length > 4
 
   return (
     <div className="space-y-3">
@@ -60,7 +57,7 @@ export function UpcomingCard({ vencimentos, onItemClick, onVerTodos }: UpcomingC
           <button
             type="button"
             onClick={onVerTodos}
-            className="flex items-center gap-0.5 text-pequeno text-rosa hover:text-rosa-hover transition-colors"
+            className="flex items-center gap-0.5 text-pequeno text-neutro-500 hover:text-neutro-700 transition-colors"
           >
             Ver todos
             <ChevronRight className="w-4 h-4" />
@@ -68,14 +65,16 @@ export function UpcomingCard({ vencimentos, onItemClick, onVerTodos }: UpcomingC
         )}
       </div>
 
-      {/* Carrossel de cards */}
-      <div
-        ref={scrollRef}
-        className="flex gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-1"
-        style={{ scrollSnapType: 'x mandatory' }}
-      >
+      {/* Grid responsivo de cards */}
+      <div className={cn(
+        'grid gap-2',
+        vencimentosExibidos.length === 1 && 'grid-cols-1',
+        vencimentosExibidos.length === 2 && 'grid-cols-2',
+        vencimentosExibidos.length === 3 && 'grid-cols-3',
+        vencimentosExibidos.length >= 4 && 'grid-cols-4',
+      )}>
         {vencimentosExibidos.map((vencimento) => {
-          const { label } = formatarData(vencimento.data_prevista)
+          const label = formatarData(vencimento.data_prevista)
           const isAtrasado = label === 'Atrasado'
           const isHoje = label === 'Hoje'
 
@@ -85,61 +84,47 @@ export function UpcomingCard({ vencimentos, onItemClick, onVerTodos }: UpcomingC
               type="button"
               onClick={() => onItemClick(vencimento.id)}
               className={cn(
-                'flex-shrink-0 w-[140px] p-3 rounded-xl border transition-all',
-                'hover:shadow-md active:scale-[0.98]',
-                isAtrasado
-                  ? 'bg-vermelho-bg border-vermelho/20'
-                  : isHoje
-                    ? 'bg-rosa-light border-rosa/20'
-                    : 'bg-white border-neutro-200'
+                'flex flex-col p-3 rounded-xl border transition-all text-left',
+                'hover:shadow-sm active:scale-[0.98]',
+                'bg-white border-neutro-200'
               )}
-              style={{ scrollSnapAlign: 'start' }}
             >
               {/* Badge do dia */}
               <span className={cn(
-                'inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full mb-2',
+                'self-start text-[10px] font-medium px-1.5 py-0.5 rounded mb-2',
                 isAtrasado
-                  ? 'bg-vermelho text-white'
+                  ? 'bg-vermelho/10 text-vermelho'
                   : isHoje
-                    ? 'bg-rosa text-white'
-                    : 'bg-neutro-100 text-neutro-600'
+                    ? 'bg-rosa/10 text-rosa'
+                    : 'bg-neutro-100 text-neutro-500'
               )}>
                 {label}
               </span>
 
               {/* Nome */}
-              <p className="text-pequeno font-medium text-neutro-900 truncate mb-1">
+              <p className="text-[13px] text-neutro-700 truncate mb-1 leading-tight">
                 {vencimento.nome}
               </p>
 
               {/* Valor */}
-              <p className={cn(
-                'text-corpo font-semibold',
-                isAtrasado ? 'text-vermelho' : 'text-vermelho'
-              )}>
+              <p className="text-pequeno font-semibold text-neutro-900">
                 {formatarMoeda(vencimento.valor)}
               </p>
             </button>
           )
         })}
-
-        {/* Card "Ver mais" se tiver mais de 3 */}
-        {temMais && onVerTodos && (
-          <button
-            type="button"
-            onClick={onVerTodos}
-            className={cn(
-              'flex-shrink-0 w-[100px] p-3 rounded-xl border border-dashed border-neutro-300',
-              'flex flex-col items-center justify-center gap-1',
-              'hover:bg-neutro-100 active:scale-[0.98] transition-all'
-            )}
-            style={{ scrollSnapAlign: 'start' }}
-          >
-            <span className="text-[24px] text-neutro-400">+{vencimentos.length - 3}</span>
-            <span className="text-micro text-neutro-500">Ver mais</span>
-          </button>
-        )}
       </div>
+
+      {/* Link "Ver mais" se tiver mais de 4 */}
+      {temMais && onVerTodos && (
+        <button
+          type="button"
+          onClick={onVerTodos}
+          className="w-full text-center text-micro text-neutro-400 hover:text-neutro-600 transition-colors py-1"
+        >
+          +{vencimentos.length - 4} vencimentos
+        </button>
+      )}
     </div>
   )
 }
