@@ -69,7 +69,7 @@ export function AddFAB({ onQuickInput, onManualInput, className }: AddFABProps) 
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 bg-black/20 -z-10"
+            className="fixed inset-0 bg-black/40 -z-10"
             onClick={() => setIsOpen(false)}
           />
         )}
@@ -79,63 +79,51 @@ export function AddFAB({ onQuickInput, onManualInput, className }: AddFABProps) 
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.9 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="absolute bottom-20 right-0 flex flex-col gap-3 items-end"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="absolute bottom-[72px] right-1 flex flex-col gap-4 items-end"
           >
-            {/* Opção: Lançamento Rápido */}
-            <motion.button
-              type="button"
-              onClick={handleQuickInput}
-              className={cn(
-                'flex items-center gap-3 pl-4 pr-5 py-3 rounded-2xl',
-                'bg-white shadow-lg border border-neutro-200',
-                'active:scale-95 transition-transform',
-                'min-w-[200px]'
-              )}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.05 }}
-            >
-              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-rosa to-rosa/80 text-white">
-                <Zap className="w-5 h-5" />
-              </div>
-              <div className="text-left">
-                <span className="block text-corpo-medium font-semibold text-neutro-900">
-                  Lançamento Rápido
-                </span>
-                <span className="block text-micro text-neutro-500">
-                  Digite de forma natural
-                </span>
-              </div>
-            </motion.button>
-
             {/* Opção: Lançamento Manual */}
             <motion.button
               type="button"
               onClick={handleManualInput}
               className={cn(
-                'flex items-center gap-3 pl-4 pr-5 py-3 rounded-2xl',
-                'bg-white shadow-lg border border-neutro-200',
-                'active:scale-95 transition-transform',
-                'min-w-[200px]'
+                'group flex items-center gap-3',
+                'active:scale-[0.97] transition-transform duration-150'
               )}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
             >
-              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-verde to-verde-light text-white">
-                <PenLine className="w-5 h-5" />
+              <span className="text-[13px] font-medium text-white/90 mr-1">
+                Manual
+              </span>
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-white shadow-lg shadow-black/10 group-active:scale-95 transition-transform">
+                <PenLine className="w-5 h-5 text-neutro-900" />
               </div>
-              <div className="text-left">
-                <span className="block text-corpo-medium font-semibold text-neutro-900">
-                  Lançamento Manual
-                </span>
-                <span className="block text-micro text-neutro-500">
-                  Formulário detalhado
-                </span>
+            </motion.button>
+
+            {/* Opção: Lançamento Rápido */}
+            <motion.button
+              type="button"
+              onClick={handleQuickInput}
+              className={cn(
+                'group flex items-center gap-3',
+                'active:scale-[0.97] transition-transform duration-150'
+              )}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ duration: 0.2, delay: 0.05, ease: [0.4, 0, 0.2, 1] }}
+            >
+              <span className="text-[13px] font-medium text-white/90 mr-1">
+                Rápido
+              </span>
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-white shadow-lg shadow-black/10 group-active:scale-95 transition-transform">
+                <Zap className="w-5 h-5 text-rosa" />
               </div>
             </motion.button>
           </motion.div>

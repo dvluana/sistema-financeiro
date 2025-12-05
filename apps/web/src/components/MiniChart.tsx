@@ -148,18 +148,18 @@ export function MiniChart({
       <div className="space-y-4">
         {/* Header skeleton */}
         <div className="flex items-center justify-between">
-          <div className="h-4 w-32 bg-neutro-200 rounded animate-pulse" />
-          <div className="h-6 w-24 bg-neutro-200 rounded animate-pulse" />
+          <div className="h-4 w-32 bg-muted rounded animate-pulse" />
+          <div className="h-6 w-24 bg-muted rounded animate-pulse" />
         </div>
         {/* Barras skeleton */}
         <div className="flex items-end justify-between gap-3 h-[140px]">
           {[...Array(6)].map((_, i) => (
             <div key={i} className="flex-1 flex flex-col items-center">
               <div
-                className="w-8 bg-neutro-200 rounded-t-md animate-pulse"
+                className="w-8 bg-muted rounded-t-md animate-pulse"
                 style={{ height: `${40 + Math.random() * 60}px` }}
               />
-              <div className="h-4 w-8 bg-neutro-200 rounded mt-2 animate-pulse" />
+              <div className="h-4 w-8 bg-muted rounded mt-2 animate-pulse" />
             </div>
           ))}
         </div>
@@ -176,11 +176,11 @@ export function MiniChart({
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded-full bg-rosa" />
-              <span className="text-micro text-neutro-600">Entradas</span>
+              <span className="text-micro text-muted-foreground">Entradas</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded-full bg-neutro-300" />
-              <span className="text-micro text-neutro-600">Saídas</span>
+              <span className="text-micro text-muted-foreground">Saídas</span>
             </div>
           </div>
         </div>
@@ -188,13 +188,13 @@ export function MiniChart({
         <div className="flex items-end justify-between gap-3 h-[140px] relative">
           {[...Array(6)].map((_, i) => (
             <div key={i} className="flex-1 flex flex-col items-center">
-              <div className="w-8 h-10 bg-neutro-100 rounded-t-md" />
-              <span className="text-[11px] font-medium mt-2 text-neutro-400">---</span>
+              <div className="w-8 h-10 bg-secondary rounded-t-md" />
+              <span className="text-[11px] font-medium mt-2 text-muted-foreground">---</span>
             </div>
           ))}
           {/* Mensagem centralizada */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-pequeno text-neutro-400 bg-white/80 px-3 py-1.5 rounded-lg">
+            <span className="text-pequeno text-muted-foreground bg-card/80 px-3 py-1.5 rounded-lg">
               Sem lançamentos neste período
             </span>
           </div>
@@ -211,14 +211,14 @@ export function MiniChart({
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full bg-rosa" />
-            <span className="text-micro text-neutro-600">Entradas</span>
+            <span className="text-micro text-muted-foreground">Entradas</span>
             <span className="text-micro font-semibold text-verde ml-0.5">
               {formatarMoeda(totalEntradas)}
             </span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full bg-neutro-300" />
-            <span className="text-micro text-neutro-600">Saídas</span>
+            <span className="text-micro text-muted-foreground">Saídas</span>
             <span className="text-micro font-semibold text-vermelho ml-0.5">
               {formatarMoeda(totalSaidas)}
             </span>
@@ -234,14 +234,14 @@ export function MiniChart({
               disabled={!podeVoltar}
               className={cn(
                 'w-7 h-7 flex items-center justify-center rounded-lg transition-all',
-                'hover:bg-neutro-100 active:scale-95',
+                'hover:bg-secondary active:scale-95',
                 !podeVoltar && 'opacity-30 cursor-not-allowed'
               )}
               aria-label="Período anterior"
             >
-              <ChevronLeft className="w-4 h-4 text-neutro-600" />
+              <ChevronLeft className="w-4 h-4 text-muted-foreground" />
             </button>
-            <span className="text-micro text-neutro-500 min-w-[90px] text-center">
+            <span className="text-micro text-muted-foreground min-w-[90px] text-center">
               {periodoDisplay}
             </span>
             <button
@@ -250,12 +250,12 @@ export function MiniChart({
               disabled={!podeAvancar}
               className={cn(
                 'w-7 h-7 flex items-center justify-center rounded-lg transition-all',
-                'hover:bg-neutro-100 active:scale-95',
+                'hover:bg-secondary active:scale-95',
                 !podeAvancar && 'opacity-30 cursor-not-allowed'
               )}
               aria-label="Próximo período"
             >
-              <ChevronRight className="w-4 h-4 text-neutro-600" />
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </button>
           </div>
         )}
@@ -288,8 +288,14 @@ export function MiniChart({
                   >
                     <div className="bg-neutro-900 px-2.5 py-1.5 rounded-md shadow-lg whitespace-nowrap">
                       <div className="flex items-center gap-3 text-[11px]">
-                        <span className="text-verde font-medium">{formatarMoeda(item.entradas)}</span>
-                        <span className="text-vermelho font-medium">{formatarMoeda(item.saidas)}</span>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2 h-2 rounded-full bg-rosa" />
+                          <span className="text-white font-medium">{formatarMoeda(item.entradas)}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2 h-2 rounded-full bg-neutro-400" />
+                          <span className="text-white font-medium">{formatarMoeda(item.saidas)}</span>
+                        </div>
                       </div>
                       {/* Seta do tooltip */}
                       <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-neutro-900 rotate-45" />
@@ -311,13 +317,13 @@ export function MiniChart({
                 className={cn(
                   'relative w-full flex justify-center h-[120px] items-end',
                   'rounded-md transition-all',
-                  isActive && 'bg-neutro-100/50',
+                  isActive && 'bg-secondary/50',
                   isPressing && 'scale-105'
                 )}
               >
                 {/* Barra de saídas (trás) - cinza */}
                 <motion.div
-                  className="absolute bottom-0 w-8 bg-neutro-200 rounded-t-md"
+                  className="absolute bottom-0 w-8 bg-muted rounded-t-md"
                   initial={{ height: 0 }}
                   animate={{ height: alturaSaidas }}
                   transition={{
@@ -350,7 +356,7 @@ export function MiniChart({
               <span
                 className={cn(
                   'text-[13px] font-medium mt-2 transition-colors',
-                  isActive ? 'text-neutro-900 font-semibold' : 'text-neutro-500'
+                  isActive ? 'text-foreground font-semibold' : 'text-muted-foreground'
                 )}
               >
                 {item.label}
@@ -365,7 +371,7 @@ export function MiniChart({
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="text-center text-[11px] text-neutro-400"
+          className="text-center text-[11px] text-muted-foreground"
         >
           Toque para ver detalhes
         </motion.p>
