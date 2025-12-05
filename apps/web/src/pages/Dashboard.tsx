@@ -111,10 +111,15 @@ export function Dashboard({
 
             {/* Gráfico dos últimos 6 meses */}
             {historico.length > 0 && (
-              <Card>
-                <h2 className="text-titulo-card text-neutro-900 mb-3">
-                  Últimos 6 meses
-                </h2>
+              <Card className="overflow-hidden">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-titulo-card text-neutro-900">
+                    Histórico
+                  </h2>
+                  <span className="text-micro text-neutro-400 bg-neutro-100 px-2 py-1 rounded-full">
+                    últimos 6 meses
+                  </span>
+                </div>
                 <MiniChart
                   dados={historico}
                   onMesClick={() => {
