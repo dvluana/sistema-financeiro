@@ -14,6 +14,7 @@ export interface ParsedLancamento {
   diaPrevisto: number | null
   status: 'completo' | 'incompleto'
   camposFaltantes: ('valor' | 'nome')[]
+  groupId: string // ID do grupo (para recorrências da mesma linha)
 }
 
 export interface ParseResult {
@@ -530,7 +531,10 @@ function parseLinha(texto: string, mesDefault: string): ParsedLancamento[] {
 
   const status = camposFaltantes.length > 0 ? 'incompleto' : 'completo'
 
-  // Se tem recorrência, cria múltiplos lançamentos
+  // Gera um ID de grupo único para lançamentos da mesma linha
+  const groupId = generateId()
+
+  // Se tem recorrência, cria múltiplos lançamentos com mesmo groupId
   if (mesesRecorrencia && mesesRecorrencia.length > 0) {
     for (const mes of mesesRecorrencia) {
       lancamentos.push({
@@ -541,11 +545,12 @@ function parseLinha(texto: string, mesDefault: string): ParsedLancamento[] {
         mes,
         diaPrevisto,
         status,
-        camposFaltantes
+        camposFaltantes,
+        groupId, // Mesmo grupo para recorrências
       })
     }
   } else {
-    // Lançamento único
+    // Lançamento único - groupId único
     const mes = mesUnico || mesDefault
     lancamentos.push({
       id: generateId(),
@@ -555,7 +560,8 @@ function parseLinha(texto: string, mesDefault: string): ParsedLancamento[] {
       mes,
       diaPrevisto,
       status,
-      camposFaltantes
+      camposFaltantes,
+      groupId,
     })
   }
 
@@ -604,30 +610,22 @@ export function formatarMesExibicao(mes: string): string {
 }
 
 /**
- * Agrupa lançamentos por nome para mostrar recorrências
- * Usa o ID do primeiro item do grupo como chave estável
+ * Agrupa lançamentos por groupId para mostrar recorrências
+ * Usa o groupId como chave (lançamentos da mesma linha têm o mesmo groupId)
  */
 export function agruparRecorrencias(lancamentos: ParsedLancamento[]): Map<string, ParsedLancamento[]> {
-  // Primeiro, agrupa por características semelhantes
-  const gruposTemp = new Map<string, ParsedLancamento[]>()
+  const grupos = new Map<string, ParsedLancamento[]>()
 
   for (const lancamento of lancamentos) {
-    // Agrupa por tipo + nome + valor (para detectar recorrências)
-    const chaveConteudo = `${lancamento.tipo}-${lancamento.nome}-${lancamento.valor}`
-    const grupo = gruposTemp.get(chaveConteudo) || []
+    // Agrupa pelo groupId (lançamentos da mesma linha/recorrência)
+    const grupo = grupos.get(lancamento.groupId) || []
     grupo.push(lancamento)
-    gruposTemp.set(chaveConteudo, grupo)
+    grupos.set(lancamento.groupId, grupo)
   }
 
-  // Usa o ID do primeiro item (ordenado por mês) como chave estável
-  // Isso garante que a chave não muda quando itens são removidos do meio
-  const grupos = new Map<string, ParsedLancamento[]>()
-  for (const items of gruposTemp.values()) {
-    // Ordena por mês para consistência
+  // Ordena cada grupo por mês para consistência
+  for (const items of grupos.values()) {
     items.sort((a, b) => a.mes.localeCompare(b.mes))
-    // Usa ID do primeiro item como chave estável
-    const chaveEstavel = items[0].id
-    grupos.set(chaveEstavel, items)
   }
 
   return grupos

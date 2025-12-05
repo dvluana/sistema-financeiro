@@ -1,0 +1,509 @@
+/**
+ * LancamentoSheet Component
+ *
+ * Drawer/Bottomsheet responsivo para criar lançamentos manualmente.
+ * Possui abas para alternar entre Entrada e Saída.
+ * Design moderno com visual limpo e animações suaves.
+ */
+
+import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  TrendingUp,
+  TrendingDown,
+  X,
+  Loader2,
+  Repeat,
+  Calendar,
+} from 'lucide-react'
+import { Drawer as DrawerPrimitive } from 'vaul'
+import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { InputMoeda } from '@/components/InputMoeda'
+import { CategoriaSelect } from '@/components/CategoriaSelect'
+import { useIsDesktop } from '@/hooks/useMediaQuery'
+import type { Lancamento } from '@/lib/api'
+
+export interface LancamentoFormData {
+  nome: string
+  valor: number
+  data_prevista: string | null
+  concluido: boolean
+  categoria_id: string | null
+  recorrencia?: {
+    tipo: 'mensal' | 'parcelas'
+    quantidade: number
+  }
+}
+
+interface LancamentoSheetProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  mesAtual: string
+  lancamento?: Lancamento | null
+  tipoInicial?: 'entrada' | 'saida'
+  autoMarcarConcluido?: { entrada: boolean; saida: boolean }
+  onSubmit: (tipo: 'entrada' | 'saida', data: LancamentoFormData) => Promise<void>
+  onDelete?: () => void
+  isLoading?: boolean
+}
+
+export function LancamentoSheet({
+  open,
+  onOpenChange,
+  mesAtual,
+  lancamento,
+  tipoInicial = 'saida',
+  autoMarcarConcluido = { entrada: false, saida: false },
+  onSubmit,
+  onDelete,
+  isLoading = false,
+}: LancamentoSheetProps) {
+  const isDesktop = useIsDesktop()
+  const isEditing = !!lancamento
+
+  // Tipo selecionado (entrada ou saída)
+  const [tipo, setTipo] = useState<'entrada' | 'saida'>(tipoInicial)
+
+  // Campos do formulário
+  const [nome, setNome] = useState('')
+  const [valor, setValor] = useState('')
+  const [diaPrevisto, setDiaPrevisto] = useState('')
+  const [concluido, setConcluido] = useState(false)
+  const [categoriaId, setCategoriaId] = useState<string | null>(null)
+
+  // Recorrência
+  const [recorrente, setRecorrente] = useState(false)
+  const [tipoRecorrencia, setTipoRecorrencia] = useState<'mensal' | 'parcelas'>('mensal')
+  const [quantidadeParcelas, setQuantidadeParcelas] = useState('12')
+
+  // Erros
+  const [errors, setErrors] = useState<{
+    nome?: string
+    valor?: string
+    parcelas?: string
+  }>({})
+
+  // Inicializa campos quando abre ou quando lançamento muda
+  useEffect(() => {
+    if (lancamento) {
+      setTipo(lancamento.tipo)
+      setNome(lancamento.nome)
+      setValor(String(lancamento.valor))
+      setConcluido(lancamento.concluido)
+      setCategoriaId(lancamento.categoria_id || null)
+      if (lancamento.data_prevista) {
+        const dia = lancamento.data_prevista.split('-')[2]
+        setDiaPrevisto(String(parseInt(dia, 10)))
+      } else {
+        setDiaPrevisto('')
+      }
+      setRecorrente(false)
+    } else {
+      setTipo(tipoInicial)
+      setNome('')
+      setValor('')
+      setDiaPrevisto('')
+      setConcluido(autoMarcarConcluido[tipoInicial])
+      setCategoriaId(null)
+      setRecorrente(false)
+      setTipoRecorrencia('mensal')
+      setQuantidadeParcelas('12')
+    }
+    setErrors({})
+  }, [lancamento, tipoInicial, open, autoMarcarConcluido])
+
+  // Atualiza concluido quando troca de tipo (apenas ao criar)
+  useEffect(() => {
+    if (!isEditing) {
+      setConcluido(autoMarcarConcluido[tipo])
+    }
+  }, [tipo, isEditing, autoMarcarConcluido])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    const newErrors: typeof errors = {}
+
+    if (!nome.trim()) {
+      newErrors.nome = 'Nome é obrigatório'
+    }
+
+    const valorNumerico = parseFloat(valor.replace(',', '.'))
+    if (!valor || isNaN(valorNumerico) || valorNumerico <= 0) {
+      newErrors.valor = 'Valor deve ser maior que zero'
+    }
+
+    if (recorrente && tipoRecorrencia === 'parcelas') {
+      const parcelas = parseInt(quantidadeParcelas)
+      if (isNaN(parcelas) || parcelas < 2 || parcelas > 60) {
+        newErrors.parcelas = 'Informe entre 2 e 60 parcelas'
+      }
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
+      return
+    }
+
+    let dataPrevista: string | null = null
+    if (diaPrevisto) {
+      const dia = parseInt(diaPrevisto)
+      if (dia >= 1 && dia <= 31) {
+        const [year, month] = mesAtual.split('-')
+        const diaStr = String(dia).padStart(2, '0')
+        dataPrevista = `${year}-${month}-${diaStr}`
+      }
+    }
+
+    const data: LancamentoFormData = {
+      nome: nome.trim(),
+      valor: valorNumerico,
+      data_prevista: dataPrevista,
+      concluido,
+      categoria_id: categoriaId,
+    }
+
+    if (!isEditing && recorrente) {
+      data.recorrencia = {
+        tipo: tipoRecorrencia,
+        quantidade: tipoRecorrencia === 'mensal' ? 12 : parseInt(quantidadeParcelas),
+      }
+    }
+
+    await onSubmit(tipo, data)
+  }
+
+  const labels = {
+    nome: tipo === 'entrada' ? 'O que entrou?' : 'O que foi?',
+    diaPrevisto: tipo === 'entrada' ? 'Dia previsto' : 'Dia de vencimento',
+    concluido: tipo === 'entrada' ? 'Já recebi' : 'Já paguei',
+    recorrente: tipo === 'entrada' ? 'Entrada recorrente' : 'Saída recorrente',
+  }
+
+  const sharedContent = (
+    <div className={cn('flex flex-col h-full', isDesktop ? 'p-6' : 'p-4')}>
+      {/* Header com abas */}
+      <div className="flex items-center justify-between mb-6">
+        <DrawerPrimitive.Title className="text-titulo-card text-neutro-900">
+          {isEditing ? 'Editar lançamento' : 'Novo lançamento'}
+        </DrawerPrimitive.Title>
+        <DrawerPrimitive.Close className="p-2 -mr-2 rounded-lg text-neutro-400 hover:text-neutro-600 hover:bg-neutro-100 transition-colors">
+          <X className="w-5 h-5" />
+        </DrawerPrimitive.Close>
+      </div>
+
+      {/* Seletor de tipo (Entrada/Saída) */}
+      {!isEditing && (
+        <div className="flex gap-2 p-1 bg-neutro-100 rounded-xl mb-6">
+          <button
+            type="button"
+            onClick={() => setTipo('entrada')}
+            className={cn(
+              'flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-corpo-medium font-medium transition-all',
+              tipo === 'entrada'
+                ? 'bg-verde text-white shadow-sm'
+                : 'text-neutro-600 hover:text-neutro-900'
+            )}
+          >
+            <TrendingUp className="w-4 h-4" />
+            <span>Entrada</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setTipo('saida')}
+            className={cn(
+              'flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-corpo-medium font-medium transition-all',
+              tipo === 'saida'
+                ? 'bg-vermelho text-white shadow-sm'
+                : 'text-neutro-600 hover:text-neutro-900'
+            )}
+          >
+            <TrendingDown className="w-4 h-4" />
+            <span>Saída</span>
+          </button>
+        </div>
+      )}
+
+      {/* Badge do tipo ao editar */}
+      {isEditing && (
+        <div className="flex items-center gap-2 mb-6">
+          <div className={cn(
+            'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-micro font-medium',
+            tipo === 'entrada'
+              ? 'bg-verde/10 text-verde'
+              : 'bg-vermelho/10 text-vermelho'
+          )}>
+            {tipo === 'entrada' ? (
+              <>
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span>Entrada</span>
+              </>
+            ) : (
+              <>
+                <TrendingDown className="w-3.5 h-3.5" />
+                <span>Saída</span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Formulário */}
+      <form onSubmit={handleSubmit} className="flex-1 flex flex-col space-y-5">
+        {/* Nome */}
+        <div className="space-y-2">
+          <Label htmlFor="nome">{labels.nome}</Label>
+          <Input
+            id="nome"
+            value={nome}
+            onChange={(e) => {
+              setNome(e.target.value)
+              if (errors.nome) setErrors((prev) => ({ ...prev, nome: undefined }))
+            }}
+            placeholder="Ex: Salário"
+            maxLength={100}
+          />
+          {errors.nome && (
+            <p className="text-pequeno text-vermelho">{errors.nome}</p>
+          )}
+        </div>
+
+        {/* Valor */}
+        <InputMoeda
+          label="Quanto?"
+          value={valor}
+          onChange={(val) => {
+            setValor(val)
+            if (errors.valor) setErrors((prev) => ({ ...prev, valor: undefined }))
+          }}
+          error={errors.valor}
+        />
+
+        {/* Categoria */}
+        <CategoriaSelect
+          tipo={tipo}
+          value={categoriaId}
+          onChange={setCategoriaId}
+        />
+
+        {/* Dia previsto */}
+        <div className="space-y-2">
+          <Label htmlFor="diaPrevisto">{labels.diaPrevisto}</Label>
+          <Input
+            id="diaPrevisto"
+            type="number"
+            min={1}
+            max={31}
+            value={diaPrevisto}
+            onChange={(e) => setDiaPrevisto(e.target.value)}
+            placeholder="Ex: 15"
+          />
+        </div>
+
+        {/* Toggle: Concluído */}
+        <div className="flex items-center justify-between min-h-touch">
+          <Label htmlFor="concluido" className="cursor-pointer">
+            {labels.concluido}
+          </Label>
+          <Switch
+            id="concluido"
+            checked={concluido}
+            onCheckedChange={setConcluido}
+          />
+        </div>
+
+        {/* Seção de Recorrência (apenas ao criar) */}
+        {!isEditing && (
+          <>
+            <div className="border-t border-neutro-200 pt-4">
+              <div className="flex items-center justify-between min-h-touch">
+                <div className="flex items-center gap-2">
+                  <Repeat className="w-4 h-4 text-neutro-600" />
+                  <Label htmlFor="recorrente" className="cursor-pointer">
+                    {labels.recorrente}
+                  </Label>
+                </div>
+                <Switch
+                  id="recorrente"
+                  checked={recorrente}
+                  onCheckedChange={setRecorrente}
+                />
+              </div>
+            </div>
+
+            {/* Opções de recorrência */}
+            <AnimatePresence>
+              {recorrente && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="space-y-4 p-4 bg-neutro-100 rounded-card">
+                    {/* Opção: Mensal */}
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="tipoRecorrencia"
+                        value="mensal"
+                        checked={tipoRecorrencia === 'mensal'}
+                        onChange={() => setTipoRecorrencia('mensal')}
+                        className="w-4 h-4 text-rosa accent-rosa"
+                      />
+                      <div className="flex-1">
+                        <span className="text-corpo-medium text-neutro-900">
+                          Todos os meses
+                        </span>
+                        <p className="text-micro text-neutro-600">
+                          Lança para os próximos 12 meses
+                        </p>
+                      </div>
+                    </label>
+
+                    {/* Opção: Parcelas */}
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="tipoRecorrencia"
+                        value="parcelas"
+                        checked={tipoRecorrencia === 'parcelas'}
+                        onChange={() => setTipoRecorrencia('parcelas')}
+                        className="w-4 h-4 text-rosa accent-rosa mt-1"
+                      />
+                      <div className="flex-1 space-y-2">
+                        <div>
+                          <span className="text-corpo-medium text-neutro-900">
+                            Parcelado
+                          </span>
+                          <p className="text-micro text-neutro-600">
+                            Define número de parcelas
+                          </p>
+                        </div>
+
+                        {tipoRecorrencia === 'parcelas' && (
+                          <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="flex items-center gap-2"
+                          >
+                            <Calendar className="w-4 h-4 text-neutro-400" />
+                            <Input
+                              type="number"
+                              min={2}
+                              max={60}
+                              value={quantidadeParcelas}
+                              onChange={(e) => {
+                                setQuantidadeParcelas(e.target.value)
+                                if (errors.parcelas) {
+                                  setErrors((prev) => ({ ...prev, parcelas: undefined }))
+                                }
+                              }}
+                              placeholder="12"
+                              className="w-20"
+                            />
+                            <span className="text-pequeno text-neutro-600">parcelas</span>
+                          </motion.div>
+                        )}
+                      </div>
+                    </label>
+
+                    {errors.parcelas && (
+                      <p className="text-pequeno text-vermelho">{errors.parcelas}</p>
+                    )}
+
+                    {/* Preview */}
+                    <div className="pt-2 border-t border-neutro-200">
+                      <p className="text-micro text-neutro-600">
+                        {tipoRecorrencia === 'mensal' ? (
+                          <>Será criado para os próximos <strong>12 meses</strong></>
+                        ) : (
+                          <>
+                            Será criado em <strong>{quantidadeParcelas || '0'} parcelas</strong>
+                            {parseInt(quantidadeParcelas) > 1 && (
+                              <> com nome "{nome || '...'} (1/{quantidadeParcelas})"</>
+                            )}
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </>
+        )}
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Botões */}
+        <div className={cn(
+          'space-y-3 pt-4 border-t border-neutro-200',
+          !isDesktop && 'pb-safe'
+        )}>
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Salvando...
+              </>
+            ) : recorrente ? (
+              'Criar lançamentos'
+            ) : (
+              'Salvar'
+            )}
+          </Button>
+
+          {isEditing && onDelete && (
+            <Button
+              type="button"
+              variant="destructive"
+              className="w-full"
+              onClick={onDelete}
+              disabled={isLoading}
+            >
+              Excluir
+            </Button>
+          )}
+        </div>
+      </form>
+    </div>
+  )
+
+  return (
+    <DrawerPrimitive.Root
+      open={open}
+      onOpenChange={onOpenChange}
+      direction={isDesktop ? 'right' : 'bottom'}
+      shouldScaleBackground={!isDesktop}
+    >
+      <DrawerPrimitive.Portal>
+        <DrawerPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50" />
+        <DrawerPrimitive.Content
+          className={cn(
+            'fixed z-50 flex flex-col bg-white',
+            isDesktop
+              ? 'inset-y-0 right-0 h-full w-full max-w-md border-l border-neutro-200 rounded-l-2xl shadow-xl'
+              : 'inset-x-0 bottom-0 rounded-t-2xl border-t border-neutro-200 shadow-xl'
+          )}
+          style={!isDesktop ? { maxHeight: '92vh' } : undefined}
+        >
+          {!isDesktop && (
+            <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-neutro-300" />
+          )}
+          {sharedContent}
+        </DrawerPrimitive.Content>
+      </DrawerPrimitive.Portal>
+    </DrawerPrimitive.Root>
+  )
+}
