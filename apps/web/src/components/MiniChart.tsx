@@ -99,22 +99,12 @@ export function MiniChart({
     }
   }, [pressTimer])
 
-  const handleBarClick = (index: number) => {
-    // Se já está ativo, desativa
-    if (activeIndex === index) {
-      setActiveIndex(null)
-      return
-    }
-
+  const handleMouseEnter = (index: number) => {
     setActiveIndex(index)
+  }
 
-    // Auto-hide tooltip após 3 segundos
-    if (tooltipTimeoutRef.current) {
-      clearTimeout(tooltipTimeoutRef.current)
-    }
-    tooltipTimeoutRef.current = setTimeout(() => {
-      setActiveIndex(null)
-    }, 3000)
+  const handleMouseLeave = () => {
+    setActiveIndex(null)
   }
 
   const handlePressStart = (index: number) => {
@@ -277,17 +267,15 @@ export function MiniChart({
               transition={{ delay: index * 0.05 }}
             >
               {/* Container das barras sobrepostas */}
-              <button
-                type="button"
+              <div
                 data-bar
-                onClick={() => handleBarClick(index)}
-                onMouseDown={() => handlePressStart(index)}
-                onMouseUp={handlePressEnd}
-                onMouseLeave={handlePressEnd}
+                onMouseEnter={() => handleMouseEnter(index)}
+                onMouseLeave={handleMouseLeave}
                 onTouchStart={() => handlePressStart(index)}
                 onTouchEnd={handlePressEnd}
+                onClick={() => onMesClick?.(item.mes)}
                 className={cn(
-                  'relative w-full flex justify-center h-[120px] items-end',
+                  'relative w-full flex justify-center h-[120px] items-end cursor-pointer',
                   'rounded-md transition-all',
                   isActive && 'bg-secondary/50',
                   isPressing && 'scale-105'
@@ -351,7 +339,7 @@ export function MiniChart({
                     }}
                   />
                 </div>
-              </button>
+              </div>
 
               {/* Label do mês */}
               <span
