@@ -362,3 +362,34 @@ export const dashboardApi = {
   get: (mes?: string): Promise<DashboardResponse> =>
     request(mes ? `/api/dashboard?mes=${mes}` : '/api/dashboard'),
 }
+
+/**
+ * Tipos para IA
+ */
+export interface ParsedLancamentoIA {
+  tipo: 'entrada' | 'saida'
+  nome: string
+  valor: number
+  diaPrevisto: number | null
+}
+
+export interface ParseLancamentosResponse {
+  lancamentos: ParsedLancamentoIA[]
+  erro?: string
+}
+
+/**
+ * API de IA
+ */
+export const aiApi = {
+  /**
+   * Interpreta texto livre e extrai lançamentos usando IA
+   * @param texto - Texto livre com descrições de lançamentos
+   * @param mes - Mês de referência no formato YYYY-MM
+   */
+  parseLancamentos: (texto: string, mes: string): Promise<ParseLancamentosResponse> =>
+    request('/api/ai/parse-lancamentos', {
+      method: 'POST',
+      body: JSON.stringify({ texto, mes }),
+    }),
+}

@@ -19,14 +19,14 @@ import {
   Send,
   Loader2,
   AlertCircle,
-  Zap,
+  Sparkles,
 } from 'lucide-react'
 import { Drawer as DrawerPrimitive } from 'vaul'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui'
 import { useIsDesktop } from '@/hooks/useMediaQuery'
+import { aiApi } from '@/lib/api'
 import {
-  parseInput,
   formatarValor,
   formatarMesExibicao,
   agruparRecorrencias,
@@ -263,6 +263,7 @@ export function QuickInputSheet({
   const [texto, setTexto] = useState('')
   const [lancamentos, setLancamentos] = useState<ParsedLancamento[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isParsing, setIsParsing] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
   // Histórico de inputs
@@ -304,14 +305,48 @@ export function QuickInputSheet({
   }, [open])
 
   /**
-   * Processa o texto digitado
+   * Processa o texto digitado usando IA
    */
-  const handleSubmitTexto = useCallback(() => {
+  const handleSubmitTexto = useCallback(async () => {
     if (!texto.trim()) return
 
-    const result = parseInput(texto, mesAtual)
-    setLancamentos(result.lancamentos)
+    setIsParsing(true)
     setErro(null)
+
+    try {
+      const result = await aiApi.parseLancamentos(texto, mesAtual)
+
+      if (result.erro) {
+        setErro(result.erro)
+        setLancamentos([])
+        return
+      }
+
+      // Converte resposta da IA para formato ParsedLancamento
+      const lancamentosParsed: ParsedLancamento[] = result.lancamentos.map((l, index) => {
+        const id = `ia-${Date.now()}-${index}`
+
+        return {
+          id,
+          tipo: l.tipo,
+          nome: l.nome,
+          valor: l.valor,
+          mes: mesAtual,
+          diaPrevisto: l.diaPrevisto,
+          status: 'completo' as const,
+          camposFaltantes: [],
+          groupId: id, // Cada lançamento da IA tem seu próprio grupo
+        }
+      })
+
+      setLancamentos(lancamentosParsed)
+    } catch (e) {
+      console.error('Erro ao processar com IA:', e)
+      setErro('Erro ao processar com IA. Tente novamente.')
+      setLancamentos([])
+    } finally {
+      setIsParsing(false)
+    }
   }, [texto, mesAtual])
 
   /**
@@ -452,7 +487,7 @@ export function QuickInputSheet({
           'flex items-center justify-center w-10 h-10 rounded-xl',
           'bg-gradient-to-br from-rosa to-rosa/80 text-white shadow-sm'
         )}>
-          <Zap className="w-5 h-5" />
+          <Sparkles className="w-5 h-5" />
         </div>
         <div className="flex-1">
           <DrawerPrimitive.Title className="text-titulo-card text-foreground">
@@ -493,16 +528,20 @@ export function QuickInputSheet({
         <button
           type="button"
           onClick={handleSubmitTexto}
-          disabled={!texto.trim()}
+          disabled={!texto.trim() || isParsing}
           className={cn(
             'absolute right-3 bottom-3 p-2.5 rounded-xl',
             'transition-all',
-            texto.trim()
+            texto.trim() && !isParsing
               ? 'bg-rosa text-white hover:bg-rosa/90 shadow-sm hover:shadow active:scale-95'
               : 'bg-muted text-muted-foreground cursor-not-allowed'
           )}
         >
-          <Send className="w-5 h-5" />
+          {isParsing ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : (
+            <Send className="w-5 h-5" />
+          )}
         </button>
       </div>
 
@@ -530,19 +569,37 @@ export function QuickInputSheet({
         </div>
       )}
 
-      {/* Dica de tipos */}
-      {lancamentos.length === 0 && !texto && (
+      {/* Dica de IA */}
+      {lancamentos.length === 0 && !texto && !isParsing && (
         <div className="mb-4 p-3 rounded-xl bg-secondary border border-border">
-          <p className="text-micro text-muted-foreground mb-2">Palavras que identificam o tipo:</p>
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles className="w-4 h-4 text-rosa" />
+            <p className="text-micro text-muted-foreground">Powered by AI - escreva naturalmente</p>
+          </div>
           <div className="flex flex-wrap gap-2">
             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-verde/10 text-verde text-micro">
               <TrendingUp className="w-3 h-3" />
-              salário, recebi, freelance, venda...
+              salário, freelance, venda...
             </span>
             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-vermelho/10 text-vermelho text-micro">
               <TrendingDown className="w-3 h-3" />
-              paguei, conta, parcela, aluguel...
+              conta, parcela, aluguel...
             </span>
+          </div>
+        </div>
+      )}
+
+      {/* Loading da IA */}
+      {isParsing && (
+        <div className="mb-4 p-4 rounded-xl bg-rosa/5 border border-rosa/20">
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Sparkles className="w-5 h-5 text-rosa animate-pulse" />
+            </div>
+            <div>
+              <p className="text-corpo font-medium text-foreground">Processando com IA...</p>
+              <p className="text-micro text-muted-foreground">Identificando lançamentos</p>
+            </div>
           </div>
         </div>
       )}

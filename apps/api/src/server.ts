@@ -9,6 +9,7 @@ import { lancamentoRoutes } from './routes/lancamento.routes.js'
 import { configuracaoRoutes } from './routes/configuracao.routes.js'
 import { categoriaRoutes } from './routes/categoria.routes.js'
 import { dashboardRoutes } from './routes/dashboard.routes.js'
+import { aiRoutes } from './routes/ai.routes.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -30,6 +31,7 @@ await app.register(lancamentoRoutes)
 await app.register(configuracaoRoutes)
 await app.register(categoriaRoutes, { prefix: '/api/categorias' })
 await app.register(dashboardRoutes)
+await app.register(aiRoutes)
 
 // Health check
 app.get('/health', async () => {
