@@ -192,10 +192,10 @@ export function HeroCard({
 
             {/* Card Sobrou/Faltou */}
             <div className="bg-card border border-border rounded-xl p-3">
-              <span className={`inline-block text-[10px] font-medium px-1.5 py-0.5 rounded mb-2 ${saldo >= 0 ? 'bg-blue-500/10 text-blue-600' : 'bg-vermelho/10 text-vermelho'}`}>
+              <span className={`inline-block text-[10px] font-medium px-1.5 py-0.5 rounded mb-2 ${saldo >= 0 ? 'bg-azul/10 text-azul' : 'bg-vermelho/10 text-vermelho'}`}>
                 {saldo >= 0 ? 'Sobrou' : 'Faltou'}
               </span>
-              <p className={`text-[17px] font-semibold leading-none ${saldo >= 0 ? 'text-blue-600' : 'text-vermelho'}`}>
+              <p className="text-[17px] font-semibold leading-none text-foreground">
                 {formatarMoeda(Math.abs(saldo))}
               </p>
             </div>
