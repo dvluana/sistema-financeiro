@@ -98,6 +98,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   navegarMesAnterior: () => {
     const { mesSelecionado, carregarDashboard } = get()
     const mesAnterior = getMesAnterior(mesSelecionado)
+    // Atualiza o mês imediatamente (antes do loading)
+    set({ mesSelecionado: mesAnterior })
     carregarDashboard(mesAnterior)
   },
 
@@ -107,6 +109,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     // Não permite navegar além do mês atual
     if (mesSelecionado >= mesAtual) return
     const mesProximo = getMesProximo(mesSelecionado)
+    // Atualiza o mês imediatamente (antes do loading)
+    set({ mesSelecionado: mesProximo })
     carregarDashboard(mesProximo)
   },
 
