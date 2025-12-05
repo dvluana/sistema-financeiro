@@ -116,7 +116,7 @@ export function MesView({
     : saidas
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-neutro-100 to-neutro-200 pb-20">
+    <div className="min-h-screen bg-gradient-to-b from-background to-background pb-20">
       <Header
         mes={mesAtual}
         onMesAnterior={handleMesAnterior}
@@ -129,7 +129,7 @@ export function MesView({
         <div className="max-w-[720px] mx-auto px-4 pt-2">
           <button
             onClick={limparFiltro}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rosa-light text-rosa text-pequeno rounded-full"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rosa/10 text-rosa text-pequeno rounded-full"
           >
             <span>
               {filtro === 'pendentes-entrada' ? 'Mostrando pendentes a receber' : 'Mostrando pendentes a pagar'}

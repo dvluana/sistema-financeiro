@@ -23,7 +23,7 @@ export function StatusCircle({ checked, onChange }: StatusCircleProps) {
         <motion.div
           className="absolute inset-0 rounded-status border-2"
           animate={{
-            borderColor: checked ? "transparent" : "#DDDDDD",
+            borderColor: checked ? "transparent" : "hsl(var(--border))",
             backgroundColor: checked ? "#FF385C" : "transparent",
           }}
           whileHover={{ borderColor: checked ? "transparent" : "#FF385C" }}

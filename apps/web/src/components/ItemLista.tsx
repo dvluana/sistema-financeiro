@@ -45,7 +45,7 @@ export function ItemLista({
     : 'bg-vermelho/10 text-vermelho border-vermelho/20'
 
   return (
-    <div className="flex items-center gap-2 min-h-[64px] border-b border-neutro-200 last:border-0">
+    <div className="flex items-center gap-2 min-h-[64px] border-b border-border last:border-0">
       <StatusCircle checked={concluido} onChange={onToggle} />
 
       <button
@@ -68,8 +68,8 @@ export function ItemLista({
           )}
 
           <div className="flex flex-col min-w-0 flex-1">
-            <span className="text-corpo text-neutro-900 truncate">{nome}</span>
-            <div className="flex items-center gap-2 text-micro text-neutro-400">
+            <span className="text-corpo text-foreground truncate">{nome}</span>
+            <div className="flex items-center gap-2 text-micro text-muted-foreground">
               {categoria && (
                 <span>{categoria.nome}</span>
               )}
@@ -103,7 +103,7 @@ export function ItemLista({
           </AnimatePresence>
 
           <span className={cn(
-            'text-corpo-medium text-neutro-900',
+            'text-corpo-medium text-foreground',
             concluido && mostrarConcluidosDiscretos && 'opacity-50'
           )}>
             {formatarMoeda(valor)}

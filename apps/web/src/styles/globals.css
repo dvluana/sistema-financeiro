@@ -12,7 +12,7 @@
     --popover-foreground: 0 0% 13%;
     --primary: 350 100% 60%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 87%;
+    --secondary: 0 0% 92%;
     --secondary-foreground: 0 0% 13%;
     --muted: 0 0% 92%;
     --muted-foreground: 0 0% 44%;
@@ -24,6 +24,44 @@
     --input: 0 0% 87%;
     --ring: 350 100% 60%;
     --radius: 12px;
+
+    /* Custom semantic colors */
+    --surface: 0 0% 100%;
+    --surface-elevated: 0 0% 100%;
+    --text-primary: 0 0% 13%;
+    --text-secondary: 0 0% 44%;
+    --text-tertiary: 0 0% 61%;
+    --divider: 0 0% 92%;
+  }
+
+  .dark {
+    --background: 0 0% 7%;
+    --foreground: 0 0% 95%;
+    --card: 0 0% 11%;
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 11%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 350 100% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 17%;
+    --secondary-foreground: 0 0% 95%;
+    --muted: 0 0% 17%;
+    --muted-foreground: 0 0% 64%;
+    --accent: 0 0% 17%;
+    --accent-foreground: 0 0% 95%;
+    --destructive: 4 74% 49%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 350 100% 60%;
+
+    /* Custom semantic colors - dark */
+    --surface: 0 0% 11%;
+    --surface-elevated: 0 0% 15%;
+    --text-primary: 0 0% 95%;
+    --text-secondary: 0 0% 64%;
+    --text-tertiary: 0 0% 45%;
+    --divider: 0 0% 20%;
   }
 
   * {
@@ -45,7 +83,7 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar - light */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -56,12 +94,12 @@ html {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #DDDDDD;
+  background: hsl(var(--border));
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #717171;
+  background: hsl(var(--muted-foreground));
 }
 
 /* Hide scrollbar utility */

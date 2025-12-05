@@ -32,14 +32,14 @@ export function CardResultado({
     ? 'text-verde'
     : saldo < 0
       ? 'text-vermelho'
-      : 'text-neutro-900'
+      : 'text-foreground'
 
   return (
-    <Card className="border-l-4 border-l-azul bg-gradient-to-r from-white to-azul-bg/30">
+    <Card className="border-l-4 border-l-azul bg-gradient-to-r from-card to-azul/5">
       <CardContent className="p-0 space-y-3">
         {/* Linha: Entradas */}
         <div className="flex justify-between items-center">
-          <span className="text-corpo text-neutro-600">Entradas</span>
+          <span className="text-corpo text-muted-foreground">Entradas</span>
           <span className="text-corpo-medium text-verde">
             {formatarMoeda(totalEntradas)}
           </span>
@@ -47,18 +47,18 @@ export function CardResultado({
 
         {/* Linha: Saídas */}
         <div className="flex justify-between items-center">
-          <span className="text-corpo text-neutro-600">Saídas</span>
+          <span className="text-corpo text-muted-foreground">Saídas</span>
           <span className="text-corpo-medium text-rosa">
             {formatarMoeda(totalSaidas)}
           </span>
         </div>
 
         {/* Divisor */}
-        <div className="border-t border-neutro-200" />
+        <div className="border-t border-border" />
 
         {/* Linha: Saldo */}
         <div className="flex justify-between items-center">
-          <span className="text-corpo-medium text-neutro-900">Saldo</span>
+          <span className="text-corpo-medium text-foreground">Saldo</span>
           <span className={cn('text-destaque', saldoColor)}>
             {formatarMoeda(saldo)}
           </span>

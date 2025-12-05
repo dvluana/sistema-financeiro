@@ -89,10 +89,10 @@ export function HeroCard({
       <div className="flex items-center justify-between px-1">
         {/* Saudação */}
         <div>
-          <p className="text-[11px] text-neutro-400 uppercase tracking-wider">
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wider">
             {saudacao.texto}
           </p>
-          <p className="text-[20px] font-semibold text-neutro-900 leading-tight">
+          <p className="text-[20px] font-semibold text-foreground leading-tight">
             {nome} {saudacao.emoji}
           </p>
         </div>
@@ -107,7 +107,7 @@ export function HeroCard({
             }}
             className={cn(
               'w-7 h-7 flex items-center justify-center rounded-md transition-all',
-              'bg-white border border-neutro-200 hover:bg-neutro-50 active:scale-95 text-neutro-600'
+              'bg-card border border-border hover:bg-accent active:scale-95 text-muted-foreground'
             )}
             aria-label="Mês anterior"
           >
@@ -121,7 +121,7 @@ export function HeroCard({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.1 }}
-                className="block text-pequeno font-medium text-neutro-700"
+                className="block text-pequeno font-medium text-foreground"
               >
                 {formatarMes(mesSelecionado)}
               </motion.span>
@@ -136,8 +136,8 @@ export function HeroCard({
             disabled={!podeAvancar}
             className={cn(
               'w-7 h-7 flex items-center justify-center rounded-md transition-all',
-              'bg-white border border-neutro-200 active:scale-95',
-              podeAvancar ? 'text-neutro-600 hover:bg-neutro-50' : 'text-neutro-300 cursor-not-allowed opacity-50'
+              'bg-card border border-border active:scale-95',
+              podeAvancar ? 'text-muted-foreground hover:bg-accent' : 'text-muted-foreground/50 cursor-not-allowed opacity-50'
             )}
             aria-label="Próximo mês"
           >
@@ -152,20 +152,20 @@ export function HeroCard({
           // Skeleton loading
           <>
             {[1, 2, 3].map(i => (
-              <div key={i} className="bg-white border border-neutro-200 rounded-xl p-3">
-                <div className="h-5 w-12 bg-neutro-200 rounded animate-pulse mb-2" />
-                <div className="h-5 w-16 bg-neutro-200 rounded animate-pulse" />
+              <div key={i} className="bg-card border border-border rounded-xl p-3">
+                <div className="h-5 w-12 bg-muted rounded animate-pulse mb-2" />
+                <div className="h-5 w-16 bg-muted rounded animate-pulse" />
               </div>
             ))}
           </>
         ) : (
           <>
             {/* Card Entrou */}
-            <div className="bg-white border border-neutro-200 rounded-xl p-3">
+            <div className="bg-card border border-border rounded-xl p-3">
               <span className="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded bg-verde/10 text-verde mb-2">
                 Entrou
               </span>
-              <p className="text-[17px] font-semibold text-neutro-900 leading-none">
+              <p className="text-[17px] font-semibold text-foreground leading-none">
                 {formatarMoeda(jaEntrou)}
               </p>
               {pendentesEntradaTexto && (
@@ -176,11 +176,11 @@ export function HeroCard({
             </div>
 
             {/* Card Saiu */}
-            <div className="bg-white border border-neutro-200 rounded-xl p-3">
+            <div className="bg-card border border-border rounded-xl p-3">
               <span className="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded bg-vermelho/10 text-vermelho mb-2">
                 Saiu
               </span>
-              <p className="text-[17px] font-semibold text-neutro-900 leading-none">
+              <p className="text-[17px] font-semibold text-foreground leading-none">
                 {formatarMoeda(jaPaguei)}
               </p>
               {pendentesSaidaTexto && (
@@ -191,7 +191,7 @@ export function HeroCard({
             </div>
 
             {/* Card Sobrou/Faltou */}
-            <div className="bg-white border border-neutro-200 rounded-xl p-3">
+            <div className="bg-card border border-border rounded-xl p-3">
               <span className={`inline-block text-[10px] font-medium px-1.5 py-0.5 rounded mb-2 ${saldo >= 0 ? 'bg-blue-500/10 text-blue-600' : 'bg-vermelho/10 text-vermelho'}`}>
                 {saldo >= 0 ? 'Sobrou' : 'Faltou'}
               </span>

@@ -37,7 +37,7 @@ export function Toast({ message, onClose, onRetry }: ToastProps) {
           exit={{ opacity: 0, y: -50 }}
           className="fixed top-4 left-4 right-4 z-50 max-w-md mx-auto"
         >
-          <div className="flex items-center gap-3 bg-neutro-900 text-white p-4 rounded-card shadow-lg">
+          <div className="flex items-center gap-3 bg-foreground text-background p-4 rounded-card shadow-lg">
             <p className="flex-1 text-corpo">{message}</p>
 
             {onRetry && (

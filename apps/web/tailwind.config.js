@@ -8,6 +8,7 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Brand colors
         rosa: {
           DEFAULT: "#FF385C",
           hover: "#E31C5F",
@@ -29,15 +30,10 @@ export default {
           DEFAULT: "#D93025",
           bg: "#FFEBEE",
         },
-        neutro: {
-          900: "#222222",
-          600: "#717171",
-          400: "#9CA3AF",
-          300: "#DDDDDD",
-          200: "#EBEBEB",
-          100: "#F7F7F7",
-          0: "#FFFFFF",
-        },
+        // Semantic colors (CSS variables)
+        surface: "hsl(var(--surface))",
+        "surface-elevated": "hsl(var(--surface-elevated))",
+        divider: "hsl(var(--divider))",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

@@ -179,7 +179,7 @@ export function MiniChart({
               <span className="text-micro text-muted-foreground">Entradas</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-neutro-300" />
+              <div className="w-2.5 h-2.5 rounded-full bg-muted" />
               <span className="text-micro text-muted-foreground">Saídas</span>
             </div>
           </div>
@@ -217,7 +217,7 @@ export function MiniChart({
             </span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-neutro-300" />
+            <div className="w-2.5 h-2.5 rounded-full bg-muted" />
             <span className="text-micro text-muted-foreground">Saídas</span>
             <span className="text-micro font-semibold text-vermelho ml-0.5">
               {formatarMoeda(totalSaidas)}
@@ -286,19 +286,19 @@ export function MiniChart({
                     transition={{ duration: 0.1 }}
                     className="absolute -top-[52px] left-1/2 -translate-x-1/2 z-20 pointer-events-none"
                   >
-                    <div className="bg-neutro-900 px-2.5 py-1.5 rounded-md shadow-lg whitespace-nowrap">
+                    <div className="bg-foreground px-2.5 py-1.5 rounded-md shadow-lg whitespace-nowrap">
                       <div className="flex items-center gap-3 text-[11px]">
                         <div className="flex items-center gap-1.5">
                           <div className="w-2 h-2 rounded-full bg-rosa" />
-                          <span className="text-white font-medium">{formatarMoeda(item.entradas)}</span>
+                          <span className="text-background font-medium">{formatarMoeda(item.entradas)}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <div className="w-2 h-2 rounded-full bg-neutro-400" />
-                          <span className="text-white font-medium">{formatarMoeda(item.saidas)}</span>
+                          <div className="w-2 h-2 rounded-full bg-muted-foreground" />
+                          <span className="text-background font-medium">{formatarMoeda(item.saidas)}</span>
                         </div>
                       </div>
                       {/* Seta do tooltip */}
-                      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-neutro-900 rotate-45" />
+                      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-foreground rotate-45" />
                     </div>
                   </motion.div>
                 )}
@@ -365,17 +365,6 @@ export function MiniChart({
           )
         })}
       </div>
-
-      {/* Dica de interação */}
-      {activeIndex === null && (
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center text-[11px] text-muted-foreground"
-        >
-          Toque para ver detalhes
-        </motion.p>
-      )}
     </div>
   )
 }

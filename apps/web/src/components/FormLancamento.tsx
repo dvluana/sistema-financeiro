@@ -180,7 +180,7 @@ export function FormLancamento({
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Título */}
-      <h2 className="text-titulo-card text-neutro-900">{labels.titulo}</h2>
+      <h2 className="text-titulo-card text-foreground">{labels.titulo}</h2>
 
       {/* Campo: Nome */}
       <div className="space-y-2">
@@ -247,10 +247,10 @@ export function FormLancamento({
       {/* Seção de Recorrência (apenas ao criar) */}
       {!isEditing && (
         <>
-          <div className="border-t border-neutro-200 pt-4">
+          <div className="border-t border-border pt-4">
             <div className="flex items-center justify-between min-h-touch">
               <div className="flex items-center gap-2">
-                <Repeat className="w-4 h-4 text-neutro-600" />
+                <Repeat className="w-4 h-4 text-muted-foreground" />
                 <Label htmlFor="recorrente" className="cursor-pointer">
                   {labels.recorrente}
                 </Label>
@@ -273,7 +273,7 @@ export function FormLancamento({
                 transition={{ duration: 0.2 }}
                 className="overflow-hidden"
               >
-                <div className="space-y-4 p-4 bg-neutro-100 rounded-card">
+                <div className="space-y-4 p-4 bg-secondary rounded-card">
                   {/* Opção: Mensal */}
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input
@@ -285,10 +285,10 @@ export function FormLancamento({
                       className="w-4 h-4 text-rosa accent-rosa"
                     />
                     <div className="flex-1">
-                      <span className="text-corpo-medium text-neutro-900">
+                      <span className="text-corpo-medium text-foreground">
                         Todos os meses
                       </span>
-                      <p className="text-micro text-neutro-600">
+                      <p className="text-micro text-muted-foreground">
                         Lança para os próximos 12 meses
                       </p>
                     </div>
@@ -306,10 +306,10 @@ export function FormLancamento({
                     />
                     <div className="flex-1 space-y-2">
                       <div>
-                        <span className="text-corpo-medium text-neutro-900">
+                        <span className="text-corpo-medium text-foreground">
                           Parcelado
                         </span>
-                        <p className="text-micro text-neutro-600">
+                        <p className="text-micro text-muted-foreground">
                           Define número de parcelas
                         </p>
                       </div>
@@ -320,7 +320,7 @@ export function FormLancamento({
                           animate={{ opacity: 1 }}
                           className="flex items-center gap-2"
                         >
-                          <Calendar className="w-4 h-4 text-neutro-400" />
+                          <Calendar className="w-4 h-4 text-muted-foreground" />
                           <Input
                             type="number"
                             min={2}
@@ -335,7 +335,7 @@ export function FormLancamento({
                             placeholder="12"
                             className="w-20"
                           />
-                          <span className="text-pequeno text-neutro-600">parcelas</span>
+                          <span className="text-pequeno text-muted-foreground">parcelas</span>
                         </motion.div>
                       )}
                     </div>
@@ -346,8 +346,8 @@ export function FormLancamento({
                   )}
 
                   {/* Preview */}
-                  <div className="pt-2 border-t border-neutro-200">
-                    <p className="text-micro text-neutro-600">
+                  <div className="pt-2 border-t border-border">
+                    <p className="text-micro text-muted-foreground">
                       {tipoRecorrencia === 'mensal' ? (
                         <>Será criado para os próximos <strong>12 meses</strong></>
                       ) : (

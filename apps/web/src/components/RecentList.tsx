@@ -46,7 +46,7 @@ export function RecentList({
 }: RecentListProps) {
   if (lancamentos.length === 0) {
     return (
-      <div className="text-center py-6 text-neutro-400 text-corpo">
+      <div className="text-center py-6 text-muted-foreground text-corpo">
         Nenhum lançamento recente
       </div>
     )
@@ -57,7 +57,7 @@ export function RecentList({
       {lancamentos.map((lancamento) => (
         <div
           key={lancamento.id}
-          className="flex items-center gap-2 min-h-[56px] border-b border-neutro-200 last:border-0"
+          className="flex items-center gap-2 min-h-[56px] border-b border-border last:border-0"
         >
           <StatusCircle
             checked={lancamento.concluido}
@@ -73,10 +73,10 @@ export function RecentList({
               'flex flex-col',
               lancamento.concluido && 'opacity-50'
             )}>
-              <span className="text-corpo text-neutro-900 truncate">
+              <span className="text-corpo text-foreground truncate">
                 {lancamento.nome}
               </span>
-              <span className="text-micro text-neutro-400">
+              <span className="text-micro text-muted-foreground">
                 {formatarDataRelativa(lancamento.created_at)}
               </span>
             </div>
@@ -119,7 +119,7 @@ export function RecentList({
       <button
         type="button"
         onClick={onVerTodos}
-        className="w-full py-3 text-rosa text-corpo font-medium hover:bg-rosa-light/30 transition-colors rounded-lg mt-2"
+        className="w-full py-3 text-rosa text-corpo font-medium hover:bg-primary/10 transition-colors rounded-lg mt-2"
       >
         Ver todos
       </button>

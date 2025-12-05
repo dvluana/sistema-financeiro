@@ -11,9 +11,9 @@ interface InputMoedaProps {
 export function InputMoeda({ label, value, onChange, error }: InputMoedaProps) {
   return (
     <div className="space-y-2">
-      <Label className="text-pequeno-medium text-neutro-900">{label}</Label>
+      <Label className="text-pequeno-medium text-foreground">{label}</Label>
       <CurrencyInput
-        className="flex min-h-touch w-full rounded-input border border-neutro-300 bg-white px-4 text-corpo text-neutro-900 placeholder:text-neutro-400 focus:border-2 focus:border-neutro-900 focus:outline-none"
+        className="flex min-h-touch w-full rounded-input border border-border bg-card px-4 text-corpo text-foreground placeholder:text-muted-foreground focus:border-2 focus:border-foreground focus:outline-none"
         placeholder="R$ 0,00"
         prefix="R$ "
         decimalsLimit={2}

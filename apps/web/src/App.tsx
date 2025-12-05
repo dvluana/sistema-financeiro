@@ -27,14 +27,14 @@ function App() {
   // Tela de carregamento enquanto verifica auth
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-rosa-light via-white to-verde-bg flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-rosa/5 via-background to-verde/5 flex items-center justify-center">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="flex flex-col items-center gap-4"
         >
           <Loader2 className="w-10 h-10 text-rosa animate-spin" />
-          <p className="text-corpo text-neutro-600">Carregando...</p>
+          <p className="text-corpo text-muted-foreground">Carregando...</p>
         </motion.div>
       </div>
     )

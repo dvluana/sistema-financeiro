@@ -101,8 +101,8 @@ export function AddFAB({ onQuickInput, onManualInput, className }: AddFABProps) 
               <span className="text-[13px] font-medium text-white/90 mr-1">
                 Manual
               </span>
-              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-white shadow-lg shadow-black/10 group-active:scale-95 transition-transform">
-                <PenLine className="w-5 h-5 text-neutro-900" />
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-card shadow-lg shadow-black/10 group-active:scale-95 transition-transform">
+                <PenLine className="w-5 h-5 text-foreground" />
               </div>
             </motion.button>
 
@@ -122,7 +122,7 @@ export function AddFAB({ onQuickInput, onManualInput, className }: AddFABProps) 
               <span className="text-[13px] font-medium text-white/90 mr-1">
                 Rápido
               </span>
-              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-white shadow-lg shadow-black/10 group-active:scale-95 transition-transform">
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-card shadow-lg shadow-black/10 group-active:scale-95 transition-transform">
                 <Zap className="w-5 h-5 text-rosa" />
               </div>
             </motion.button>
@@ -141,7 +141,7 @@ export function AddFAB({ onQuickInput, onManualInput, className }: AddFABProps) 
           'transition-all duration-200',
           'focus:outline-none focus:ring-2 focus:ring-offset-2',
           isOpen
-            ? 'bg-neutro-800 text-white focus:ring-neutro-600'
+            ? 'bg-muted-foreground text-background focus:ring-muted-foreground'
             : 'bg-rosa text-white hover:bg-rosa/90 focus:ring-rosa'
         )}
         animate={{ rotate: isOpen ? 45 : 0 }}

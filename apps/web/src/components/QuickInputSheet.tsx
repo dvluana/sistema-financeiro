@@ -121,12 +121,12 @@ const LancamentoCard = React.memo(function LancamentoCard({
               }
               placeholder="Nome do lançamento"
               className={cn(
-                'w-full text-corpo text-neutro-900 bg-white/50 rounded-lg px-3 py-1.5',
+                'w-full text-corpo text-foreground bg-card/50 rounded-lg px-3 py-1.5',
                 'border border-vermelho/50 focus:outline-none focus:ring-2 focus:ring-rosa focus:border-transparent'
               )}
             />
           ) : (
-            <span className="text-corpo font-medium text-neutro-900 truncate block">
+            <span className="text-corpo font-medium text-foreground truncate block">
               {primeiro.nome}
             </span>
           )}
@@ -146,7 +146,7 @@ const LancamentoCard = React.memo(function LancamentoCard({
               }
               placeholder="R$ 0,00"
               className={cn(
-                'w-28 text-right text-corpo-medium text-neutro-900 bg-white/50 rounded-lg px-3 py-1.5',
+                'w-28 text-right text-corpo-medium text-foreground bg-card/50 rounded-lg px-3 py-1.5',
                 'border border-vermelho/50 focus:outline-none focus:ring-2 focus:ring-rosa focus:border-transparent'
               )}
             />
@@ -170,7 +170,7 @@ const LancamentoCard = React.memo(function LancamentoCard({
             onClick={() => onToggleGroup(groupKey)}
             className={cn(
               'flex items-center gap-1 px-2 py-1 rounded-md text-micro font-medium transition-colors',
-              'bg-white/60 text-neutro-600 hover:bg-white'
+              'bg-card/60 text-muted-foreground hover:bg-card'
             )}
           >
             {items.length} meses
@@ -181,14 +181,14 @@ const LancamentoCard = React.memo(function LancamentoCard({
             )}
           </button>
         ) : (
-          <span className="px-2 py-1 rounded-md bg-white/60 text-micro text-neutro-500">
+          <span className="px-2 py-1 rounded-md bg-card/60 text-micro text-muted-foreground">
             {formatarMesExibicao(primeiro.mes)}
           </span>
         )}
 
         {/* Dia previsto */}
         {primeiro.diaPrevisto && (
-          <span className="px-2 py-1 rounded-md bg-white/60 text-micro text-neutro-500">
+          <span className="px-2 py-1 rounded-md bg-card/60 text-micro text-muted-foreground">
             Dia {primeiro.diaPrevisto}
           </span>
         )}
@@ -200,7 +200,7 @@ const LancamentoCard = React.memo(function LancamentoCard({
         <button
           type="button"
           onClick={() => items.forEach((item) => onRemoveLancamento(item.id))}
-          className="p-1.5 rounded-md text-neutro-400 hover:text-vermelho hover:bg-white/60 transition-colors"
+          className="p-1.5 rounded-md text-muted-foreground hover:text-vermelho hover:bg-card/60 transition-colors"
           title="Remover"
         >
           <X className="w-4 h-4" />
@@ -216,20 +216,20 @@ const LancamentoCard = React.memo(function LancamentoCard({
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="border-t border-neutro-200/50 bg-white/30 p-3">
+            <div className="border-t bg-muted bg-card/30 p-3">
               <div className="flex flex-wrap gap-2">
                 {items.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-white text-micro shadow-sm"
+                    className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-card text-micro shadow-sm"
                   >
-                    <span className="text-neutro-700 font-medium">
+                    <span className="text-foreground font-medium">
                       {formatarMesExibicao(item.mes)}
                     </span>
                     <button
                       type="button"
                       onClick={() => onRemoveLancamento(item.id)}
-                      className="text-neutro-400 hover:text-vermelho transition-colors"
+                      className="text-muted-foreground hover:text-vermelho transition-colors"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -455,14 +455,14 @@ export function QuickInputSheet({
           <Zap className="w-5 h-5" />
         </div>
         <div className="flex-1">
-          <DrawerPrimitive.Title className="text-titulo-card text-neutro-900">
+          <DrawerPrimitive.Title className="text-titulo-card text-foreground">
             Lançamento Rápido
           </DrawerPrimitive.Title>
-          <p className="text-micro text-neutro-400">
+          <p className="text-micro text-muted-foreground">
             Digite de forma natural, ex: "salário 5000 dia 5"
           </p>
         </div>
-        <DrawerPrimitive.Close className="p-2 -mr-2 rounded-lg text-neutro-400 hover:text-neutro-600 hover:bg-neutro-100 transition-colors">
+        <DrawerPrimitive.Close className="p-2 -mr-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
           <X className="w-5 h-5" />
         </DrawerPrimitive.Close>
       </div>
@@ -481,9 +481,9 @@ export function QuickInputSheet({
           }}
           placeholder="Ex: Salário 5000 dia 5&#10;Parcela carro 800 out/25 até dez/25&#10;Aluguel 1500 por 12 meses"
           className={cn(
-            'w-full resize-none rounded-xl border-2 border-neutro-200 bg-neutro-50 p-4 pr-14',
-            'text-corpo text-neutro-900 placeholder:text-neutro-400',
-            'focus:outline-none focus:ring-2 focus:ring-rosa/20 focus:border-rosa focus:bg-white',
+            'w-full resize-none rounded-xl border-2 border-border bg-secondary p-4 pr-14',
+            'text-corpo text-foreground placeholder:text-muted-foreground',
+            'focus:outline-none focus:ring-2 focus:ring-rosa/20 focus:border-rosa focus:bg-card',
             'transition-all',
             isDesktop ? 'min-h-[100px]' : 'min-h-[80px]',
             'max-h-[160px]'
@@ -499,7 +499,7 @@ export function QuickInputSheet({
             'transition-all',
             texto.trim()
               ? 'bg-rosa text-white hover:bg-rosa/90 shadow-sm hover:shadow active:scale-95'
-              : 'bg-neutro-200 text-neutro-400 cursor-not-allowed'
+              : 'bg-muted text-muted-foreground cursor-not-allowed'
           )}
         >
           <Send className="w-5 h-5" />
@@ -509,7 +509,7 @@ export function QuickInputSheet({
       {/* Sugestões do histórico */}
       {historico.length > 0 && lancamentos.length === 0 && !texto && (
         <div className="mb-4">
-          <p className="text-micro text-neutro-400 mb-2">Recentes:</p>
+          <p className="text-micro text-muted-foreground mb-2">Recentes:</p>
           <div className="flex flex-wrap gap-2">
             {historico.map((h, i) => (
               <button
@@ -518,7 +518,7 @@ export function QuickInputSheet({
                 onClick={() => handleUseSugestao(h)}
                 className={cn(
                   'px-3 py-1.5 rounded-lg text-micro font-medium',
-                  'bg-neutro-100 text-neutro-600 hover:bg-neutro-200',
+                  'bg-secondary text-muted-foreground hover:bg-accent',
                   'truncate max-w-[200px] transition-colors'
                 )}
               >
@@ -532,8 +532,8 @@ export function QuickInputSheet({
 
       {/* Dica de tipos */}
       {lancamentos.length === 0 && !texto && (
-        <div className="mb-4 p-3 rounded-xl bg-neutro-50 border border-neutro-200">
-          <p className="text-micro text-neutro-500 mb-2">Palavras que identificam o tipo:</p>
+        <div className="mb-4 p-3 rounded-xl bg-secondary border border-border">
+          <p className="text-micro text-muted-foreground mb-2">Palavras que identificam o tipo:</p>
           <div className="flex flex-wrap gap-2">
             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-verde/10 text-verde text-micro">
               <TrendingUp className="w-3 h-3" />
@@ -582,7 +582,7 @@ export function QuickInputSheet({
 
       {/* Botões de ação */}
       <div className={cn(
-        'flex gap-3 pt-4 mt-auto border-t border-neutro-200',
+        'flex gap-3 pt-4 mt-auto border-t border-border',
         !isDesktop && 'pb-safe'
       )}>
         <Button
@@ -623,18 +623,18 @@ export function QuickInputSheet({
         <DrawerPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50" />
         <DrawerPrimitive.Content
           className={cn(
-            'fixed z-50 flex flex-col bg-white',
+            'fixed z-50 flex flex-col bg-card',
             isDesktop
               ? // Drawer lateral (desktop/tablets grandes)
-                'inset-y-0 right-0 h-full w-full max-w-lg border-l border-neutro-200 rounded-l-2xl shadow-xl'
+                'inset-y-0 right-0 h-full w-full max-w-lg border-l border-border rounded-l-2xl shadow-xl'
               : // Bottomsheet (mobile/tablets pequenos)
-                'inset-x-0 bottom-0 rounded-t-2xl border-t border-neutro-200 shadow-xl'
+                'inset-x-0 bottom-0 rounded-t-2xl border-t border-border shadow-xl'
           )}
           style={!isDesktop ? { maxHeight: '90vh' } : undefined}
         >
           {/* Handle de arraste apenas no mobile */}
           {!isDesktop && (
-            <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-neutro-300" />
+            <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-muted" />
           )}
 
           {sharedContent}

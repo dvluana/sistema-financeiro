@@ -11,15 +11,15 @@ import { Card } from '@/components/ui/card'
 function SkeletonLine({ className = '' }: { className?: string }) {
   return (
     <div
-      className={`h-4 bg-neutro-200 rounded animate-pulse ${className}`}
+      className={`h-4 bg-muted rounded animate-pulse ${className}`}
     />
   )
 }
 
 function SkeletonItem() {
   return (
-    <div className="flex items-center gap-4 py-4 border-b border-neutro-200 last:border-0">
-      <div className="w-7 h-7 rounded-full bg-neutro-200 animate-pulse" />
+    <div className="flex items-center gap-4 py-4 border-b border-border last:border-0">
+      <div className="w-7 h-7 rounded-full bg-muted animate-pulse" />
       <div className="flex-1 space-y-2">
         <SkeletonLine className="w-3/4" />
         <SkeletonLine className="w-1/4" />
@@ -63,7 +63,7 @@ export function MesLoadingSkeleton() {
             <SkeletonLine className="w-16" />
             <SkeletonLine className="w-24" />
           </div>
-          <div className="border-t border-neutro-200 pt-3" />
+          <div className="border-t border-border pt-3" />
           <div className="flex justify-between">
             <SkeletonLine className="w-12" />
             <SkeletonLine className="w-28 h-6" />

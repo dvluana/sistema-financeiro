@@ -35,14 +35,14 @@ export function PendingCard({ tipo, valor, quantidade, onClick }: PendingCardPro
           !temPendentes && 'bg-verde-bg/30'
         )}
       >
-        <p className="text-pequeno text-neutro-600 mb-1">{titulo}</p>
+        <p className="text-pequeno text-muted-foreground mb-1">{titulo}</p>
 
         {temPendentes ? (
           <>
             <p className={cn('text-titulo-card font-semibold', corValor)}>
               {formatarMoeda(valor)}
             </p>
-            <p className="text-micro text-neutro-400 mt-1">
+            <p className="text-micro text-muted-foreground mt-1">
               {quantidade} {quantidade === 1 ? 'item' : 'itens'}
             </p>
           </>

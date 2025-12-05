@@ -44,7 +44,7 @@ export function CardSaidas({
           </div>
           <div>
             <h3 className="text-titulo-card text-rosa leading-tight">Saídas</h3>
-            <p className="text-micro text-neutro-500">{saidas.length} {saidas.length === 1 ? 'item' : 'itens'}</p>
+            <p className="text-micro text-muted-foreground">{saidas.length} {saidas.length === 1 ? 'item' : 'itens'}</p>
           </div>
         </div>
 
@@ -52,12 +52,12 @@ export function CardSaidas({
         {!isEmpty && (
           <div className="flex gap-3 text-right">
             <div>
-              <p className="text-[10px] uppercase tracking-wide text-neutro-400">Pago</p>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Pago</p>
               <p className="text-corpo-medium font-semibold text-rosa">{formatarMoeda(jaPaguei)}</p>
             </div>
-            <div className="border-l border-neutro-200 pl-3">
-              <p className="text-[10px] uppercase tracking-wide text-neutro-400">Pendente</p>
-              <p className="text-corpo-medium font-semibold text-neutro-600">{formatarMoeda(faltaPagar)}</p>
+            <div className="border-l border-border pl-3">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Pendente</p>
+              <p className="text-corpo-medium font-semibold text-muted-foreground">{formatarMoeda(faltaPagar)}</p>
             </div>
           </div>
         )}
@@ -66,7 +66,7 @@ export function CardSaidas({
       {/* Barra de progresso */}
       {!isEmpty && total > 0 && (
         <div className="mb-4">
-          <div className="h-1.5 bg-neutro-200 rounded-full overflow-hidden">
+          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
             <div
               className="h-full bg-rosa rounded-full transition-all duration-500"
               style={{ width: `${Math.min((jaPaguei / total) * 100, 100)}%` }}
@@ -77,7 +77,7 @@ export function CardSaidas({
 
       <CardContent className="p-0">
         {isEmpty ? (
-          <p className="text-corpo text-neutro-600 text-center py-8">
+          <p className="text-corpo text-muted-foreground text-center py-8">
             Nenhuma saída ainda
           </p>
         ) : (

@@ -159,7 +159,7 @@ export function CategoriaSelect({
           }}
           disabled={isLoading}
         >
-          <SelectTrigger className="min-h-touch rounded-input border-neutro-300 focus:border-2 focus:border-neutro-900">
+          <SelectTrigger className="min-h-touch rounded-input border-border focus:border-2 focus:border-foreground">
             <SelectValue placeholder="Selecione uma categoria">
               {categoriaSelecionada ? (
                 <div className="flex items-center gap-2">
@@ -177,7 +177,7 @@ export function CategoriaSelect({
                   <span>{categoriaSelecionada.nome}</span>
                 </div>
               ) : (
-                <span className="text-neutro-400">Sem categoria</span>
+                <span className="text-muted-foreground">Sem categoria</span>
               )}
             </SelectValue>
           </SelectTrigger>
@@ -192,13 +192,13 @@ export function CategoriaSelect({
               </div>
             </SelectItem>
 
-            <div className="h-px bg-neutro-200 my-1" />
+            <div className="h-px bg-border my-1" />
 
             {/* Opção sem categoria */}
             <SelectItem value="sem-categoria" className="min-h-touch">
               <div className="flex items-center gap-2">
-                <span className="flex items-center justify-center w-5 h-5 rounded bg-neutro-200">
-                  <LucideIcons.X className="w-3 h-3 text-neutro-500" />
+                <span className="flex items-center justify-center w-5 h-5 rounded bg-muted">
+                  <LucideIcons.X className="w-3 h-3 text-muted-foreground" />
                 </span>
                 <span>Sem categoria</span>
               </div>
@@ -270,10 +270,10 @@ export function CategoriaSelect({
                         'flex items-center justify-center w-10 h-10 rounded-lg border-2 transition-all',
                         isSelected
                           ? 'border-rosa bg-rosa/10'
-                          : 'border-neutro-200 hover:border-neutro-300'
+                          : 'border-border hover:border-muted-foreground'
                       )}
                     >
-                      {Icon && <Icon className="w-5 h-5 text-neutro-700" />}
+                      {Icon && <Icon className="w-5 h-5 text-foreground" />}
                     </button>
                   )
                 })}
@@ -293,7 +293,7 @@ export function CategoriaSelect({
                       onClick={() => setNovaCor(cor)}
                       className={cn(
                         'flex items-center justify-center w-8 h-8 rounded-full transition-all',
-                        isSelected && 'ring-2 ring-offset-2 ring-neutro-400'
+                        isSelected && 'ring-2 ring-offset-2 ring-muted-foreground'
                       )}
                       style={{ backgroundColor: cor }}
                     >
@@ -306,8 +306,8 @@ export function CategoriaSelect({
 
             {/* Preview */}
             <div className="space-y-2">
-              <Label className="text-neutro-500">Preview</Label>
-              <div className="flex items-center gap-3 p-3 bg-neutro-50 rounded-lg">
+              <Label className="text-muted-foreground">Preview</Label>
+              <div className="flex items-center gap-3 p-3 bg-secondary rounded-lg">
                 {(() => {
                   const Icon = getIconComponent(novoIcone)
                   return Icon ? (
@@ -319,7 +319,7 @@ export function CategoriaSelect({
                     </span>
                   ) : null
                 })()}
-                <span className="text-corpo-medium font-medium text-neutro-900">
+                <span className="text-corpo-medium font-medium text-foreground">
                   {novoNome || 'Nome da categoria'}
                 </span>
               </div>

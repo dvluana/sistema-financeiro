@@ -17,7 +17,7 @@ interface BottomTabBarProps {
 
 export function BottomTabBar({ activeTab, onTabChange }: BottomTabBarProps) {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-[#EBEBEB] pb-safe">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border pb-safe">
       <div className="flex h-16 max-w-[720px] mx-auto">
         {/* Tab Início */}
         <button
@@ -25,7 +25,7 @@ export function BottomTabBar({ activeTab, onTabChange }: BottomTabBarProps) {
           onClick={() => onTabChange('inicio')}
           className={cn(
             'flex-1 flex flex-col items-center justify-center gap-1 transition-colors',
-            activeTab === 'inicio' ? 'text-rosa' : 'text-neutro-400'
+            activeTab === 'inicio' ? 'text-rosa' : 'text-muted-foreground'
           )}
         >
           <Home className="w-6 h-6" />
@@ -38,7 +38,7 @@ export function BottomTabBar({ activeTab, onTabChange }: BottomTabBarProps) {
           onClick={() => onTabChange('mes')}
           className={cn(
             'flex-1 flex flex-col items-center justify-center gap-1 transition-colors',
-            activeTab === 'mes' ? 'text-rosa' : 'text-neutro-400'
+            activeTab === 'mes' ? 'text-rosa' : 'text-muted-foreground'
           )}
         >
           <Calendar className="w-6 h-6" />

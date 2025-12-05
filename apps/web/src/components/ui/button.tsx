@@ -9,8 +9,8 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-rosa text-white hover:bg-rosa-hover active:bg-rosa-pressed",
-        secondary: "bg-neutro-100 text-neutro-900 hover:bg-neutro-200",
-        ghost: "text-neutro-600 hover:bg-neutro-100 hover:text-neutro-900",
+        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        ghost: "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
         destructive: "text-vermelho hover:underline",
         link: "text-rosa underline-offset-4 hover:underline",
       },

@@ -71,12 +71,12 @@ const ResponsiveDrawerContent = React.forwardRef<
       <DrawerPrimitive.Content
         ref={ref}
         className={cn(
-          'fixed z-50 flex flex-col bg-white',
+          'fixed z-50 flex flex-col bg-card',
           isDesktop
             ? // Drawer lateral (desktop)
-              'inset-y-0 right-0 h-full w-full max-w-md border-l border-neutro-300 rounded-l-card'
+              'inset-y-0 right-0 h-full w-full max-w-md border-l border-border rounded-l-card'
             : // BottomSheet (mobile/tablet)
-              'inset-x-0 bottom-0 mt-24 h-auto rounded-t-bottomsheet border-t border-neutro-300',
+              'inset-x-0 bottom-0 mt-24 h-auto rounded-t-bottomsheet border-t border-border',
           className
         )}
         {...props}
@@ -85,9 +85,9 @@ const ResponsiveDrawerContent = React.forwardRef<
           // Desktop: Header com botão de fechar
           <>
             {showCloseButton && (
-              <div className="flex items-center justify-end p-4 border-b border-neutro-200">
-                <DrawerPrimitive.Close className="rounded-full p-2 hover:bg-neutro-100 transition-colors">
-                  <X className="h-5 w-5 text-neutro-600" />
+              <div className="flex items-center justify-end p-4 border-b border-border">
+                <DrawerPrimitive.Close className="rounded-full p-2 hover:bg-accent transition-colors">
+                  <X className="h-5 w-5 text-muted-foreground" />
                   <span className="sr-only">Fechar</span>
                 </DrawerPrimitive.Close>
               </div>
@@ -97,7 +97,7 @@ const ResponsiveDrawerContent = React.forwardRef<
         ) : (
           // Mobile: Handle de arraste
           <>
-            <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-neutro-300" />
+            <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-muted" />
             <div className="max-h-[90vh] overflow-auto p-6">{children}</div>
           </>
         )}
@@ -143,7 +143,7 @@ const ResponsiveDrawerTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DrawerPrimitive.Title
     ref={ref}
-    className={cn('text-titulo-card text-neutro-900', className)}
+    className={cn('text-titulo-card text-foreground', className)}
     {...props}
   />
 ))
@@ -155,7 +155,7 @@ const ResponsiveDrawerDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DrawerPrimitive.Description
     ref={ref}
-    className={cn('text-corpo text-neutro-600', className)}
+    className={cn('text-corpo text-muted-foreground', className)}
     {...props}
   />
 ))

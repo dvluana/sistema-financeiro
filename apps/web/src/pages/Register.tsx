@@ -67,7 +67,7 @@ export function Register({ onSwitchToLogin }: RegisterProps) {
   const displayError = localError || error
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-verde-bg via-white to-rosa-light flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-verde/5 via-background to-rosa/5 flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -84,20 +84,20 @@ export function Register({ onSwitchToLogin }: RegisterProps) {
           >
             <Wallet className="w-8 h-8 text-white" />
           </motion.div>
-          <h1 className="text-titulo-mes text-neutro-900">Criar sua conta</h1>
-          <p className="text-corpo text-neutro-600 mt-1">
+          <h1 className="text-titulo-mes text-foreground">Criar sua conta</h1>
+          <p className="text-corpo text-muted-foreground mt-1">
             Comece a controlar suas finanças
           </p>
         </div>
 
         {/* Card do formulário */}
-        <div className="bg-white rounded-card border border-neutro-300 p-6 shadow-sm">
+        <div className="bg-card rounded-card border border-border p-6 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Campo Nome */}
             <div className="space-y-2">
               <Label htmlFor="nome">Nome</Label>
               <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutro-400" />
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   id="nome"
                   type="text"
@@ -115,7 +115,7 @@ export function Register({ onSwitchToLogin }: RegisterProps) {
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutro-400" />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   id="email"
                   type="email"
@@ -133,7 +133,7 @@ export function Register({ onSwitchToLogin }: RegisterProps) {
             <div className="space-y-2">
               <Label htmlFor="senha">Senha</Label>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutro-400" />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   id="senha"
                   type={showPassword ? 'text' : 'password'}
@@ -147,7 +147,7 @@ export function Register({ onSwitchToLogin }: RegisterProps) {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-neutro-400 hover:text-neutro-600"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   {showPassword ? (
                     <EyeOff className="w-5 h-5" />
@@ -162,7 +162,7 @@ export function Register({ onSwitchToLogin }: RegisterProps) {
             <div className="space-y-2">
               <Label htmlFor="confirmarSenha">Confirmar senha</Label>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutro-400" />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   id="confirmarSenha"
                   type={showPassword ? 'text' : 'password'}
@@ -180,7 +180,7 @@ export function Register({ onSwitchToLogin }: RegisterProps) {
               <motion.p
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-pequeno text-vermelho text-center bg-vermelho-bg p-3 rounded-input"
+                className="text-pequeno text-vermelho text-center bg-vermelho/10 p-3 rounded-input"
               >
                 {displayError}
               </motion.p>
@@ -198,7 +198,7 @@ export function Register({ onSwitchToLogin }: RegisterProps) {
 
           {/* Link para login */}
           <div className="mt-6 text-center">
-            <p className="text-corpo text-neutro-600">
+            <p className="text-corpo text-muted-foreground">
               Já tem uma conta?{' '}
               <button
                 onClick={onSwitchToLogin}

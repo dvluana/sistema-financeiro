@@ -73,9 +73,9 @@ export function Dashboard({
   const primeiroNome = usuario?.nome?.split(' ')[0] || 'Usuário'
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-neutro-100 to-neutro-200 pb-20">
+    <div className="min-h-screen bg-gradient-to-b from-background to-background pb-20">
       {/* Header moderno (mesmo padrão da MesView) */}
-      <header className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-neutro-200">
+      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="max-w-[720px] mx-auto">
           <div className="flex items-center justify-between px-4 py-2.5">
             <div className="flex items-center gap-2">
@@ -83,7 +83,7 @@ export function Dashboard({
               <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-rosa to-rosa/80 text-white text-pequeno font-semibold">
                 {primeiroNome.charAt(0).toUpperCase()}
               </div>
-              <span className="text-corpo text-neutro-700 font-medium">
+              <span className="text-corpo text-foreground font-medium">
                 {primeiroNome}
               </span>
             </div>
@@ -95,7 +95,7 @@ export function Dashboard({
                 onClick={onOpenConfig}
                 className={cn(
                   'flex items-center justify-center w-10 h-10 rounded-xl',
-                  'text-neutro-600 hover:text-neutro-900 hover:bg-neutro-100',
+                  'text-muted-foreground hover:text-foreground hover:bg-accent',
                   'transition-colors active:scale-95'
                 )}
                 aria-label="Configurações"
@@ -109,7 +109,7 @@ export function Dashboard({
                 onClick={handleLogout}
                 className={cn(
                   'flex items-center justify-center w-10 h-10 rounded-xl',
-                  'text-neutro-500 hover:text-vermelho hover:bg-vermelho/5',
+                  'text-muted-foreground hover:text-vermelho hover:bg-vermelho/5',
                   'transition-colors active:scale-95'
                 )}
                 aria-label="Sair"
@@ -146,11 +146,11 @@ export function Dashboard({
             {historico.length > 0 && (
               <div className="space-y-3">
                 <div className="px-1">
-                  <h2 className="text-corpo-medium text-neutro-900">
+                  <h2 className="text-corpo-medium text-foreground">
                     Histórico dos últimos 6 meses
                   </h2>
                 </div>
-                <div className="bg-white border border-neutro-200 rounded-xl p-4">
+                <div className="bg-card border border-border rounded-xl p-4">
                   <MiniChart
                     dados={historico}
                     onMesClick={() => onNavigateToMes()}
@@ -170,21 +170,21 @@ export function Dashboard({
             {/* Últimos lançamentos */}
             <div className="space-y-3">
               <div className="px-1">
-                <h2 className="text-corpo-medium text-neutro-900">
+                <h2 className="text-corpo-medium text-foreground">
                   Últimos lançamentos
                 </h2>
               </div>
-              <div className="bg-white border border-neutro-200 rounded-xl p-4">
+              <div className="bg-card border border-border rounded-xl p-4">
                 {isLoading ? (
                   <div className="space-y-3">
                     {[1, 2, 3].map(i => (
                       <div key={i} className="flex items-center gap-3 py-2">
-                        <div className="w-5 h-5 rounded-full bg-neutro-200 animate-pulse" />
+                        <div className="w-5 h-5 rounded-full bg-muted animate-pulse" />
                         <div className="flex-1 space-y-1.5">
-                          <div className="h-4 bg-neutro-200 rounded animate-pulse w-3/4" />
-                          <div className="h-3 bg-neutro-200 rounded animate-pulse w-1/3" />
+                          <div className="h-4 bg-muted rounded animate-pulse w-3/4" />
+                          <div className="h-3 bg-muted rounded animate-pulse w-1/3" />
                         </div>
-                        <div className="h-4 bg-neutro-200 rounded animate-pulse w-16" />
+                        <div className="h-4 bg-muted rounded animate-pulse w-16" />
                       </div>
                     ))}
                   </div>

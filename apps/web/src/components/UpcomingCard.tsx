@@ -52,16 +52,16 @@ export function UpcomingCard({ vencimentos, onItemClick, onVerTodos, isLoading =
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between px-1">
-          <h2 className="text-corpo-medium text-neutro-900">
+          <h2 className="text-corpo-medium text-foreground">
             Próximos vencimentos
           </h2>
         </div>
         <div className="grid grid-cols-4 gap-2">
           {[1, 2, 3, 4].map(i => (
-            <div key={i} className="bg-white border border-neutro-200 rounded-xl p-3">
-              <div className="h-4 w-10 bg-neutro-200 rounded animate-pulse mb-2" />
-              <div className="h-4 w-full bg-neutro-200 rounded animate-pulse mb-1" />
-              <div className="h-4 w-12 bg-neutro-200 rounded animate-pulse" />
+            <div key={i} className="bg-card border border-border rounded-xl p-3">
+              <div className="h-4 w-10 bg-muted rounded animate-pulse mb-2" />
+              <div className="h-4 w-full bg-muted rounded animate-pulse mb-1" />
+              <div className="h-4 w-12 bg-muted rounded animate-pulse" />
             </div>
           ))}
         </div>
@@ -78,14 +78,14 @@ export function UpcomingCard({ vencimentos, onItemClick, onVerTodos, isLoading =
     <div className="space-y-3">
       {/* Header com título e "Ver todos" */}
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-corpo-medium text-neutro-900">
+        <h2 className="text-corpo-medium text-foreground">
           Próximos vencimentos
         </h2>
         {onVerTodos && (
           <button
             type="button"
             onClick={onVerTodos}
-            className="flex items-center gap-0.5 text-pequeno text-neutro-500 hover:text-neutro-700 transition-colors"
+            className="flex items-center gap-0.5 text-pequeno text-muted-foreground hover:text-foreground transition-colors"
           >
             Ver todos
             <ChevronRight className="w-4 h-4" />
@@ -114,7 +114,7 @@ export function UpcomingCard({ vencimentos, onItemClick, onVerTodos, isLoading =
               className={cn(
                 'flex flex-col p-3 rounded-xl border transition-all text-left',
                 'hover:shadow-sm active:scale-[0.98]',
-                'bg-white border-neutro-200'
+                'bg-card border-border'
               )}
             >
               {/* Badge do dia */}
@@ -124,18 +124,18 @@ export function UpcomingCard({ vencimentos, onItemClick, onVerTodos, isLoading =
                   ? 'bg-vermelho/10 text-vermelho'
                   : isHoje
                     ? 'bg-rosa/10 text-rosa'
-                    : 'bg-neutro-100 text-neutro-500'
+                    : 'bg-secondary text-muted-foreground'
               )}>
                 {label}
               </span>
 
               {/* Nome */}
-              <p className="text-[13px] text-neutro-700 truncate mb-1 leading-tight">
+              <p className="text-[13px] text-foreground truncate mb-1 leading-tight">
                 {vencimento.nome}
               </p>
 
               {/* Valor */}
-              <p className="text-pequeno font-semibold text-neutro-900">
+              <p className="text-pequeno font-semibold text-foreground">
                 {formatarMoeda(vencimento.valor)}
               </p>
             </button>
@@ -148,7 +148,7 @@ export function UpcomingCard({ vencimentos, onItemClick, onVerTodos, isLoading =
         <button
           type="button"
           onClick={onVerTodos}
-          className="w-full text-center text-micro text-neutro-400 hover:text-neutro-600 transition-colors py-1"
+          className="w-full text-center text-micro text-muted-foreground hover:text-muted-foreground transition-colors py-1"
         >
           +{vencimentos.length - 4} vencimentos
         </button>
