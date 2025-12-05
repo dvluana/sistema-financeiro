@@ -276,32 +276,36 @@ export function MiniChart({
               animate={{ opacity: 1 }}
               transition={{ delay: index * 0.05 }}
             >
-              {/* Tooltip */}
+              {/* Tooltip - posicionado acima do topo da barra maior */}
               <AnimatePresence>
-                {isActive && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 4 }}
-                    transition={{ duration: 0.1 }}
-                    className="absolute -top-[52px] left-1/2 -translate-x-1/2 z-20 pointer-events-none"
-                  >
-                    <div className="bg-foreground px-2.5 py-1.5 rounded-md shadow-lg whitespace-nowrap">
-                      <div className="flex items-center gap-3 text-[11px]">
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-2 h-2 rounded-full bg-rosa" />
-                          <span className="text-background font-medium">{formatarMoeda(item.entradas)}</span>
+                {isActive && (() => {
+                  const alturaMaior = Math.max(alturaEntradas, alturaSaidas)
+                  return (
+                    <motion.div
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 4 }}
+                      transition={{ duration: 0.1 }}
+                      className="absolute left-1/2 -translate-x-1/2 z-20 pointer-events-none"
+                      style={{ bottom: `${alturaMaior + 8}px` }}
+                    >
+                      <div className="relative bg-foreground px-2.5 py-1.5 rounded-md shadow-lg whitespace-nowrap">
+                        <div className="flex items-center gap-3 text-[11px]">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full bg-rosa" />
+                            <span className="text-background font-medium">{formatarMoeda(item.entradas)}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full bg-muted-foreground" />
+                            <span className="text-background font-medium">{formatarMoeda(item.saidas)}</span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-2 h-2 rounded-full bg-muted-foreground" />
-                          <span className="text-background font-medium">{formatarMoeda(item.saidas)}</span>
-                        </div>
+                        {/* Seta do tooltip - centralizada na barra */}
+                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-foreground rotate-45" />
                       </div>
-                      {/* Seta do tooltip */}
-                      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-foreground rotate-45" />
-                    </div>
-                  </motion.div>
-                )}
+                    </motion.div>
+                  )
+                })()}
               </AnimatePresence>
 
               {/* Container das barras sobrepostas */}
