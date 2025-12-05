@@ -5,6 +5,7 @@
  * valores de entradas/saídas e resumo do saldo.
  */
 
+import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { formatarMoeda, cn } from '@/lib/utils'
@@ -61,6 +62,7 @@ export function HeroCard({
   isLoading = false,
 }: HeroCardProps) {
   const saudacao = getSaudacao()
+  const [hasInteracted, setHasInteracted] = useState(false)
 
   // Texto de pendentes para entradas
   const getPendentesEntradaTexto = () => {
@@ -99,7 +101,10 @@ export function HeroCard({
         <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={onMesAnterior}
+            onClick={() => {
+              setHasInteracted(true)
+              onMesAnterior()
+            }}
             className={cn(
               'w-7 h-7 flex items-center justify-center rounded-md transition-all',
               'bg-white border border-neutro-200 hover:bg-neutro-50 active:scale-95 text-neutro-600'
@@ -109,13 +114,13 @@ export function HeroCard({
             <ChevronLeft className="w-4 h-4" />
           </button>
           <div className="min-w-[70px] text-center overflow-hidden">
-            <AnimatePresence mode="wait">
+            <AnimatePresence mode="wait" initial={false}>
               <motion.span
                 key={mesSelecionado}
-                initial={{ opacity: 0, y: 10 }}
+                initial={hasInteracted ? { opacity: 0, y: 8 } : false}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.15 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.1 }}
                 className="block text-pequeno font-medium text-neutro-700"
               >
                 {formatarMes(mesSelecionado)}
@@ -124,7 +129,10 @@ export function HeroCard({
           </div>
           <button
             type="button"
-            onClick={onMesProximo}
+            onClick={() => {
+              setHasInteracted(true)
+              onMesProximo()
+            }}
             disabled={!podeAvancar}
             className={cn(
               'w-7 h-7 flex items-center justify-center rounded-md transition-all',
