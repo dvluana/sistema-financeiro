@@ -138,12 +138,6 @@ export function Dashboard({
               />
             </button>
 
-            {/* Próximos Vencimentos */}
-            <UpcomingCard
-              vencimentos={proximosVencimentos}
-              onItemClick={handleVencimentoClick}
-            />
-
             {/* Gráfico dos últimos 6 meses */}
             {historico.length > 0 && (
               <Card>
@@ -155,6 +149,15 @@ export function Dashboard({
                   onMesClick={() => onNavigateToMes()}
                 />
               </Card>
+            )}
+
+            {/* Próximos Vencimentos - Carrossel */}
+            {proximosVencimentos.length > 0 && (
+              <UpcomingCard
+                vencimentos={proximosVencimentos}
+                onItemClick={handleVencimentoClick}
+                onVerTodos={() => onNavigateToMes('pendentes-saida')}
+              />
             )}
 
             {/* Últimos lançamentos */}
