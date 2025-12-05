@@ -293,22 +293,15 @@ export function MiniChart({
                   isPressing && 'scale-105'
                 )}
               >
-                {/* Tooltip - dentro do botão para alinhar com as barras */}
+                {/* Tooltip - sempre centralizado no meio */}
                 <AnimatePresence>
-                  {isActive && (() => {
-                    const alturaMaior = Math.max(alturaEntradas, alturaSaidas)
-                    // Se a barra é muito pequena ou zero, posiciona no meio
-                    const isBarraZerada = alturaMaior < 20
-                    // bottom é a partir da base, então: altura da barra + 8px de espaço
-                    const bottomPosition = isBarraZerada ? 60 : (alturaMaior + 8)
-                    return (
+                  {isActive && (
                       <motion.div
                         initial={{ opacity: 0, y: 4 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 4 }}
                         transition={{ duration: 0.1 }}
-                        className="absolute left-1/2 -translate-x-1/2 z-20 pointer-events-none"
-                        style={{ bottom: `${bottomPosition}px` }}
+                        className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 z-20 pointer-events-none"
                       >
                         <div className="relative bg-foreground px-2.5 py-1.5 rounded-md shadow-lg whitespace-nowrap">
                           <div className="flex items-center gap-3 text-[11px]">
@@ -323,8 +316,7 @@ export function MiniChart({
                           </div>
                         </div>
                       </motion.div>
-                    )
-                  })()}
+                  )}
                 </AnimatePresence>
 
                 {/* Container centralizado para as barras */}
