@@ -121,22 +121,15 @@ export function Dashboard({
           <LoadingSkeleton />
         ) : (
           <>
-            {/* Hero Card - Resumo do mês */}
-            <button
-              type="button"
-              onClick={() => onNavigateToMes()}
-              className="w-full text-left"
-            >
-              <HeroCard
-                mes={mesAtual}
-                nome={primeiroNome}
-                saldo={totais?.saldo ?? 0}
-                jaEntrou={totais?.jaEntrou ?? 0}
-                jaPaguei={totais?.jaPaguei ?? 0}
-                pendentesEntrada={pendentesEntrada}
-                pendentesSaida={pendentesSaida}
-              />
-            </button>
+            {/* Hero - Saudação e resumo do mês */}
+            <HeroCard
+              nome={primeiroNome}
+              saldo={totais?.saldo ?? 0}
+              jaEntrou={totais?.jaEntrou ?? 0}
+              jaPaguei={totais?.jaPaguei ?? 0}
+              pendentesEntrada={pendentesEntrada}
+              pendentesSaida={pendentesSaida}
+            />
 
             {/* Gráfico dos últimos 6 meses */}
             {historico.length > 0 && (

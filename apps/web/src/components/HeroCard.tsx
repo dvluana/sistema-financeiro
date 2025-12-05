@@ -5,11 +5,9 @@
  * valores de entradas/saídas e resumo do saldo.
  */
 
-import { Card } from '@/components/ui/card'
 import { formatarMoeda } from '@/lib/utils'
 
 interface HeroCardProps {
-  mes: string
   nome: string
   saldo: number
   jaEntrou: number
@@ -33,20 +31,7 @@ function getSaudacao(): { texto: string; emoji: string } {
   }
 }
 
-/**
- * Retorna nome do mês por extenso em minúsculo
- */
-function getMesExtenso(mes: string): string {
-  const meses = [
-    'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-    'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
-  ]
-  const [, month] = mes.split('-')
-  return meses[parseInt(month) - 1]
-}
-
 export function HeroCard({
-  mes,
   nome,
   saldo,
   jaEntrou,
@@ -55,7 +40,6 @@ export function HeroCard({
   pendentesSaida,
 }: HeroCardProps) {
   const saudacao = getSaudacao()
-  const mesExtenso = getMesExtenso(mes)
 
   // Texto de pendentes para entradas
   const getPendentesEntradaTexto = () => {
@@ -73,69 +57,59 @@ export function HeroCard({
     return `· ${pendentesSaida} pendente${pendentesSaida > 1 ? 's' : ''}`
   }
 
-  // Frase do saldo
-  const getFraseSaldo = () => {
-    if (saldo > 0) {
-      return { texto: `Sobrou ${formatarMoeda(saldo)} em ${mesExtenso}`, cor: 'text-[#008A05]' }
-    } else if (saldo < 0) {
-      return { texto: `Faltou ${formatarMoeda(Math.abs(saldo))} em ${mesExtenso}`, cor: 'text-[#D93025]' }
-    } else {
-      return { texto: `Fechou certinho em ${mesExtenso} ✓`, cor: 'text-[#222222]' }
-    }
-  }
-
-  const fraseSaldo = getFraseSaldo()
   const pendentesEntradaTexto = getPendentesEntradaTexto()
   const pendentesSaidaTexto = getPendentesSaidaTexto()
 
   return (
-    <Card className="hover:border-rosa/50 transition-colors p-4">
-      {/* Header: Saudação + Valores lado a lado */}
-      <div className="flex items-start justify-between mb-3">
-        {/* Saudação */}
-        <div>
-          <p className="text-[11px] text-neutro-400 uppercase tracking-wider">
-            {saudacao.texto}
-          </p>
-          <p className="text-[18px] font-semibold text-neutro-900 leading-tight">
-            {nome} {saudacao.emoji}
-          </p>
-        </div>
+    <div className="space-y-3">
+      {/* Saudação */}
+      <div className="px-1">
+        <p className="text-[11px] text-neutro-400 uppercase tracking-wider">
+          {saudacao.texto}
+        </p>
+        <p className="text-[20px] font-semibold text-neutro-900 leading-tight">
+          {nome} {saudacao.emoji}
+        </p>
       </div>
 
-      {/* Valores Entrou/Saiu - mais compacto */}
-      <div className="flex gap-6 mb-3">
-        {/* Coluna Entrou */}
-        <div>
-          <p className="text-[12px] text-neutro-500 mb-0.5">Entrou</p>
-          <p className="text-[20px] font-bold text-verde leading-none">
+      {/* Cards de valores - mesmo estilo dos vencimentos */}
+      <div className="grid grid-cols-3 gap-2">
+        {/* Card Entrou */}
+        <div className="bg-white border border-neutro-200 rounded-xl p-3">
+          <p className="text-[10px] font-medium text-neutro-400 mb-1">Entrou</p>
+          <p className="text-[15px] font-semibold text-neutro-900 leading-none">
             {formatarMoeda(jaEntrou)}
           </p>
           {pendentesEntradaTexto && (
-            <p className="text-[11px] text-neutro-400 mt-0.5">
+            <p className="text-[10px] text-verde mt-1">
               {pendentesEntradaTexto}
             </p>
           )}
         </div>
 
-        {/* Coluna Saiu */}
-        <div>
-          <p className="text-[12px] text-neutro-500 mb-0.5">Saiu</p>
-          <p className="text-[20px] font-bold text-vermelho leading-none">
+        {/* Card Saiu */}
+        <div className="bg-white border border-neutro-200 rounded-xl p-3">
+          <p className="text-[10px] font-medium text-neutro-400 mb-1">Saiu</p>
+          <p className="text-[15px] font-semibold text-neutro-900 leading-none">
             {formatarMoeda(jaPaguei)}
           </p>
           {pendentesSaidaTexto && (
-            <p className="text-[11px] text-neutro-400 mt-0.5">
+            <p className="text-[10px] text-vermelho mt-1">
               {pendentesSaidaTexto}
             </p>
           )}
         </div>
-      </div>
 
-      {/* Frase do saldo */}
-      <p className={`text-[14px] font-medium ${fraseSaldo.cor}`}>
-        {fraseSaldo.texto}
-      </p>
-    </Card>
+        {/* Card Sobrou/Faltou */}
+        <div className="bg-white border border-neutro-200 rounded-xl p-3">
+          <p className="text-[10px] font-medium text-neutro-400 mb-1">
+            {saldo >= 0 ? 'Sobrou' : 'Faltou'}
+          </p>
+          <p className={`text-[15px] font-semibold leading-none ${saldo >= 0 ? 'text-verde' : 'text-vermelho'}`}>
+            {formatarMoeda(Math.abs(saldo))}
+          </p>
+        </div>
+      </div>
+    </div>
   )
 }
