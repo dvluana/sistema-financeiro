@@ -276,21 +276,21 @@ export function MiniChart({
               animate={{ opacity: 1 }}
               transition={{ delay: index * 0.05 }}
             >
-              {/* Tooltip - posicionado acima do topo da barra maior, com seta no centro */}
+              {/* Tooltip - posicionado acima do topo da barra ou no meio se zerada */}
               <AnimatePresence>
                 {isActive && (() => {
                   const alturaMaior = Math.max(alturaEntradas, alturaSaidas)
-                  // O botão tem 120px de altura, então calculamos a distância do topo do container
-                  // até o topo da barra: 120 - alturaMaior
-                  // Posicionamos o tooltip 8px acima do topo da barra
-                  const topPosition = 120 - alturaMaior - 8
+                  // Se a barra é muito pequena ou zero, posiciona no meio do container
+                  // Caso contrário, posiciona 8px acima do topo da barra
+                  const isBarraZerada = alturaMaior < 20
+                  const topPosition = isBarraZerada ? 60 : (120 - alturaMaior - 8)
                   return (
                     <motion.div
                       initial={{ opacity: 0, y: 4 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 4 }}
                       transition={{ duration: 0.1 }}
-                      className="absolute left-1/2 -translate-x-1/2 -translate-y-full z-20 pointer-events-none"
+                      className={`absolute left-1/2 -translate-x-1/2 z-20 pointer-events-none ${isBarraZerada ? '-translate-y-1/2' : '-translate-y-full'}`}
                       style={{ top: `${topPosition}px` }}
                     >
                       <div className="relative bg-foreground px-2.5 py-1.5 rounded-md shadow-lg whitespace-nowrap">
@@ -304,8 +304,10 @@ export function MiniChart({
                             <span className="text-background font-medium">{formatarMoeda(item.saidas)}</span>
                           </div>
                         </div>
-                        {/* Seta do tooltip - centralizada */}
-                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-foreground rotate-45" />
+                        {/* Seta do tooltip - só mostra se tiver barra */}
+                        {!isBarraZerada && (
+                          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-foreground rotate-45" />
+                        )}
                       </div>
                     </motion.div>
                   )
