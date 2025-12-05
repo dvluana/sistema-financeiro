@@ -19,6 +19,7 @@ interface HeroCardProps {
   onMesAnterior: () => void
   onMesProximo: () => void
   podeAvancar: boolean
+  isLoading?: boolean
 }
 
 /**
@@ -56,6 +57,7 @@ export function HeroCard({
   onMesAnterior,
   onMesProximo,
   podeAvancar,
+  isLoading = false,
 }: HeroCardProps) {
   const saudacao = getSaudacao()
 
@@ -93,13 +95,13 @@ export function HeroCard({
         </div>
 
         {/* Navegação de mês */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={onMesAnterior}
             className={cn(
               'w-7 h-7 flex items-center justify-center rounded-lg transition-all',
-              'hover:bg-neutro-100 active:scale-95 text-neutro-600'
+              'bg-white border border-neutro-200 hover:bg-neutro-50 active:scale-95 text-neutro-600'
             )}
             aria-label="Mês anterior"
           >
@@ -114,8 +116,8 @@ export function HeroCard({
             disabled={!podeAvancar}
             className={cn(
               'w-7 h-7 flex items-center justify-center rounded-lg transition-all',
-              'hover:bg-neutro-100 active:scale-95',
-              podeAvancar ? 'text-neutro-600' : 'text-neutro-300 cursor-not-allowed'
+              'bg-white border border-neutro-200 active:scale-95',
+              podeAvancar ? 'text-neutro-600 hover:bg-neutro-50' : 'text-neutro-300 cursor-not-allowed opacity-50'
             )}
             aria-label="Próximo mês"
           >
@@ -126,45 +128,59 @@ export function HeroCard({
 
       {/* Cards de valores - mesmo estilo dos vencimentos */}
       <div className="grid grid-cols-3 gap-2">
-        {/* Card Entrou */}
-        <div className="bg-white border border-neutro-200 rounded-xl p-3">
-          <span className="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded bg-verde/10 text-verde mb-2">
-            Entrou
-          </span>
-          <p className="text-[17px] font-semibold text-neutro-900 leading-none">
-            {formatarMoeda(jaEntrou)}
-          </p>
-          {pendentesEntradaTexto && (
-            <p className="text-[10px] text-verde mt-1.5">
-              {pendentesEntradaTexto}
-            </p>
-          )}
-        </div>
+        {isLoading ? (
+          // Skeleton loading
+          <>
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-white border border-neutro-200 rounded-xl p-3">
+                <div className="h-5 w-12 bg-neutro-200 rounded animate-pulse mb-2" />
+                <div className="h-5 w-16 bg-neutro-200 rounded animate-pulse" />
+              </div>
+            ))}
+          </>
+        ) : (
+          <>
+            {/* Card Entrou */}
+            <div className="bg-white border border-neutro-200 rounded-xl p-3">
+              <span className="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded bg-verde/10 text-verde mb-2">
+                Entrou
+              </span>
+              <p className="text-[17px] font-semibold text-neutro-900 leading-none">
+                {formatarMoeda(jaEntrou)}
+              </p>
+              {pendentesEntradaTexto && (
+                <p className="text-[10px] text-verde mt-1.5">
+                  {pendentesEntradaTexto}
+                </p>
+              )}
+            </div>
 
-        {/* Card Saiu */}
-        <div className="bg-white border border-neutro-200 rounded-xl p-3">
-          <span className="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded bg-vermelho/10 text-vermelho mb-2">
-            Saiu
-          </span>
-          <p className="text-[17px] font-semibold text-neutro-900 leading-none">
-            {formatarMoeda(jaPaguei)}
-          </p>
-          {pendentesSaidaTexto && (
-            <p className="text-[10px] text-vermelho mt-1.5">
-              {pendentesSaidaTexto}
-            </p>
-          )}
-        </div>
+            {/* Card Saiu */}
+            <div className="bg-white border border-neutro-200 rounded-xl p-3">
+              <span className="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded bg-vermelho/10 text-vermelho mb-2">
+                Saiu
+              </span>
+              <p className="text-[17px] font-semibold text-neutro-900 leading-none">
+                {formatarMoeda(jaPaguei)}
+              </p>
+              {pendentesSaidaTexto && (
+                <p className="text-[10px] text-vermelho mt-1.5">
+                  {pendentesSaidaTexto}
+                </p>
+              )}
+            </div>
 
-        {/* Card Sobrou/Faltou */}
-        <div className="bg-white border border-neutro-200 rounded-xl p-3">
-          <span className={`inline-block text-[10px] font-medium px-1.5 py-0.5 rounded mb-2 ${saldo >= 0 ? 'bg-blue-500/10 text-blue-600' : 'bg-vermelho/10 text-vermelho'}`}>
-            {saldo >= 0 ? 'Sobrou' : 'Faltou'}
-          </span>
-          <p className={`text-[17px] font-semibold leading-none ${saldo >= 0 ? 'text-blue-600' : 'text-vermelho'}`}>
-            {formatarMoeda(Math.abs(saldo))}
-          </p>
-        </div>
+            {/* Card Sobrou/Faltou */}
+            <div className="bg-white border border-neutro-200 rounded-xl p-3">
+              <span className={`inline-block text-[10px] font-medium px-1.5 py-0.5 rounded mb-2 ${saldo >= 0 ? 'bg-blue-500/10 text-blue-600' : 'bg-vermelho/10 text-vermelho'}`}>
+                {saldo >= 0 ? 'Sobrou' : 'Faltou'}
+              </span>
+              <p className={`text-[17px] font-semibold leading-none ${saldo >= 0 ? 'text-blue-600' : 'text-vermelho'}`}>
+                {formatarMoeda(Math.abs(saldo))}
+              </p>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )

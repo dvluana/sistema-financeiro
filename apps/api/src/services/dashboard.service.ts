@@ -55,12 +55,18 @@ export const dashboardService = {
     const mesSelecionado = mes || mesAtual
     const ultimosMeses = getUltimosMeses(6)
 
+    // Define se é mês atual ou passado
+    const isCurrentMonth = mesSelecionado === mesAtual
+
     // Busca dados em paralelo para melhor performance
     const [lancamentosMesSelecionado, recentLancamentos, totaisPorMes, proximosVencimentos] = await Promise.all([
       lancamentoRepository.findByMes(mesSelecionado, userId),
-      dashboardRepository.findRecent(userId, 5),
+      dashboardRepository.findRecentByMes(userId, mesSelecionado, 5),
       dashboardRepository.getTotaisPorMes(ultimosMeses, userId),
-      dashboardRepository.findProximosVencimentos(userId, 5),
+      // Se mês atual: próximos 7 dias; senão: vencimentos pendentes do mês selecionado
+      isCurrentMonth
+        ? dashboardRepository.findProximosVencimentos(userId, 5)
+        : dashboardRepository.findVencimentosByMes(userId, mesSelecionado, 5),
     ])
 
     // Calcula totais do mês selecionado

@@ -28,9 +28,9 @@ export const dashboardRepository = {
   },
 
   /**
-   * Lista os últimos N lançamentos de qualquer mês
+   * Lista os últimos N lançamentos de um mês específico
    */
-  async findRecent(userId: string, limit: number = 5): Promise<Lancamento[]> {
+  async findRecentByMes(userId: string, mes: string, limit: number = 5): Promise<Lancamento[]> {
     const { data, error } = await supabase
       .from('lancamentos')
       .select(`
@@ -38,6 +38,7 @@ export const dashboardRepository = {
         categoria:categorias(id, nome, tipo, icone, cor, ordem, is_default)
       `)
       .eq('user_id', userId)
+      .eq('mes', mes)
       .order('created_at', { ascending: false })
       .limit(limit)
 
@@ -108,6 +109,34 @@ export const dashboardRepository = {
       .eq('concluido', false)
       .gte('data_prevista', hojeStr)
       .lte('data_prevista', seteDiasStr)
+      .order('data_prevista', { ascending: true })
+      .limit(limit)
+
+    if (error) throw error
+    return (data || []).filter(d => d.data_prevista !== null) as Array<{
+      id: string
+      nome: string
+      valor: number
+      data_prevista: string
+    }>
+  },
+
+  /**
+   * Busca vencimentos pendentes de um mês específico (saídas não concluídas)
+   */
+  async findVencimentosByMes(userId: string, mes: string, limit: number = 5): Promise<Array<{
+    id: string
+    nome: string
+    valor: number
+    data_prevista: string
+  }>> {
+    const { data, error } = await supabase
+      .from('lancamentos')
+      .select('id, nome, valor, data_prevista')
+      .eq('user_id', userId)
+      .eq('mes', mes)
+      .eq('tipo', 'saida')
+      .eq('concluido', false)
       .order('data_prevista', { ascending: true })
       .limit(limit)
 

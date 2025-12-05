@@ -139,6 +139,7 @@ export function Dashboard({
               onMesAnterior={navegarMesAnterior}
               onMesProximo={navegarMesProximo}
               podeAvancar={podeAvancar}
+              isLoading={isLoading}
             />
 
             {/* Gráfico dos últimos 6 meses */}
@@ -158,14 +159,13 @@ export function Dashboard({
               </div>
             )}
 
-            {/* Próximos Vencimentos - Carrossel */}
-            {proximosVencimentos.length > 0 && (
-              <UpcomingCard
-                vencimentos={proximosVencimentos}
-                onItemClick={handleVencimentoClick}
-                onVerTodos={() => onNavigateToMes('pendentes-saida')}
-              />
-            )}
+            {/* Próximos Vencimentos */}
+            <UpcomingCard
+              vencimentos={proximosVencimentos}
+              onItemClick={handleVencimentoClick}
+              onVerTodos={() => onNavigateToMes('pendentes-saida')}
+              isLoading={isLoading}
+            />
 
             {/* Últimos lançamentos */}
             <div className="space-y-3">
@@ -175,12 +175,27 @@ export function Dashboard({
                 </h2>
               </div>
               <div className="bg-white border border-neutro-200 rounded-xl p-4">
-                <RecentList
-                  lancamentos={recentLancamentos}
-                  onItemClick={onEditLancamento}
-                  onToggle={toggleConcluido}
-                  onVerTodos={() => onNavigateToMes()}
-                />
+                {isLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="flex items-center gap-3 py-2">
+                        <div className="w-5 h-5 rounded-full bg-neutro-200 animate-pulse" />
+                        <div className="flex-1 space-y-1.5">
+                          <div className="h-4 bg-neutro-200 rounded animate-pulse w-3/4" />
+                          <div className="h-3 bg-neutro-200 rounded animate-pulse w-1/3" />
+                        </div>
+                        <div className="h-4 bg-neutro-200 rounded animate-pulse w-16" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <RecentList
+                    lancamentos={recentLancamentos}
+                    onItemClick={onEditLancamento}
+                    onToggle={toggleConcluido}
+                    onVerTodos={() => onNavigateToMes()}
+                  />
+                )}
               </div>
             </div>
           </>

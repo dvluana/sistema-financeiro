@@ -19,6 +19,7 @@ interface UpcomingCardProps {
   vencimentos: Vencimento[]
   onItemClick: (id: string) => void
   onVerTodos?: () => void
+  isLoading?: boolean
 }
 
 /**
@@ -41,10 +42,37 @@ function formatarData(dataStr: string): string {
   return `Dia ${dia}`
 }
 
-export function UpcomingCard({ vencimentos, onItemClick, onVerTodos }: UpcomingCardProps) {
+export function UpcomingCard({ vencimentos, onItemClick, onVerTodos, isLoading = false }: UpcomingCardProps) {
   // Limita a 4 itens no grid
   const vencimentosExibidos = vencimentos.slice(0, 4)
   const temMais = vencimentos.length > 4
+
+  // Skeleton loading
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between px-1">
+          <h2 className="text-corpo-medium text-neutro-900">
+            Próximos vencimentos
+          </h2>
+        </div>
+        <div className="grid grid-cols-4 gap-2">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="bg-white border border-neutro-200 rounded-xl p-3">
+              <div className="h-4 w-10 bg-neutro-200 rounded animate-pulse mb-2" />
+              <div className="h-4 w-full bg-neutro-200 rounded animate-pulse mb-1" />
+              <div className="h-4 w-12 bg-neutro-200 rounded animate-pulse" />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // Estado vazio
+  if (vencimentos.length === 0) {
+    return null
+  }
 
   return (
     <div className="space-y-3">
