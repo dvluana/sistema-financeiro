@@ -333,7 +333,7 @@ export function MiniChart({
 
                 {/* Barra de saídas (trás) - cinza */}
                 <motion.div
-                  className="absolute bottom-0 w-8 bg-muted rounded-t-md"
+                  className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 bg-muted rounded-t-md"
                   initial={{ height: 0 }}
                   animate={{ height: alturaSaidas }}
                   transition={{
@@ -346,7 +346,7 @@ export function MiniChart({
                 {/* Barra de entradas (frente) - gradiente rosa */}
                 <motion.div
                   className={cn(
-                    'relative w-8 rounded-t-md',
+                    'absolute bottom-0 left-1/2 -translate-x-1/2 w-8 rounded-t-md',
                     'bg-gradient-to-t from-rosa to-[#FF6B81]',
                     isActive && 'shadow-md shadow-rosa/30'
                   )}
