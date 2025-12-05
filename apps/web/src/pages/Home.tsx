@@ -1,56 +1,49 @@
 /**
  * Home Page
  *
- * Tela principal do sistema financeiro.
- * Integra todos os componentes e gerencia o estado da aplicação.
- *
- * Funcionalidades:
- * - Exibição de entradas e saídas do mês
- * - Navegação entre meses
- * - Criação/edição/exclusão de lançamentos
- * - Marcar/desmarcar como pago/recebido
- * - Configurações do usuário
- * - Navegação por swipe (mobile)
+ * Container principal com navegação entre Dashboard e Mês.
+ * Gerencia estado compartilhado entre as duas views.
  */
 
-import { useEffect, useState, useCallback } from 'react'
-import { motion, AnimatePresence, PanInfo } from 'framer-motion'
+import { useState, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useFinanceiroStore } from '@/stores/useFinanceiroStore'
-import { Header } from '@/components/Header'
-import { CardEntradas } from '@/components/CardEntradas'
-import { CardSaidas } from '@/components/CardSaidas'
-import { CardResultado } from '@/components/CardResultado'
+import { useDashboardStore } from '@/stores/useDashboardStore'
+import { BottomTabBar, type TabType } from '@/components/BottomTabBar'
+import { Dashboard } from './Dashboard'
+import { MesView, type FiltroPendentes } from './MesView'
 import { FormLancamento } from '@/components/FormLancamento'
 import { ConfiguracaoDrawer } from '@/components/ConfiguracaoDrawer'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
-import { LoadingSkeleton } from '@/components/LoadingSkeleton'
 import { Toast } from '@/components/Toast'
 import { ResponsiveDrawer, ResponsiveDrawerContent } from '@/components/ui/responsive-drawer'
 import type { Lancamento } from '@/lib/api'
 import type { FormLancamentoData } from '@/components/FormLancamento'
 
 export function Home() {
-  // Estado global
+  // Tab ativo
+  const [activeTab, setActiveTab] = useState<TabType>('inicio')
+
+  // Filtro de pendentes (quando vem da dashboard)
+  const [filtroPendentes, setFiltroPendentes] = useState<FiltroPendentes>(null)
+
+  // Estado global financeiro
   const {
     mesAtual,
-    entradas,
-    saidas,
-    totais,
     configuracoes,
     isLoading,
     error,
-    irParaMesAnterior,
-    irParaProximoMes,
     carregarMes,
-    carregarConfiguracoes,
     criarLancamento,
     criarLancamentoRecorrente,
     atualizarLancamento,
-    toggleConcluido,
     excluirLancamento,
     atualizarConfiguracao,
     limparErro,
   } = useFinanceiroStore()
+
+  // Recarrega dashboard quando necessário
+  const { carregarDashboard } = useDashboardStore()
 
   // Estado local para modais
   const [formDrawerOpen, setFormDrawerOpen] = useState(false)
@@ -61,15 +54,12 @@ export function Home() {
   const [formTipo, setFormTipo] = useState<'entrada' | 'saida'>('entrada')
   const [lancamentoSelecionado, setLancamentoSelecionado] = useState<Lancamento | null>(null)
 
-  // Direção da animação para navegação de mês
-  const [slideDirection, setSlideDirection] = useState(0)
-
   /**
-   * Carrega dados iniciais
+   * Navegação da dashboard para a tela de mês
    */
-  useEffect(() => {
-    carregarMes(mesAtual)
-    carregarConfiguracoes()
+  const handleNavigateToMes = useCallback((filtro?: 'pendentes-entrada' | 'pendentes-saida') => {
+    setFiltroPendentes(filtro ?? null)
+    setActiveTab('mes')
   }, [])
 
   /**
@@ -105,7 +95,6 @@ export function Home() {
   const handleFormSubmit = async (data: FormLancamentoData) => {
     try {
       if (lancamentoSelecionado) {
-        // Atualizar
         await atualizarLancamento(lancamentoSelecionado.id, {
           nome: data.nome,
           valor: data.valor,
@@ -114,7 +103,6 @@ export function Home() {
           categoria_id: data.categoria_id,
         })
       } else if (data.recorrencia) {
-        // Criar lançamentos recorrentes
         const diaPrevisto = data.data_prevista
           ? parseInt(data.data_prevista.split('-')[2], 10)
           : null
@@ -129,7 +117,6 @@ export function Home() {
           recorrencia: data.recorrencia,
         })
       } else {
-        // Criar lançamento único
         await criarLancamento({
           tipo: formTipo,
           nome: data.nome,
@@ -141,6 +128,10 @@ export function Home() {
         })
       }
       setFormDrawerOpen(false)
+      // Recarrega dashboard se estiver na aba início
+      if (activeTab === 'inicio') {
+        carregarDashboard()
+      }
     } catch {
       // Erro já tratado na store
     }
@@ -162,107 +153,63 @@ export function Home() {
         await excluirLancamento(lancamentoSelecionado.id)
         setConfirmDialogOpen(false)
         setFormDrawerOpen(false)
+        // Recarrega dashboard se estiver na aba início
+        if (activeTab === 'inicio') {
+          carregarDashboard()
+        }
       } catch {
         // Erro já tratado na store
       }
     }
   }
 
-  /**
-   * Navegação por swipe (mobile)
-   */
-  const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    const threshold = 50
-    if (info.offset.x > threshold) {
-      setSlideDirection(-1)
-      irParaMesAnterior()
-    } else if (info.offset.x < -threshold) {
-      setSlideDirection(1)
-      irParaProximoMes()
-    }
-  }
-
-  /**
-   * Navegação por botões
-   */
-  const handleMesAnterior = () => {
-    setSlideDirection(-1)
-    irParaMesAnterior()
-  }
-
-  const handleProximoMes = () => {
-    setSlideDirection(1)
-    irParaProximoMes()
-  }
-
   // Configurações do usuário
-  const mostrarConcluidosDiscretos = Boolean(configuracoes.mostrar_concluidos_discretos)
   const autoMarcarConcluido = formTipo === 'entrada'
     ? Boolean(configuracoes.entradas_auto_recebido)
     : Boolean(configuracoes.saidas_auto_pago)
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-neutro-100 to-neutro-200">
-      {/* Header */}
-      <Header
-        mes={mesAtual}
-        onMesAnterior={handleMesAnterior}
-        onProximoMes={handleProximoMes}
-        onOpenConfig={() => setConfigDrawerOpen(true)}
-      />
-
-      {/* Conteúdo principal */}
-      <main className="max-w-[720px] mx-auto pb-8">
-        {isLoading && !totais ? (
-          <LoadingSkeleton />
+    <div className="min-h-screen">
+      {/* Conteúdo das telas com crossfade */}
+      <AnimatePresence mode="wait">
+        {activeTab === 'inicio' ? (
+          <motion.div
+            key="dashboard"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <Dashboard
+              onNavigateToMes={handleNavigateToMes}
+              onOpenConfig={() => setConfigDrawerOpen(true)}
+              onEditLancamento={handleEditLancamento}
+            />
+          </motion.div>
         ) : (
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={mesAtual}
-              initial={{ x: slideDirection * 100, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: slideDirection * -100, opacity: 0 }}
-              transition={{ duration: 0.15 }}
-              drag="x"
-              dragConstraints={{ left: 0, right: 0 }}
-              dragElastic={0.1}
-              onDragEnd={handleDragEnd}
-              className="p-4 space-y-4"
-            >
-              {/* Card Entradas */}
-              <CardEntradas
-                entradas={entradas}
-                jaEntrou={totais?.jaEntrou ?? 0}
-                faltaEntrar={totais?.faltaEntrar ?? 0}
-                mostrarConcluidosDiscretos={mostrarConcluidosDiscretos}
-                onToggle={toggleConcluido}
-                onEdit={handleEditLancamento}
-                onAdd={handleAddEntrada}
-              />
-
-              {/* Card Saídas */}
-              <CardSaidas
-                saidas={saidas}
-                jaPaguei={totais?.jaPaguei ?? 0}
-                faltaPagar={totais?.faltaPagar ?? 0}
-                mostrarConcluidosDiscretos={mostrarConcluidosDiscretos}
-                onToggle={toggleConcluido}
-                onEdit={handleEditLancamento}
-                onAdd={handleAddSaida}
-              />
-
-              {/* Card Resultado */}
-              <CardResultado
-                totalEntradas={totais?.entradas ?? 0}
-                totalSaidas={totais?.saidas ?? 0}
-                saldo={totais?.saldo ?? 0}
-              />
-            </motion.div>
-          </AnimatePresence>
+          <motion.div
+            key="mes"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <MesView
+              filtro={filtroPendentes}
+              onFiltroChange={setFiltroPendentes}
+              onOpenConfig={() => setConfigDrawerOpen(true)}
+              onEditLancamento={handleEditLancamento}
+              onAddEntrada={handleAddEntrada}
+              onAddSaida={handleAddSaida}
+            />
+          </motion.div>
         )}
-      </main>
+      </AnimatePresence>
 
-      {/* Drawer do formulário (responsivo: lateral em desktop, bottom em mobile) */}
+      {/* Bottom Tab Bar */}
+      <BottomTabBar activeTab={activeTab} onTabChange={setActiveTab} />
+
+      {/* Drawer do formulário */}
       <ResponsiveDrawer open={formDrawerOpen} onOpenChange={setFormDrawerOpen}>
         <ResponsiveDrawerContent>
           <FormLancamento

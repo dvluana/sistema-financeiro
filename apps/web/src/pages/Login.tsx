@@ -89,6 +89,7 @@ export function Login({ onSwitchToRegister }: LoginProps) {
                   placeholder="seu@email.com"
                   className="pl-12"
                   autoComplete="email"
+                  enableAutofill
                 />
               </div>
             </div>
@@ -106,6 +107,7 @@ export function Login({ onSwitchToRegister }: LoginProps) {
                   placeholder="Sua senha"
                   className="pl-12 pr-12"
                   autoComplete="current-password"
+                  enableAutofill
                 />
                 <button
                   type="button"

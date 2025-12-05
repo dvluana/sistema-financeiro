@@ -106,6 +106,7 @@ export function Register({ onSwitchToLogin }: RegisterProps) {
                   placeholder="Seu nome"
                   className="pl-12"
                   autoComplete="name"
+                  enableAutofill
                 />
               </div>
             </div>

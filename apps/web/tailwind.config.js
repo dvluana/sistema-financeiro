@@ -107,6 +107,10 @@ export default {
       spacing: {
         touch: "48px",
         "touch-lg": "56px",
+        safe: "env(safe-area-inset-bottom)",
+      },
+      padding: {
+        safe: "env(safe-area-inset-bottom)",
       },
       minHeight: {
         touch: "48px",

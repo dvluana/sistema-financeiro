@@ -89,7 +89,7 @@ export const authRepository = {
   async createSessao(userId: string): Promise<Sessao> {
     const token = crypto.randomBytes(32).toString('hex')
     const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + 30) // 30 dias
+    expiresAt.setDate(expiresAt.getDate() + 90) // 90 dias
 
     const { data, error } = await supabase
       .from('sessoes')
@@ -106,7 +106,7 @@ export const authRepository = {
   },
 
   /**
-   * Busca sessão por token
+   * Busca sessão por token e renova automaticamente se válida
    */
   async findSessaoByToken(token: string): Promise<Sessao | null> {
     const { data, error } = await supabase
@@ -120,6 +120,19 @@ export const authRepository = {
       if (error.code === 'PGRST116') return null
       throw error
     }
+
+    // Renova a sessão para mais 90 dias a cada uso
+    // Isso evita que o usuário seja deslogado se estiver usando o sistema
+    if (data) {
+      const newExpiresAt = new Date()
+      newExpiresAt.setDate(newExpiresAt.getDate() + 90)
+
+      await supabase
+        .from('sessoes')
+        .update({ expires_at: newExpiresAt.toISOString() })
+        .eq('token', token)
+    }
+
     return data
   },
 

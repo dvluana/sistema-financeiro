@@ -2,10 +2,23 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 export interface InputProps
-  extends React.InputHTMLAttributes<HTMLInputElement> {}
+  extends React.InputHTMLAttributes<HTMLInputElement> {
+  /** Se true, habilita autocomplete do navegador/1Password (use em login/registro) */
+  enableAutofill?: boolean
+}
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, ...props }, ref) => {
+  ({ className, type, enableAutofill = false, ...props }, ref) => {
+    // Atributos para desabilitar 1Password e outros gerenciadores de senha
+    const autofillAttrs = enableAutofill
+      ? {}
+      : {
+          'data-1p-ignore': true,
+          'data-lpignore': true, // LastPass
+          'data-form-type': 'other',
+          autoComplete: 'off',
+        }
+
     return (
       <input
         type={type}
@@ -14,6 +27,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           className
         )}
         ref={ref}
+        {...autofillAttrs}
         {...props}
       />
     )

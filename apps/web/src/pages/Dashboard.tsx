@@ -117,9 +117,8 @@ export function Dashboard({
                 </h2>
                 <MiniChart
                   dados={historico}
-                  onMesClick={(mes) => {
-                    // Navega para o mês clicado
-                    // Por enquanto só vai para a tela de mês
+                  onMesClick={() => {
+                    // Navega para a tela de mês
                     onNavigateToMes()
                   }}
                 />
