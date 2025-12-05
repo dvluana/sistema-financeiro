@@ -267,7 +267,6 @@ export function MiniChart({
           const alturaEntradas = calcularAltura(item.entradas, maxValor)
           const alturaSaidas = calcularAltura(item.saidas, maxValor)
           const isActive = activeIndex === index
-          const saldo = item.entradas - item.saidas
 
           return (
             <motion.div
@@ -281,32 +280,19 @@ export function MiniChart({
               <AnimatePresence>
                 {isActive && (
                   <motion.div
-                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute -top-[90px] left-1/2 -translate-x-1/2 z-20 pointer-events-none"
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 4 }}
+                    transition={{ duration: 0.1 }}
+                    className="absolute -top-[52px] left-1/2 -translate-x-1/2 z-20 pointer-events-none"
                   >
-                    <div className="bg-white border border-neutro-300 px-3 py-2.5 rounded-lg shadow-lg whitespace-nowrap">
-                      <p className="text-micro font-semibold text-neutro-900 mb-1.5">
-                        {item.label} {item.mes.split('-')[0]}
-                      </p>
-                      <div className="space-y-1">
-                        <p className="text-micro text-neutro-600">
-                          Entrou <span className="font-medium text-verde">{formatarMoeda(item.entradas)}</span>
-                        </p>
-                        <p className="text-micro text-neutro-600">
-                          Saiu <span className="font-medium text-vermelho">{formatarMoeda(item.saidas)}</span>
-                        </p>
-                        <p className="text-micro font-medium pt-1 border-t border-neutro-200">
-                          Saldo{' '}
-                          <span className={saldo >= 0 ? 'text-verde' : 'text-vermelho'}>
-                            {saldo >= 0 ? '+' : ''}{formatarMoeda(saldo)}
-                          </span>
-                        </p>
+                    <div className="bg-neutro-900 px-2.5 py-1.5 rounded-md shadow-lg whitespace-nowrap">
+                      <div className="flex items-center gap-3 text-[11px]">
+                        <span className="text-verde font-medium">{formatarMoeda(item.entradas)}</span>
+                        <span className="text-vermelho font-medium">{formatarMoeda(item.saidas)}</span>
                       </div>
                       {/* Seta do tooltip */}
-                      <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-b border-r border-neutro-300 rotate-45" />
+                      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-neutro-900 rotate-45" />
                     </div>
                   </motion.div>
                 )}
