@@ -15,6 +15,7 @@ import {
   type LancamentoResponse,
   type Lancamento,
   type CriarLancamentoInput,
+  type CriarLancamentoRecorrenteInput,
   type AtualizarLancamentoInput,
   type Configuracao,
 } from '@/lib/api'
@@ -46,6 +47,7 @@ interface FinanceiroState {
 
   // Ações de lançamentos
   criarLancamento: (data: CriarLancamentoInput) => Promise<void>
+  criarLancamentoRecorrente: (data: CriarLancamentoRecorrenteInput) => Promise<{ criados: number }>
   atualizarLancamento: (id: string, data: AtualizarLancamentoInput) => Promise<void>
   toggleConcluido: (id: string) => Promise<void>
   excluirLancamento: (id: string) => Promise<void>
@@ -162,6 +164,27 @@ export const useFinanceiroStore = create<FinanceiroState>((set, get) => ({
   },
 
   /**
+   * Cria lançamentos recorrentes (mensal ou parcelas)
+   */
+  criarLancamentoRecorrente: async (data: CriarLancamentoRecorrenteInput) => {
+    set({ isLoading: true, error: null })
+
+    try {
+      const result = await lancamentosApi.criarRecorrente(data)
+      // Recarrega o mês atual para mostrar os novos lançamentos
+      await get().carregarMes(get().mesAtual)
+      set({ isLoading: false })
+      return result
+    } catch (error) {
+      set({
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Erro ao criar lançamentos recorrentes',
+      })
+      throw error
+    }
+  },
+
+  /**
    * Atualiza um lançamento existente
    */
   atualizarLancamento: async (id: string, data: AtualizarLancamentoInput) => {
@@ -186,17 +209,58 @@ export const useFinanceiroStore = create<FinanceiroState>((set, get) => ({
 
   /**
    * Alterna o status de conclusão de um lançamento
+   * Usa optimistic update para feedback imediato
    */
   toggleConcluido: async (id: string) => {
-    try {
-      const response = await lancamentosApi.toggleConcluido(id)
+    const { entradas, saidas, totais } = get()
+
+    // Encontra o lançamento e determina o novo estado
+    const lancamentoEntrada = entradas.find(l => l.id === id)
+    const lancamentoSaida = saidas.find(l => l.id === id)
+    const lancamento = lancamentoEntrada || lancamentoSaida
+
+    if (!lancamento || !totais) return
+
+    const novoStatus = !lancamento.concluido
+
+    // Optimistic update - atualiza UI imediatamente
+    if (lancamentoEntrada) {
+      const novasEntradas = entradas.map(l =>
+        l.id === id ? { ...l, concluido: novoStatus } : l
+      )
+      const diffValor = novoStatus ? lancamento.valor : -lancamento.valor
       set({
-        entradas: response.entradas,
-        saidas: response.saidas,
-        totais: response.totais,
+        entradas: novasEntradas,
+        totais: {
+          ...totais,
+          jaEntrou: totais.jaEntrou + diffValor,
+          faltaEntrar: totais.faltaEntrar - diffValor,
+        },
       })
-    } catch (error) {
+    } else {
+      const novasSaidas = saidas.map(l =>
+        l.id === id ? { ...l, concluido: novoStatus } : l
+      )
+      const diffValor = novoStatus ? lancamento.valor : -lancamento.valor
       set({
+        saidas: novasSaidas,
+        totais: {
+          ...totais,
+          jaPaguei: totais.jaPaguei + diffValor,
+          faltaPagar: totais.faltaPagar - diffValor,
+        },
+      })
+    }
+
+    // Sincroniza com backend
+    try {
+      await lancamentosApi.toggleConcluido(id)
+    } catch (error) {
+      // Reverte em caso de erro
+      set({
+        entradas,
+        saidas,
+        totais,
         error: error instanceof Error ? error.message : 'Erro ao atualizar status',
       })
     }
