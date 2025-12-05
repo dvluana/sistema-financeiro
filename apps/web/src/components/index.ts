@@ -25,3 +25,7 @@ export { ConfiguracaoDrawer } from './ConfiguracaoDrawer'
 export { ConfirmDialog } from './ConfirmDialog'
 export { LoadingSkeleton } from './LoadingSkeleton'
 export { Toast } from './Toast'
+
+// Componentes de lançamento rápido
+export { QuickInputSheet } from './QuickInputSheet'
+export { QuickInputFAB } from './QuickInputFAB'

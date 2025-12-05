@@ -271,7 +271,6 @@ function extrairMes(texto: string): { mes: string | null; textoRestante: string 
  * Suporta: "de out até dez", "out a dez", "por 3 meses", "próximos 4 meses"
  */
 function extrairPeriodo(texto: string): { meses: string[] | null; textoRestante: string } {
-  const textoLower = texto.toLowerCase()
   let textoRestante = texto
 
   // Padrão: "por X meses" ou "próximos X meses"

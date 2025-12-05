@@ -16,9 +16,12 @@ import { FormLancamento } from '@/components/FormLancamento'
 import { ConfiguracaoDrawer } from '@/components/ConfiguracaoDrawer'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Toast } from '@/components/Toast'
+import { QuickInputSheet } from '@/components/QuickInputSheet'
+import { QuickInputFAB } from '@/components/QuickInputFAB'
 import { ResponsiveDrawer, ResponsiveDrawerContent } from '@/components/ui/responsive-drawer'
-import type { Lancamento } from '@/lib/api'
+import type { Lancamento, CriarLancamentoInput } from '@/lib/api'
 import type { FormLancamentoData } from '@/components/FormLancamento'
+import type { ParsedLancamento } from '@/lib/parser'
 
 export function Home() {
   // Tab ativo
@@ -49,6 +52,7 @@ export function Home() {
   const [formDrawerOpen, setFormDrawerOpen] = useState(false)
   const [configDrawerOpen, setConfigDrawerOpen] = useState(false)
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
+  const [quickInputOpen, setQuickInputOpen] = useState(false)
 
   // Estado do formulário
   const [formTipo, setFormTipo] = useState<'entrada' | 'saida'>('entrada')
@@ -163,6 +167,50 @@ export function Home() {
     }
   }
 
+  /**
+   * Confirma lançamentos do Quick Input
+   */
+  const handleQuickInputConfirm = async (lancamentos: ParsedLancamento[]) => {
+    // Agrupa por mês para criar lançamentos
+    const porMes = new Map<string, ParsedLancamento[]>()
+    for (const l of lancamentos) {
+      const grupo = porMes.get(l.mes) || []
+      grupo.push(l)
+      porMes.set(l.mes, grupo)
+    }
+
+    // Cria todos os lançamentos em paralelo
+    const promises: Promise<void>[] = []
+
+    for (const l of lancamentos) {
+      const data: CriarLancamentoInput = {
+        tipo: l.tipo,
+        nome: l.nome,
+        valor: l.valor!,
+        mes: l.mes,
+        concluido: false,
+        data_prevista: l.diaPrevisto
+          ? `${l.mes}-${String(l.diaPrevisto).padStart(2, '0')}`
+          : null,
+        categoria_id: null,
+      }
+
+      promises.push(
+        criarLancamento(data).then(() => {
+          // Lançamento criado
+        })
+      )
+    }
+
+    await Promise.all(promises)
+
+    // Recarrega dados
+    await carregarMes(mesAtual)
+    if (activeTab === 'inicio') {
+      carregarDashboard()
+    }
+  }
+
   // Configurações do usuário
   const autoMarcarConcluido = formTipo === 'entrada'
     ? Boolean(configuracoes.entradas_auto_recebido)
@@ -246,6 +294,20 @@ export function Home() {
         message={error}
         onClose={limparErro}
         onRetry={() => carregarMes(mesAtual)}
+      />
+
+      {/* FAB de lançamento rápido */}
+      <QuickInputFAB
+        onClick={() => setQuickInputOpen(true)}
+        className="bottom-24 right-4"
+      />
+
+      {/* Sheet de lançamento rápido */}
+      <QuickInputSheet
+        open={quickInputOpen}
+        onOpenChange={setQuickInputOpen}
+        mesAtual={mesAtual}
+        onConfirm={handleQuickInputConfirm}
       />
     </div>
   )
