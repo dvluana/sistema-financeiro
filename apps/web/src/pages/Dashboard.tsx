@@ -8,7 +8,6 @@
 import { useEffect } from 'react'
 import { Settings, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Card } from '@/components/ui/card'
 import { HeroCard } from '@/components/HeroCard'
 import { UpcomingCard } from '@/components/UpcomingCard'
 import { MiniChart } from '@/components/MiniChart'
@@ -31,7 +30,6 @@ export function Dashboard({
 }: DashboardProps) {
   const { usuario, logout } = useAuthStore()
   const {
-    mesAtual,
     totais,
     recentLancamentos,
     historico,
@@ -133,15 +131,19 @@ export function Dashboard({
 
             {/* Gráfico dos últimos 6 meses */}
             {historico.length > 0 && (
-              <Card>
-                <h2 className="text-titulo-card text-neutro-900 mb-4">
-                  Histórico dos últimos 6 meses
-                </h2>
-                <MiniChart
-                  dados={historico}
-                  onMesClick={() => onNavigateToMes()}
-                />
-              </Card>
+              <div className="space-y-3">
+                <div className="px-1">
+                  <h2 className="text-corpo-medium text-neutro-900">
+                    Histórico dos últimos 6 meses
+                  </h2>
+                </div>
+                <div className="bg-white border border-neutro-200 rounded-xl p-4">
+                  <MiniChart
+                    dados={historico}
+                    onMesClick={() => onNavigateToMes()}
+                  />
+                </div>
+              </div>
             )}
 
             {/* Próximos Vencimentos - Carrossel */}
@@ -154,17 +156,21 @@ export function Dashboard({
             )}
 
             {/* Últimos lançamentos */}
-            <Card>
-              <h2 className="text-titulo-card text-neutro-900 mb-3">
-                Últimos lançamentos
-              </h2>
-              <RecentList
-                lancamentos={recentLancamentos}
-                onItemClick={onEditLancamento}
-                onToggle={toggleConcluido}
-                onVerTodos={() => onNavigateToMes()}
-              />
-            </Card>
+            <div className="space-y-3">
+              <div className="px-1">
+                <h2 className="text-corpo-medium text-neutro-900">
+                  Últimos lançamentos
+                </h2>
+              </div>
+              <div className="bg-white border border-neutro-200 rounded-xl p-4">
+                <RecentList
+                  lancamentos={recentLancamentos}
+                  onItemClick={onEditLancamento}
+                  onToggle={toggleConcluido}
+                  onVerTodos={() => onNavigateToMes()}
+                />
+              </div>
+            </div>
           </>
         )}
       </main>

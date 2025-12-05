@@ -76,12 +76,14 @@ export function HeroCard({
       <div className="grid grid-cols-3 gap-2">
         {/* Card Entrou */}
         <div className="bg-white border border-neutro-200 rounded-xl p-3">
-          <p className="text-[10px] font-medium text-neutro-400 mb-1">Entrou</p>
-          <p className="text-[15px] font-semibold text-neutro-900 leading-none">
+          <span className="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded bg-verde/10 text-verde mb-2">
+            Entrou
+          </span>
+          <p className="text-[17px] font-semibold text-neutro-900 leading-none">
             {formatarMoeda(jaEntrou)}
           </p>
           {pendentesEntradaTexto && (
-            <p className="text-[10px] text-verde mt-1">
+            <p className="text-[10px] text-verde mt-1.5">
               {pendentesEntradaTexto}
             </p>
           )}
@@ -89,12 +91,14 @@ export function HeroCard({
 
         {/* Card Saiu */}
         <div className="bg-white border border-neutro-200 rounded-xl p-3">
-          <p className="text-[10px] font-medium text-neutro-400 mb-1">Saiu</p>
-          <p className="text-[15px] font-semibold text-neutro-900 leading-none">
+          <span className="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded bg-vermelho/10 text-vermelho mb-2">
+            Saiu
+          </span>
+          <p className="text-[17px] font-semibold text-neutro-900 leading-none">
             {formatarMoeda(jaPaguei)}
           </p>
           {pendentesSaidaTexto && (
-            <p className="text-[10px] text-vermelho mt-1">
+            <p className="text-[10px] text-vermelho mt-1.5">
               {pendentesSaidaTexto}
             </p>
           )}
@@ -102,10 +106,10 @@ export function HeroCard({
 
         {/* Card Sobrou/Faltou */}
         <div className="bg-white border border-neutro-200 rounded-xl p-3">
-          <p className="text-[10px] font-medium text-neutro-400 mb-1">
+          <span className={`inline-block text-[10px] font-medium px-1.5 py-0.5 rounded mb-2 ${saldo >= 0 ? 'bg-blue-500/10 text-blue-600' : 'bg-vermelho/10 text-vermelho'}`}>
             {saldo >= 0 ? 'Sobrou' : 'Faltou'}
-          </p>
-          <p className={`text-[15px] font-semibold leading-none ${saldo >= 0 ? 'text-verde' : 'text-vermelho'}`}>
+          </span>
+          <p className={`text-[17px] font-semibold leading-none ${saldo >= 0 ? 'text-blue-600' : 'text-vermelho'}`}>
             {formatarMoeda(Math.abs(saldo))}
           </p>
         </div>
