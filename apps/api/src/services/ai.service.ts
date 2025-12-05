@@ -58,13 +58,18 @@ const SYSTEM_PROMPT = `Você é um assistente financeiro. Extraia lançamentos d
 - academia, escola, faculdade → SAÍDA
 - paguei, gastei, comprei → SAÍDA
 
-### NOME DO LANÇAMENTO
-- Preserve o contexto: "parcela do carro" → "Parcela do carro"
-- Mapeie abreviações:
-  - "sal" → "Salário"
-  - "freela" → "Freelance"
-  - "merc" → "Mercado"
-  - "net" → "Internet"
+### NOME DO LANÇAMENTO (MUITO IMPORTANTE!)
+O nome deve descrever O QUE foi comprado/recebido, NÃO a ação:
+- "gastei 50 numa torta" → nome: "Torta" (NÃO "Gastei")
+- "paguei 100 de uber" → nome: "Uber" (NÃO "Paguei")
+- "comprei um livro por 80" → nome: "Livro" (NÃO "Comprei")
+- "recebi 500 do cliente X" → nome: "Cliente X" ou "Pagamento cliente X"
+
+Regras:
+- NUNCA use verbos como nome (gastei, paguei, comprei, recebi)
+- Extraia o OBJETO/CONTEXTO da frase
+- Preserve detalhes: "torta de nega maluca" → "Torta de nega maluca"
+- Mapeie abreviações: "sal" → "Salário", "freela" → "Freelance"
 - Primeira letra maiúscula
 - Marcas: Netflix, Spotify, Uber, iFood
 
@@ -92,6 +97,14 @@ const SYSTEM_PROMPT = `Você é um assistente financeiro. Extraia lançamentos d
 "recebi 1000 do aluguel" → {"lancamentos":[{"tipo":"entrada","nome":"Aluguel recebido","valor":1000,"diaPrevisto":null}]}
 
 "paguei aluguel 1500" → {"lancamentos":[{"tipo":"saida","nome":"Aluguel","valor":1500,"diaPrevisto":null}]}
+
+"gastei 50 numa torta de nega maluca" → {"lancamentos":[{"tipo":"saida","nome":"Torta de nega maluca","valor":50,"diaPrevisto":null}]}
+
+"comprei um tênis por 350" → {"lancamentos":[{"tipo":"saida","nome":"Tênis","valor":350,"diaPrevisto":null}]}
+
+"paguei 200 no mercado" → {"lancamentos":[{"tipo":"saida","nome":"Mercado","valor":200,"diaPrevisto":null}]}
+
+"gastei 80 com remédio" → {"lancamentos":[{"tipo":"saida","nome":"Remédio","valor":80,"diaPrevisto":null}]}
 
 ## IMPORTANTE
 - "k" após número = multiplicar por 1000
@@ -151,6 +164,48 @@ export class AIService {
     }).replace(/(\d+)\s*mil\b/gi, (match, num) => {
       return String(parseInt(num) * 1000)
     })
+  }
+
+  /**
+   * Extrai o nome correto do lançamento a partir do texto original
+   * Corrige quando a IA retorna apenas o verbo (gastei, paguei, comprei)
+   */
+  private corrigirNome(nomeIA: string, textoOriginal: string): string {
+    const nomeL = nomeIA.toLowerCase().trim()
+
+    // Verbos que não devem ser usados como nome
+    const verbosAcao = ['gastei', 'gasto', 'paguei', 'pago', 'comprei', 'compra', 'recebi', 'recebido']
+
+    // Se o nome é apenas um verbo, tenta extrair o contexto do texto original
+    if (verbosAcao.includes(nomeL)) {
+      const textoL = textoOriginal.toLowerCase()
+
+      // Padrões para extrair o objeto/contexto - ordem importa, do mais específico ao menos
+      const padroes = [
+        // "gastei 50 numa torta de nega maluca" -> "Torta de nega maluca"
+        /(?:gastei|paguei|comprei|gasto|pago|compra)\s+\d+(?:[.,]\d+)?\s*(?:reais|real|r\$)?\s*(?:numa?|em|de|com|no|na|pro|pra|para)\s+(.+)$/i,
+        // "gastei 50 com remédio" -> "Remédio"
+        /(?:gastei|paguei|comprei)\s+\d+(?:[.,]\d+)?\s*(?:com|de|em|no|na)\s+(.+)$/i,
+        // "recebi 500 do cliente" -> "Cliente"
+        /(?:recebi|recebido)\s+\d+(?:[.,]\d+)?\s*(?:do|da|de)\s+(.+)$/i,
+      ]
+
+      for (const padrao of padroes) {
+        const match = textoL.match(padrao)
+        if (match && match[1]) {
+          // Remove o valor se estiver no final
+          let nome = match[1].replace(/\s*\d+(?:[.,]\d+)?\s*(?:reais|real|r\$)?$/i, '').trim()
+          // Remove artigos do início
+          nome = nome.replace(/^(?:um|uma|o|a|os|as)\s+/i, '').trim()
+          if (nome.length > 1) {
+            return nome.charAt(0).toUpperCase() + nome.slice(1)
+          }
+        }
+      }
+    }
+
+    // Retorna o nome original se não conseguiu melhorar
+    return nomeIA
   }
 
   /**
@@ -220,6 +275,11 @@ export class AIService {
           if (nome.length > 50) {
             nome = nome.substring(0, 50)
           }
+
+          // Corrige o nome se a IA retornou apenas o verbo
+          nome = this.corrigirNome(nome, texto)
+
+          // Capitaliza primeira letra
           nome = nome.charAt(0).toUpperCase() + nome.slice(1)
 
           // Corrige o tipo baseado nas palavras-chave
@@ -283,6 +343,9 @@ export class AIService {
 
         // Normaliza o nome
         nome = nome.charAt(0).toUpperCase() + nome.slice(1).toLowerCase()
+
+        // Corrige o nome se for apenas um verbo
+        nome = this.corrigirNome(nome, textoOriginal)
 
         // Usa a função de correção de tipo
         const tipo = this.corrigirTipo(nome, textoOriginal)

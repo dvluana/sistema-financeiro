@@ -1,9 +1,25 @@
-import 'dotenv/config'
+import { config } from 'dotenv'
+import { resolve } from 'path'
+import { fileURLToPath } from 'url'
+import { dirname } from 'path'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+
+// Carrega o .env do apps/api
+config({ path: resolve(__dirname, '../../.env') })
+
 import { AIService } from '../services/ai.service.js'
 
 const ai = new AIService()
 
 const testes = [
+  // Testes de extração de nome (IMPORTANTE!)
+  { texto: "gastei 50 numa torta de nega maluca", esperado: { tipo: "saida", nomeContem: "torta" } },
+  { texto: "comprei um tênis por 350", esperado: { tipo: "saida", nomeContem: "tênis" } },
+  { texto: "paguei 200 no mercado", esperado: { tipo: "saida", nomeContem: "mercado" } },
+  { texto: "gastei 80 com remédio", esperado: { tipo: "saida", nomeContem: "remédio" } },
+
   // Entradas básicas
   { texto: "sal 5k dia 5", esperado: { tipo: "entrada" } },
   { texto: "salário 5000", esperado: { tipo: "entrada" } },
@@ -76,6 +92,15 @@ async function runTests() {
         if (primeiro.tipo !== teste.esperado.tipo) {
           ok = false
           detalhes.push("tipo: " + primeiro.tipo + " (esperado " + teste.esperado.tipo + ")")
+        }
+      }
+
+      // Verifica se nome contém termo esperado
+      if ((teste.esperado as any).nomeContem && primeiro) {
+        const nomeContem = (teste.esperado as any).nomeContem.toLowerCase()
+        if (!primeiro.nome.toLowerCase().includes(nomeContem)) {
+          ok = false
+          detalhes.push("nome: \"" + primeiro.nome + "\" (deveria conter \"" + nomeContem + "\")")
         }
       }
 
