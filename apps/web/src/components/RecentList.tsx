@@ -13,7 +13,8 @@ interface RecentListProps {
   lancamentos: Lancamento[]
   onItemClick: (lancamento: Lancamento) => void
   onToggle: (id: string) => void
-  onVerTodos: () => void
+  onVerTodos?: () => void
+  showVerTodos?: boolean
 }
 
 function formatarDataRelativa(dataStr: string): string {
@@ -43,6 +44,7 @@ export function RecentList({
   onItemClick,
   onToggle,
   onVerTodos,
+  showVerTodos = true,
 }: RecentListProps) {
   if (lancamentos.length === 0) {
     return (
@@ -116,13 +118,15 @@ export function RecentList({
       ))}
 
       {/* Botão Ver todos */}
-      <button
-        type="button"
-        onClick={onVerTodos}
-        className="w-full py-3 text-rosa text-corpo font-medium hover:bg-primary/10 transition-colors rounded-lg mt-2"
-      >
-        Ver todos
-      </button>
+      {showVerTodos && onVerTodos && (
+        <button
+          type="button"
+          onClick={onVerTodos}
+          className="w-full py-3 text-rosa text-corpo font-medium hover:bg-primary/10 transition-colors rounded-lg mt-2"
+        >
+          Ver todos
+        </button>
+      )}
     </div>
   )
 }

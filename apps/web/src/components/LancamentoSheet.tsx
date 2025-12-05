@@ -71,7 +71,7 @@ export function LancamentoSheet({
   // Campos do formulário
   const [nome, setNome] = useState('')
   const [valor, setValor] = useState('')
-  const [diaPrevisto, setDiaPrevisto] = useState('')
+  const [dataPrevista, setDataPrevista] = useState('')
   const [concluido, setConcluido] = useState(false)
   const [categoriaId, setCategoriaId] = useState<string | null>(null)
 
@@ -95,18 +95,15 @@ export function LancamentoSheet({
       setValor(String(lancamento.valor))
       setConcluido(lancamento.concluido)
       setCategoriaId(lancamento.categoria_id || null)
-      if (lancamento.data_prevista) {
-        const dia = lancamento.data_prevista.split('-')[2]
-        setDiaPrevisto(String(parseInt(dia, 10)))
-      } else {
-        setDiaPrevisto('')
-      }
+      // Usa a data_prevista completa se existir
+      setDataPrevista(lancamento.data_prevista || '')
       setRecorrente(false)
     } else {
       setTipo(tipoInicial)
       setNome('')
       setValor('')
-      setDiaPrevisto('')
+      // Pré-preenche com a data do mês selecionado (primeiro dia)
+      setDataPrevista('')
       setConcluido(autoMarcarConcluido[tipoInicial])
       setCategoriaId(null)
       setRecorrente(false)
@@ -114,7 +111,7 @@ export function LancamentoSheet({
       setQuantidadeParcelas('12')
     }
     setErrors({})
-  }, [lancamento, tipoInicial, open, autoMarcarConcluido])
+  }, [lancamento, tipoInicial, open, autoMarcarConcluido, mesAtual])
 
   // Atualiza concluido quando troca de tipo (apenas ao criar)
   useEffect(() => {
@@ -149,20 +146,10 @@ export function LancamentoSheet({
       return
     }
 
-    let dataPrevista: string | null = null
-    if (diaPrevisto) {
-      const dia = parseInt(diaPrevisto)
-      if (dia >= 1 && dia <= 31) {
-        const [year, month] = mesAtual.split('-')
-        const diaStr = String(dia).padStart(2, '0')
-        dataPrevista = `${year}-${month}-${diaStr}`
-      }
-    }
-
     const data: LancamentoFormData = {
       nome: nome.trim(),
       valor: valorNumerico,
-      data_prevista: dataPrevista,
+      data_prevista: dataPrevista || null,
       concluido,
       categoria_id: categoriaId,
     }
@@ -179,7 +166,7 @@ export function LancamentoSheet({
 
   const labels = {
     nome: tipo === 'entrada' ? 'O que entrou?' : 'O que foi?',
-    diaPrevisto: tipo === 'entrada' ? 'Dia previsto' : 'Dia de vencimento',
+    dataPrevista: tipo === 'entrada' ? 'Data prevista' : 'Data de vencimento',
     concluido: tipo === 'entrada' ? 'Já recebi' : 'Já paguei',
     recorrente: tipo === 'entrada' ? 'Entrada recorrente' : 'Saída recorrente',
   }
@@ -297,17 +284,14 @@ export function LancamentoSheet({
           onChange={setCategoriaId}
         />
 
-        {/* Dia previsto */}
+        {/* Data prevista */}
         <div className="space-y-2">
-          <Label htmlFor="diaPrevisto">{labels.diaPrevisto}</Label>
+          <Label htmlFor="dataPrevista">{labels.dataPrevista}</Label>
           <Input
-            id="diaPrevisto"
-            type="number"
-            min={1}
-            max={31}
-            value={diaPrevisto}
-            onChange={(e) => setDiaPrevisto(e.target.value)}
-            placeholder="Ex: 15"
+            id="dataPrevista"
+            type="date"
+            value={dataPrevista}
+            onChange={(e) => setDataPrevista(e.target.value)}
           />
         </div>
 

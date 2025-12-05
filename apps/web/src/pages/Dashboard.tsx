@@ -1,59 +1,91 @@
 /**
  * Dashboard Page
  *
- * Tela inicial com visão geral do financeiro.
- * Exibe: resumo do mês atual, próximos vencimentos, gráfico e lançamentos recentes.
+ * Tela inicial unificada com visão geral do financeiro.
+ * Exibe: resumo do mês, próximos vencimentos, gráfico e todos os lançamentos do mês.
  */
 
-import { useEffect } from 'react'
-import { Settings, LogOut, Plus } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { useEffect, useState } from 'react'
+import { Settings, LogOut } from 'lucide-react'
+import { cn, getMesAtual } from '@/lib/utils'
 import { HeroCard } from '@/components/HeroCard'
 import { UpcomingCard } from '@/components/UpcomingCard'
-import { MiniChart } from '@/components/MiniChart'
+import { CardEntradas } from '@/components/CardEntradas'
+import { CardSaidas } from '@/components/CardSaidas'
 import { RecentList } from '@/components/RecentList'
 import { LoadingSkeleton } from '@/components/LoadingSkeleton'
 import { useDashboardStore } from '@/stores/useDashboardStore'
+import { useFinanceiroStore } from '@/stores/useFinanceiroStore'
 import { useAuthStore } from '@/stores/useAuthStore'
-import { getMesAtual } from '@/lib/utils'
 import type { Lancamento } from '@/lib/api'
 
+type LancamentoFilter = 'todos' | 'entradas' | 'saidas'
+
 interface DashboardProps {
-  onNavigateToMes: (filtro?: 'pendentes-entrada' | 'pendentes-saida') => void
   onOpenConfig: () => void
   onEditLancamento: (lancamento: Lancamento) => void
-  onNovoLancamento: () => void
+  onAddEntrada: () => void
+  onAddSaida: () => void
 }
 
 export function Dashboard({
-  onNavigateToMes,
   onOpenConfig,
   onEditLancamento,
-  onNovoLancamento,
+  onAddEntrada,
+  onAddSaida,
 }: DashboardProps) {
+  // Filtro de visualização de lançamentos
+  const [lancamentoFilter, setLancamentoFilter] = useState<LancamentoFilter>('todos')
+
   const { usuario, logout } = useAuthStore()
   const {
     mesSelecionado,
-    totais,
-    recentLancamentos,
-    historico,
+    totais: dashboardTotais,
     pendentesEntrada,
     pendentesSaida,
     proximosVencimentos,
-    isLoading,
+    isLoading: isDashboardLoading,
     carregarDashboard,
     navegarMesAnterior,
     navegarMesProximo,
-    toggleConcluido,
   } = useDashboardStore()
+
+  // Store financeiro para lançamentos detalhados do mês
+  const {
+    entradas,
+    saidas,
+    totais: financeiroTotais,
+    configuracoes,
+    isLoading: isFinanceiroLoading,
+    carregarMes,
+    carregarConfiguracoes,
+    toggleConcluido,
+  } = useFinanceiroStore()
 
   // Verifica se pode avançar para o próximo mês
   const mesAtual = getMesAtual()
   const podeAvancar = mesSelecionado < mesAtual
 
+  // Usa os totais do dashboard para os cards de resumo
+  const totais = dashboardTotais
+
+  // Loading combinado
+  const isLoading = isDashboardLoading || isFinanceiroLoading
+
+  // Configuração para mostrar concluídos discretos
+  const mostrarConcluidosDiscretos = Boolean(configuracoes.mostrar_concluidos_discretos)
+
   useEffect(() => {
     carregarDashboard()
-  }, [carregarDashboard])
+    carregarConfiguracoes()
+  }, [carregarDashboard, carregarConfiguracoes])
+
+  // Carrega lançamentos quando mês muda
+  useEffect(() => {
+    if (mesSelecionado) {
+      carregarMes(mesSelecionado)
+    }
+  }, [mesSelecionado, carregarMes])
 
   const handleLogout = async () => {
     await logout()
@@ -61,13 +93,10 @@ export function Dashboard({
 
   // Handler para clicar em um vencimento
   const handleVencimentoClick = (id: string) => {
-    // Busca o lançamento nos recentes ou navega para o mês
-    const lancamento = recentLancamentos.find(l => l.id === id)
+    // Busca o lançamento nas entradas ou saídas
+    const lancamento = [...entradas, ...saidas].find(l => l.id === id)
     if (lancamento) {
       onEditLancamento(lancamento)
-    } else {
-      // Navega para o mês com filtro de pendentes de saída
-      onNavigateToMes('pendentes-saida')
     }
   }
 
@@ -124,7 +153,7 @@ export function Dashboard({
       </header>
 
       {/* Conteúdo */}
-      <main className="max-w-[720px] mx-auto p-4 space-y-4">
+      <main className="max-w-[720px] mx-auto p-4 space-y-6">
         {isLoading && !totais ? (
           <LoadingSkeleton />
         ) : (
@@ -144,69 +173,97 @@ export function Dashboard({
               isLoading={isLoading}
             />
 
-            {/* Gráfico dos últimos 6 meses */}
-            {historico.length > 0 && (
-              <div className="space-y-3">
-                <div className="px-1">
-                  <h2 className="text-corpo-medium text-foreground">
-                    Histórico dos últimos 6 meses
-                  </h2>
-                </div>
-                <div className="bg-card border border-border rounded-xl p-4">
-                  <MiniChart
-                    dados={historico}
-                    onMesClick={() => onNavigateToMes()}
-                  />
-                </div>
-              </div>
-            )}
-
             {/* Próximos Vencimentos */}
             <UpcomingCard
               vencimentos={proximosVencimentos}
               onItemClick={handleVencimentoClick}
-              onVerTodos={() => onNavigateToMes('pendentes-saida')}
               isLoading={isLoading}
             />
 
-            {/* Últimos lançamentos */}
+            {/* Lançamentos do mês */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between px-1">
+              <div className="px-1">
                 <h2 className="text-corpo-medium text-foreground">
-                  Últimos lançamentos
+                  Lançamentos
                 </h2>
+              </div>
+              <div className="flex gap-2 p-1 bg-secondary rounded-xl">
                 <button
                   type="button"
-                  onClick={onNovoLancamento}
-                  className="flex items-center gap-1 text-pequeno text-rosa hover:text-rosa/80 transition-colors"
+                  onClick={() => setLancamentoFilter('todos')}
+                  className={cn(
+                    'flex-1 py-2 px-3 rounded-lg text-corpo font-medium transition-all',
+                    lancamentoFilter === 'todos'
+                      ? 'bg-card text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
                 >
-                  <Plus className="w-4 h-4" />
-                  Novo
+                  Todos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLancamentoFilter('entradas')}
+                  className={cn(
+                    'flex-1 py-2 px-3 rounded-lg text-corpo font-medium transition-all',
+                    lancamentoFilter === 'entradas'
+                      ? 'bg-verde text-white shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  Entradas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLancamentoFilter('saidas')}
+                  className={cn(
+                    'flex-1 py-2 px-3 rounded-lg text-corpo font-medium transition-all',
+                    lancamentoFilter === 'saidas'
+                      ? 'bg-vermelho text-white shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  Saídas
                 </button>
               </div>
-              <div className="bg-card border border-border rounded-xl p-4">
-                {isLoading ? (
-                  <div className="space-y-3">
-                    {[1, 2, 3].map(i => (
-                      <div key={i} className="flex items-center gap-3 py-2">
-                        <div className="w-5 h-5 rounded-full bg-muted animate-pulse" />
-                        <div className="flex-1 space-y-1.5">
-                          <div className="h-4 bg-muted rounded animate-pulse w-3/4" />
-                          <div className="h-3 bg-muted rounded animate-pulse w-1/3" />
-                        </div>
-                        <div className="h-4 bg-muted rounded animate-pulse w-16" />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
+
+              {/* Conteúdo baseado no filtro selecionado */}
+              {lancamentoFilter === 'todos' && (
+                <div className="bg-card border border-border rounded-xl p-4">
                   <RecentList
-                    lancamentos={recentLancamentos}
+                    lancamentos={[...entradas, ...saidas].sort((a, b) =>
+                      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                    )}
                     onItemClick={onEditLancamento}
                     onToggle={toggleConcluido}
-                    onVerTodos={() => onNavigateToMes()}
+                    onVerTodos={() => {}}
+                    showVerTodos={false}
                   />
-                )}
-              </div>
+                </div>
+              )}
+
+              {lancamentoFilter === 'entradas' && (
+                <CardEntradas
+                  entradas={entradas}
+                  jaEntrou={financeiroTotais?.jaEntrou ?? 0}
+                  faltaEntrar={financeiroTotais?.faltaEntrar ?? 0}
+                  mostrarConcluidosDiscretos={mostrarConcluidosDiscretos}
+                  onToggle={toggleConcluido}
+                  onEdit={onEditLancamento}
+                  onAdd={onAddEntrada}
+                />
+              )}
+
+              {lancamentoFilter === 'saidas' && (
+                <CardSaidas
+                  saidas={saidas}
+                  jaPaguei={financeiroTotais?.jaPaguei ?? 0}
+                  faltaPagar={financeiroTotais?.faltaPagar ?? 0}
+                  mostrarConcluidosDiscretos={mostrarConcluidosDiscretos}
+                  onToggle={toggleConcluido}
+                  onEdit={onEditLancamento}
+                  onAdd={onAddSaida}
+                />
+              )}
             </div>
           </>
         )}

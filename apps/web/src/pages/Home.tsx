@@ -1,8 +1,8 @@
 /**
  * Home Page
  *
- * Container principal com navegação entre Dashboard e Mês.
- * Gerencia estado compartilhado entre as duas views.
+ * Container principal da aplicação com navegação entre Dashboard e Insights.
+ * Gerencia estado de lançamentos e modais.
  */
 
 import { useState, useCallback } from 'react'
@@ -11,7 +11,7 @@ import { useFinanceiroStore } from '@/stores/useFinanceiroStore'
 import { useDashboardStore } from '@/stores/useDashboardStore'
 import { BottomTabBar, type TabType } from '@/components/BottomTabBar'
 import { Dashboard } from './Dashboard'
-import { MesView, type FiltroPendentes } from './MesView'
+import { Insights } from './Insights'
 import { LancamentoSheet, type LancamentoFormData } from '@/components/LancamentoSheet'
 import { ConfiguracaoDrawer } from '@/components/ConfiguracaoDrawer'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
@@ -25,12 +25,8 @@ export function Home() {
   // Tab ativo
   const [activeTab, setActiveTab] = useState<TabType>('inicio')
 
-  // Filtro de pendentes (quando vem da dashboard)
-  const [filtroPendentes, setFiltroPendentes] = useState<FiltroPendentes>(null)
-
   // Estado global financeiro
   const {
-    mesAtual,
     configuracoes,
     isLoading,
     error,
@@ -44,7 +40,7 @@ export function Home() {
   } = useFinanceiroStore()
 
   // Recarrega dashboard quando necessário
-  const { carregarDashboard } = useDashboardStore()
+  const { carregarDashboard, mesSelecionado } = useDashboardStore()
 
   // Estado local para modais
   const [lancamentoSheetOpen, setLancamentoSheetOpen] = useState(false)
@@ -55,14 +51,6 @@ export function Home() {
   // Estado do formulário
   const [lancamentoSelecionado, setLancamentoSelecionado] = useState<Lancamento | null>(null)
   const [tipoInicial, setTipoInicial] = useState<'entrada' | 'saida'>('saida')
-
-  /**
-   * Navegação da dashboard para a tela de mês
-   */
-  const handleNavigateToMes = useCallback((filtro?: 'pendentes-entrada' | 'pendentes-saida') => {
-    setFiltroPendentes(filtro ?? null)
-    setActiveTab('mes')
-  }, [])
 
   /**
    * Abre drawer de lançamento manual (do FAB)
@@ -121,7 +109,7 @@ export function Home() {
           tipo,
           nome: data.nome,
           valor: data.valor,
-          mes_inicial: mesAtual,
+          mes_inicial: mesSelecionado,
           dia_previsto: diaPrevisto,
           concluido: data.concluido,
           categoria_id: data.categoria_id,
@@ -132,17 +120,15 @@ export function Home() {
           tipo,
           nome: data.nome,
           valor: data.valor,
-          mes: mesAtual,
+          mes: mesSelecionado,
           concluido: data.concluido,
           data_prevista: data.data_prevista,
           categoria_id: data.categoria_id,
         })
       }
       setLancamentoSheetOpen(false)
-      // Recarrega dashboard se estiver na aba início
-      if (activeTab === 'inicio') {
-        carregarDashboard()
-      }
+      // Recarrega dashboard
+      carregarDashboard(mesSelecionado)
     } catch {
       // Erro já tratado na store
     }
@@ -164,10 +150,8 @@ export function Home() {
         await excluirLancamento(lancamentoSelecionado.id)
         setConfirmDialogOpen(false)
         setLancamentoSheetOpen(false)
-        // Recarrega dashboard se estiver na aba início
-        if (activeTab === 'inicio') {
-          carregarDashboard()
-        }
+        // Recarrega dashboard
+        carregarDashboard(mesSelecionado)
       } catch {
         // Erro já tratado na store
       }
@@ -204,10 +188,8 @@ export function Home() {
     await Promise.all(promises)
 
     // Recarrega dados
-    await carregarMes(mesAtual)
-    if (activeTab === 'inicio') {
-      carregarDashboard()
-    }
+    await carregarMes(mesSelecionado)
+    carregarDashboard(mesSelecionado)
   }
 
   // Configurações do usuário para auto-marcar concluído
@@ -229,28 +211,21 @@ export function Home() {
             transition={{ duration: 0.15 }}
           >
             <Dashboard
-              onNavigateToMes={handleNavigateToMes}
-              onOpenConfig={() => setConfigDrawerOpen(true)}
-              onEditLancamento={handleEditLancamento}
-              onNovoLancamento={handleOpenManualInput}
-            />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="mes"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-          >
-            <MesView
-              filtro={filtroPendentes}
-              onFiltroChange={setFiltroPendentes}
               onOpenConfig={() => setConfigDrawerOpen(true)}
               onEditLancamento={handleEditLancamento}
               onAddEntrada={handleAddEntrada}
               onAddSaida={handleAddSaida}
             />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="insights"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <Insights onOpenConfig={() => setConfigDrawerOpen(true)} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -262,7 +237,7 @@ export function Home() {
       <LancamentoSheet
         open={lancamentoSheetOpen}
         onOpenChange={setLancamentoSheetOpen}
-        mesAtual={mesAtual}
+        mesAtual={mesSelecionado}
         lancamento={lancamentoSelecionado}
         tipoInicial={tipoInicial}
         autoMarcarConcluido={autoMarcarConcluido}
@@ -292,7 +267,7 @@ export function Home() {
       <Toast
         message={error}
         onClose={limparErro}
-        onRetry={() => carregarMes(mesAtual)}
+        onRetry={() => carregarMes(mesSelecionado)}
       />
 
       {/* FAB com menu de opções */}
@@ -306,7 +281,7 @@ export function Home() {
       <QuickInputSheet
         open={quickInputOpen}
         onOpenChange={setQuickInputOpen}
-        mesAtual={mesAtual}
+        mesAtual={mesSelecionado}
         onConfirm={handleQuickInputConfirm}
       />
     </div>

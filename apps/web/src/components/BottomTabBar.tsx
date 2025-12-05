@@ -1,14 +1,14 @@
 /**
  * BottomTabBar Component
  *
- * Barra de navegação fixa inferior com dois tabs: Início e Mês.
+ * Barra de navegação fixa inferior com dois tabs: Início e Insights.
  * Mobile-first com área de toque generosa.
  */
 
-import { Home, Calendar } from 'lucide-react'
+import { Home, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export type TabType = 'inicio' | 'mes'
+export type TabType = 'inicio' | 'insights'
 
 interface BottomTabBarProps {
   activeTab: TabType
@@ -32,17 +32,17 @@ export function BottomTabBar({ activeTab, onTabChange }: BottomTabBarProps) {
           <span className="text-[12px] font-medium">Início</span>
         </button>
 
-        {/* Tab Mês */}
+        {/* Tab Insights */}
         <button
           type="button"
-          onClick={() => onTabChange('mes')}
+          onClick={() => onTabChange('insights')}
           className={cn(
             'flex-1 flex flex-col items-center justify-center gap-1 transition-colors',
-            activeTab === 'mes' ? 'text-rosa' : 'text-muted-foreground'
+            activeTab === 'insights' ? 'text-rosa' : 'text-muted-foreground'
           )}
         >
-          <Calendar className="w-6 h-6" />
-          <span className="text-[12px] font-medium">Mês</span>
+          <BarChart3 className="w-6 h-6" />
+          <span className="text-[12px] font-medium">Insights</span>
         </button>
       </div>
     </nav>
