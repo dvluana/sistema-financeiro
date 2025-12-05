@@ -20,7 +20,7 @@
     "start": "npm run start --workspace=apps/api",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "clean": "rm -rf apps/*/dist apps/*/node_modules/.vite",
-    "heroku-postbuild": "npm run build:api"
+    "heroku-postbuild": "npm run build:web && npm run build:api && cp -r apps/web/dist apps/api/dist/web"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
