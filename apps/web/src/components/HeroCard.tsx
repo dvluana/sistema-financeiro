@@ -127,7 +127,7 @@ export function HeroCard({
                 }}
                 className={cn(
                   'h-7 px-2 flex items-center justify-center rounded-md transition-all overflow-hidden',
-                  'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 text-[11px] font-medium'
+                  'bg-rosa/10 text-rosa hover:bg-rosa/20 active:scale-95 text-[11px] font-medium'
                 )}
               >
                 Hoje
