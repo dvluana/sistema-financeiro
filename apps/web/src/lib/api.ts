@@ -357,7 +357,8 @@ export const categoriasApi = {
 export const dashboardApi = {
   /**
    * Retorna dados consolidados da dashboard
+   * @param mes - Mês no formato YYYY-MM (opcional, default: mês atual)
    */
-  get: (): Promise<DashboardResponse> =>
-    request('/api/dashboard'),
+  get: (mes?: string): Promise<DashboardResponse> =>
+    request(mes ? `/api/dashboard?mes=${mes}` : '/api/dashboard'),
 }

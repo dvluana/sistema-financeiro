@@ -26,7 +26,7 @@ interface Vencimento {
 }
 
 interface DashboardState {
-  mesAtual: string
+  mesSelecionado: string
   totais: Totais | null
   recentLancamentos: Lancamento[]
   historico: MesHistorico[]
@@ -36,13 +36,33 @@ interface DashboardState {
   isLoading: boolean
   error: string | null
 
-  carregarDashboard: () => Promise<void>
+  carregarDashboard: (mes?: string) => Promise<void>
+  navegarMesAnterior: () => void
+  navegarMesProximo: () => void
   toggleConcluido: (id: string) => Promise<void>
   limparErro: () => void
 }
 
+/**
+ * Navega para o mês anterior dado um mês no formato YYYY-MM
+ */
+function getMesAnterior(mes: string): string {
+  const [ano, mesNum] = mes.split('-').map(Number)
+  const data = new Date(ano, mesNum - 2, 1) // -2 porque mês é 0-indexed e queremos anterior
+  return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`
+}
+
+/**
+ * Navega para o próximo mês dado um mês no formato YYYY-MM
+ */
+function getMesProximo(mes: string): string {
+  const [ano, mesNum] = mes.split('-').map(Number)
+  const data = new Date(ano, mesNum, 1) // mesNum é o próximo mês (0-indexed)
+  return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`
+}
+
 export const useDashboardStore = create<DashboardState>((set, get) => ({
-  mesAtual: getMesAtual(),
+  mesSelecionado: getMesAtual(),
   totais: null,
   recentLancamentos: [],
   historico: [],
@@ -52,13 +72,13 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   isLoading: false,
   error: null,
 
-  carregarDashboard: async () => {
+  carregarDashboard: async (mes?: string) => {
     set({ isLoading: true, error: null })
 
     try {
-      const data = await dashboardApi.get()
+      const data = await dashboardApi.get(mes)
       set({
-        mesAtual: data.mesAtual,
+        mesSelecionado: data.mesAtual,
         totais: data.totais,
         recentLancamentos: data.recentLancamentos,
         historico: data.historico,
@@ -73,6 +93,21 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         error: error instanceof Error ? error.message : 'Erro ao carregar dashboard',
       })
     }
+  },
+
+  navegarMesAnterior: () => {
+    const { mesSelecionado, carregarDashboard } = get()
+    const mesAnterior = getMesAnterior(mesSelecionado)
+    carregarDashboard(mesAnterior)
+  },
+
+  navegarMesProximo: () => {
+    const { mesSelecionado, carregarDashboard } = get()
+    const mesAtual = getMesAtual()
+    // Não permite navegar além do mês atual
+    if (mesSelecionado >= mesAtual) return
+    const mesProximo = getMesProximo(mesSelecionado)
+    carregarDashboard(mesProximo)
   },
 
   toggleConcluido: async (id: string) => {

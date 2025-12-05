@@ -15,6 +15,7 @@ import { RecentList } from '@/components/RecentList'
 import { LoadingSkeleton } from '@/components/LoadingSkeleton'
 import { useDashboardStore } from '@/stores/useDashboardStore'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { getMesAtual } from '@/lib/utils'
 import type { Lancamento } from '@/lib/api'
 
 interface DashboardProps {
@@ -30,6 +31,7 @@ export function Dashboard({
 }: DashboardProps) {
   const { usuario, logout } = useAuthStore()
   const {
+    mesSelecionado,
     totais,
     recentLancamentos,
     historico,
@@ -38,8 +40,14 @@ export function Dashboard({
     proximosVencimentos,
     isLoading,
     carregarDashboard,
+    navegarMesAnterior,
+    navegarMesProximo,
     toggleConcluido,
   } = useDashboardStore()
+
+  // Verifica se pode avançar para o próximo mês
+  const mesAtual = getMesAtual()
+  const podeAvancar = mesSelecionado < mesAtual
 
   useEffect(() => {
     carregarDashboard()
@@ -122,11 +130,15 @@ export function Dashboard({
             {/* Hero - Saudação e resumo do mês */}
             <HeroCard
               nome={primeiroNome}
+              mesSelecionado={mesSelecionado}
               saldo={totais?.saldo ?? 0}
               jaEntrou={totais?.jaEntrou ?? 0}
               jaPaguei={totais?.jaPaguei ?? 0}
               pendentesEntrada={pendentesEntrada}
               pendentesSaida={pendentesSaida}
+              onMesAnterior={navegarMesAnterior}
+              onMesProximo={navegarMesProximo}
+              podeAvancar={podeAvancar}
             />
 
             {/* Gráfico dos últimos 6 meses */}

@@ -5,15 +5,20 @@
  * valores de entradas/saídas e resumo do saldo.
  */
 
-import { formatarMoeda } from '@/lib/utils'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { formatarMoeda, cn } from '@/lib/utils'
 
 interface HeroCardProps {
   nome: string
+  mesSelecionado: string
   saldo: number
   jaEntrou: number
   jaPaguei: number
   pendentesEntrada: number
   pendentesSaida: number
+  onMesAnterior: () => void
+  onMesProximo: () => void
+  podeAvancar: boolean
 }
 
 /**
@@ -31,13 +36,26 @@ function getSaudacao(): { texto: string; emoji: string } {
   }
 }
 
+/**
+ * Formata mês YYYY-MM para exibição "Dez 2025"
+ */
+function formatarMes(mes: string): string {
+  const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+  const [ano, mesNum] = mes.split('-')
+  return `${meses[parseInt(mesNum) - 1]} ${ano}`
+}
+
 export function HeroCard({
   nome,
+  mesSelecionado,
   saldo,
   jaEntrou,
   jaPaguei,
   pendentesEntrada,
   pendentesSaida,
+  onMesAnterior,
+  onMesProximo,
+  podeAvancar,
 }: HeroCardProps) {
   const saudacao = getSaudacao()
 
@@ -62,14 +80,48 @@ export function HeroCard({
 
   return (
     <div className="space-y-3">
-      {/* Saudação */}
-      <div className="px-1">
-        <p className="text-[11px] text-neutro-400 uppercase tracking-wider">
-          {saudacao.texto}
-        </p>
-        <p className="text-[20px] font-semibold text-neutro-900 leading-tight">
-          {nome} {saudacao.emoji}
-        </p>
+      {/* Header: Saudação à esquerda, Navegação de mês à direita */}
+      <div className="flex items-center justify-between px-1">
+        {/* Saudação */}
+        <div>
+          <p className="text-[11px] text-neutro-400 uppercase tracking-wider">
+            {saudacao.texto}
+          </p>
+          <p className="text-[20px] font-semibold text-neutro-900 leading-tight">
+            {nome} {saudacao.emoji}
+          </p>
+        </div>
+
+        {/* Navegação de mês */}
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={onMesAnterior}
+            className={cn(
+              'w-7 h-7 flex items-center justify-center rounded-lg transition-all',
+              'hover:bg-neutro-100 active:scale-95 text-neutro-600'
+            )}
+            aria-label="Mês anterior"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="text-pequeno font-medium text-neutro-700 min-w-[70px] text-center">
+            {formatarMes(mesSelecionado)}
+          </span>
+          <button
+            type="button"
+            onClick={onMesProximo}
+            disabled={!podeAvancar}
+            className={cn(
+              'w-7 h-7 flex items-center justify-center rounded-lg transition-all',
+              'hover:bg-neutro-100 active:scale-95',
+              podeAvancar ? 'text-neutro-600' : 'text-neutro-300 cursor-not-allowed'
+            )}
+            aria-label="Próximo mês"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Cards de valores - mesmo estilo dos vencimentos */}

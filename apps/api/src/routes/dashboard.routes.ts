@@ -12,6 +12,7 @@ export async function dashboardRoutes(app: FastifyInstance) {
   /**
    * GET /api/dashboard
    * Retorna dados consolidados para a dashboard
+   * @query mes - Mês no formato YYYY-MM (opcional, default: mês atual)
    */
   app.get(
     '/api/dashboard',
@@ -19,7 +20,8 @@ export async function dashboardRoutes(app: FastifyInstance) {
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const userId = request.usuario!.id
-        const data = await dashboardService.getDashboard(userId)
+        const mes = (request.query as { mes?: string }).mes
+        const data = await dashboardService.getDashboard(userId, mes)
         return reply.send(data)
       } catch (error) {
         console.error('Erro ao buscar dashboard:', error)

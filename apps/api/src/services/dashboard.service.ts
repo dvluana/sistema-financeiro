@@ -47,22 +47,25 @@ function getMesLabel(mes: string): string {
 export const dashboardService = {
   /**
    * Retorna dados consolidados para a dashboard
+   * @param userId - ID do usuário
+   * @param mes - Mês no formato YYYY-MM (opcional, default: mês atual)
    */
-  async getDashboard(userId: string) {
+  async getDashboard(userId: string, mes?: string) {
     const mesAtual = getMesAtual()
+    const mesSelecionado = mes || mesAtual
     const ultimosMeses = getUltimosMeses(6)
 
     // Busca dados em paralelo para melhor performance
-    const [lancamentosMesAtual, recentLancamentos, totaisPorMes, proximosVencimentos] = await Promise.all([
-      lancamentoRepository.findByMes(mesAtual, userId),
+    const [lancamentosMesSelecionado, recentLancamentos, totaisPorMes, proximosVencimentos] = await Promise.all([
+      lancamentoRepository.findByMes(mesSelecionado, userId),
       dashboardRepository.findRecent(userId, 5),
       dashboardRepository.getTotaisPorMes(ultimosMeses, userId),
       dashboardRepository.findProximosVencimentos(userId, 5),
     ])
 
-    // Calcula totais do mês atual
-    const entradas = lancamentosMesAtual.filter(l => l.tipo === 'entrada')
-    const saidas = lancamentosMesAtual.filter(l => l.tipo === 'saida')
+    // Calcula totais do mês selecionado
+    const entradas = lancamentosMesSelecionado.filter(l => l.tipo === 'entrada')
+    const saidas = lancamentosMesSelecionado.filter(l => l.tipo === 'saida')
 
     const totalEntradas = entradas.reduce((sum, e) => sum + Number(e.valor), 0)
     const jaEntrou = entradas
@@ -103,7 +106,7 @@ export const dashboardService = {
     }))
 
     return {
-      mesAtual,
+      mesAtual: mesSelecionado,
       totais: {
         entradas: totalEntradas,
         jaEntrou,
