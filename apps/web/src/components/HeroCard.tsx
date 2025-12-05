@@ -6,6 +6,7 @@
  */
 
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { formatarMoeda, cn } from '@/lib/utils'
 
 interface HeroCardProps {
@@ -100,22 +101,33 @@ export function HeroCard({
             type="button"
             onClick={onMesAnterior}
             className={cn(
-              'w-7 h-7 flex items-center justify-center rounded-lg transition-all',
+              'w-7 h-7 flex items-center justify-center rounded-md transition-all',
               'bg-white border border-neutro-200 hover:bg-neutro-50 active:scale-95 text-neutro-600'
             )}
             aria-label="Mês anterior"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
-          <span className="text-pequeno font-medium text-neutro-700 min-w-[70px] text-center">
-            {formatarMes(mesSelecionado)}
-          </span>
+          <div className="min-w-[70px] text-center overflow-hidden">
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={mesSelecionado}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.15 }}
+                className="block text-pequeno font-medium text-neutro-700"
+              >
+                {formatarMes(mesSelecionado)}
+              </motion.span>
+            </AnimatePresence>
+          </div>
           <button
             type="button"
             onClick={onMesProximo}
             disabled={!podeAvancar}
             className={cn(
-              'w-7 h-7 flex items-center justify-center rounded-lg transition-all',
+              'w-7 h-7 flex items-center justify-center rounded-md transition-all',
               'bg-white border border-neutro-200 active:scale-95',
               podeAvancar ? 'text-neutro-600 hover:bg-neutro-50' : 'text-neutro-300 cursor-not-allowed opacity-50'
             )}
