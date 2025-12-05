@@ -5,7 +5,7 @@
  * Centraliza todas as chamadas HTTP e tratamento de erros.
  */
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3333'
+const API_URL = import.meta.env.PROD ? '' : 'http://localhost:3333'
 
 // Chave para armazenar token no localStorage
 const TOKEN_KEY = 'auth_token'
