@@ -2,6 +2,9 @@
   "name": "sistema-financeiro",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "20.x"
+  },
   "workspaces": [
     "apps/*"
   ],
@@ -14,8 +17,10 @@
     "build": "npm run build:api && npm run build:web",
     "build:api": "npm run build --workspace=apps/api",
     "build:web": "npm run build --workspace=apps/web",
+    "start": "npm run start --workspace=apps/api",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "clean": "rm -rf apps/*/dist apps/*/node_modules/.vite"
+    "clean": "rm -rf apps/*/dist apps/*/node_modules/.vite",
+    "heroku-postbuild": "npm run build:api"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
