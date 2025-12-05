@@ -2,6 +2,7 @@
 -- Execute no Supabase SQL Editor
 
 -- 1. Criar tabela de categorias
+-- NOTA: user_id referencia a tabela customizada 'usuarios', não 'auth.users'
 CREATE TABLE IF NOT EXISTS categorias (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nome VARCHAR(50) NOT NULL,
@@ -9,7 +10,7 @@ CREATE TABLE IF NOT EXISTS categorias (
   icone VARCHAR(50), -- nome do ícone (lucide)
   cor VARCHAR(7), -- cor hex (ex: #FF385C)
   ordem INT DEFAULT 0, -- para ordenação
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES usuarios(id) ON DELETE CASCADE,
   is_default BOOLEAN DEFAULT FALSE, -- categorias padrão do sistema
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -32,30 +33,10 @@ CREATE TRIGGER trigger_categorias_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at();
 
--- 6. RLS (Row Level Security) para categorias
-ALTER TABLE categorias ENABLE ROW LEVEL SECURITY;
+-- NOTA: RLS não é usado porque o sistema usa autenticação customizada via tabela 'usuarios'
+-- A segurança é feita via validação na API (categoria.repository.ts filtra por user_id)
 
--- Política: usuários podem ver suas próprias categorias e as padrão
-CREATE POLICY "Usuarios podem ver suas categorias e as padrao"
-  ON categorias FOR SELECT
-  USING (user_id = auth.uid() OR is_default = TRUE);
-
--- Política: usuários podem criar suas próprias categorias
-CREATE POLICY "Usuarios podem criar suas categorias"
-  ON categorias FOR INSERT
-  WITH CHECK (user_id = auth.uid() AND is_default = FALSE);
-
--- Política: usuários podem atualizar suas próprias categorias (não as padrão)
-CREATE POLICY "Usuarios podem atualizar suas categorias"
-  ON categorias FOR UPDATE
-  USING (user_id = auth.uid() AND is_default = FALSE);
-
--- Política: usuários podem deletar suas próprias categorias (não as padrão)
-CREATE POLICY "Usuarios podem deletar suas categorias"
-  ON categorias FOR DELETE
-  USING (user_id = auth.uid() AND is_default = FALSE);
-
--- 7. Inserir categorias padrão do sistema
+-- 6. Inserir categorias padrão do sistema
 
 -- Categorias de Entrada
 INSERT INTO categorias (nome, tipo, icone, cor, ordem, is_default) VALUES

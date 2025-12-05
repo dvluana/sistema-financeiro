@@ -2,14 +2,14 @@
  * CardSaidas Component
  *
  * Card que exibe a lista de saídas (despesas) do mês.
- * Inclui lista de itens, totalizadores e botão para adicionar.
+ * Header com totalizadores sempre visíveis para melhor UX.
  */
 
-import { Plus } from 'lucide-react'
-import { Card, CardTitle, CardContent } from '@/components/ui/card'
+import { Plus, TrendingDown } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ItemLista } from '@/components/ItemLista'
-import { Totalizadores } from '@/components/Totalizadores'
+import { formatarMoeda } from '@/lib/utils'
 import type { Lancamento } from '@/lib/api'
 
 interface CardSaidasProps {
@@ -32,19 +32,55 @@ export function CardSaidas({
   onAdd,
 }: CardSaidasProps) {
   const isEmpty = saidas.length === 0
+  const total = jaPaguei + faltaPagar
 
   return (
-    <Card className="border-l-4 border-l-rosa">
-      <CardTitle className="mb-4 text-rosa">Saídas</CardTitle>
+    <Card className="border-l-4 border-l-rosa overflow-hidden">
+      {/* Header com totalizadores sempre visíveis */}
+      <div className="flex items-start justify-between gap-4 mb-4">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-rosa/10">
+            <TrendingDown className="w-4 h-4 text-rosa" />
+          </div>
+          <div>
+            <h3 className="text-titulo-card text-rosa leading-tight">Saídas</h3>
+            <p className="text-micro text-neutro-500">{saidas.length} {saidas.length === 1 ? 'item' : 'itens'}</p>
+          </div>
+        </div>
+
+        {/* Mini totalizadores */}
+        {!isEmpty && (
+          <div className="flex gap-3 text-right">
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-neutro-400">Pago</p>
+              <p className="text-corpo-medium font-semibold text-rosa">{formatarMoeda(jaPaguei)}</p>
+            </div>
+            <div className="border-l border-neutro-200 pl-3">
+              <p className="text-[10px] uppercase tracking-wide text-neutro-400">Pendente</p>
+              <p className="text-corpo-medium font-semibold text-neutro-600">{formatarMoeda(faltaPagar)}</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Barra de progresso */}
+      {!isEmpty && total > 0 && (
+        <div className="mb-4">
+          <div className="h-1.5 bg-neutro-200 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-rosa rounded-full transition-all duration-500"
+              style={{ width: `${Math.min((jaPaguei / total) * 100, 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       <CardContent className="p-0">
         {isEmpty ? (
-          // Empty state
           <p className="text-corpo text-neutro-600 text-center py-8">
             Nenhuma saída ainda
           </p>
         ) : (
-          // Lista de saídas
           <div className="space-y-0">
             {saidas.map((saida) => (
               <ItemLista
@@ -61,16 +97,6 @@ export function CardSaidas({
               />
             ))}
           </div>
-        )}
-
-        {/* Totalizadores */}
-        {!isEmpty && (
-          <Totalizadores
-            labelEsquerda="Já paguei"
-            valorEsquerda={jaPaguei}
-            labelDireita="Falta pagar"
-            valorDireita={faltaPagar}
-          />
         )}
 
         {/* Botão adicionar */}

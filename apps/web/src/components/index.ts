@@ -8,7 +8,6 @@
 export { StatusCircle } from './StatusCircle'
 export { InputMoeda } from './InputMoeda'
 export { ItemLista } from './ItemLista'
-export { Totalizadores } from './Totalizadores'
 export { CategoriaSelect } from './CategoriaSelect'
 
 // Componentes de layout
