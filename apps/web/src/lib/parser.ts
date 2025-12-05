@@ -605,15 +605,29 @@ export function formatarMesExibicao(mes: string): string {
 
 /**
  * Agrupa lançamentos por nome para mostrar recorrências
+ * Usa o ID do primeiro item do grupo como chave estável
  */
 export function agruparRecorrencias(lancamentos: ParsedLancamento[]): Map<string, ParsedLancamento[]> {
-  const grupos = new Map<string, ParsedLancamento[]>()
+  // Primeiro, agrupa por características semelhantes
+  const gruposTemp = new Map<string, ParsedLancamento[]>()
 
   for (const lancamento of lancamentos) {
-    const chave = `${lancamento.tipo}-${lancamento.nome}-${lancamento.valor}`
-    const grupo = grupos.get(chave) || []
+    // Agrupa por tipo + nome + valor (para detectar recorrências)
+    const chaveConteudo = `${lancamento.tipo}-${lancamento.nome}-${lancamento.valor}`
+    const grupo = gruposTemp.get(chaveConteudo) || []
     grupo.push(lancamento)
-    grupos.set(chave, grupo)
+    gruposTemp.set(chaveConteudo, grupo)
+  }
+
+  // Usa o ID do primeiro item (ordenado por mês) como chave estável
+  // Isso garante que a chave não muda quando itens são removidos do meio
+  const grupos = new Map<string, ParsedLancamento[]>()
+  for (const items of gruposTemp.values()) {
+    // Ordena por mês para consistência
+    items.sort((a, b) => a.mes.localeCompare(b.mes))
+    // Usa ID do primeiro item como chave estável
+    const chaveEstavel = items[0].id
+    grupos.set(chaveEstavel, items)
   }
 
   return grupos

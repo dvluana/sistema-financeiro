@@ -8,7 +8,7 @@
  * Permite ao usuário digitar lançamentos de forma natural e confirmar antes de salvar.
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   TrendingUp,
@@ -36,6 +36,213 @@ import {
 // Chave do localStorage para histórico
 const HISTORICO_KEY = 'quick-input-historico'
 const MAX_HISTORICO = 5
+
+// Props do card de lançamento
+interface LancamentoCardProps {
+  items: ParsedLancamento[]
+  groupKey: string
+  isExpanded: boolean
+  onToggleGroup: (key: string) => void
+  onToggleTipo: (id: string) => void
+  onUpdateLancamento: (id: string, campo: 'valor' | 'nome', valor: string) => void
+  onRemoveLancamento: (id: string) => void
+}
+
+// Componente do card de lançamento (memoizado para evitar re-renders)
+const LancamentoCard = React.memo(function LancamentoCard({
+  items,
+  groupKey,
+  isExpanded,
+  onToggleGroup,
+  onToggleTipo,
+  onUpdateLancamento,
+  onRemoveLancamento,
+}: LancamentoCardProps) {
+  const isRecorrencia = items.length > 1
+  const primeiro = items[0]
+  const isEntrada = primeiro.tipo === 'entrada'
+
+  return (
+    <motion.div
+      layout="position"
+      initial={{ opacity: 0, y: 10, height: 'auto' }}
+      animate={{ opacity: 1, y: 0, height: 'auto' }}
+      exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+      transition={{ duration: 0.2 }}
+      className={cn(
+        'rounded-xl border-2 mb-3 overflow-hidden',
+        primeiro.status === 'incompleto'
+          ? 'border-vermelho/50 bg-vermelho/5'
+          : isEntrada
+          ? 'border-verde/30 bg-verde/5'
+          : 'border-vermelho/30 bg-vermelho/5'
+      )}
+    >
+      {/* Header do grupo */}
+      <div className="flex items-center gap-3 p-3">
+        {/* Badge de tipo (clicável para alternar) */}
+        <button
+          type="button"
+          onClick={() => {
+            items.forEach((item) => onToggleTipo(item.id))
+          }}
+          className={cn(
+            'shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-micro font-medium transition-all',
+            'hover:scale-105 active:scale-95',
+            isEntrada
+              ? 'bg-verde text-white'
+              : 'bg-vermelho text-white'
+          )}
+          title={`Clique para mudar para ${isEntrada ? 'saída' : 'entrada'}`}
+        >
+          {isEntrada ? (
+            <>
+              <TrendingUp className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Entrada</span>
+            </>
+          ) : (
+            <>
+              <TrendingDown className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Saída</span>
+            </>
+          )}
+        </button>
+
+        {/* Nome */}
+        <div className="flex-1 min-w-0">
+          {primeiro.camposFaltantes.includes('nome') ? (
+            <input
+              type="text"
+              value={primeiro.nome}
+              onChange={(e) =>
+                items.forEach((item) =>
+                  onUpdateLancamento(item.id, 'nome', e.target.value)
+                )
+              }
+              placeholder="Nome do lançamento"
+              className={cn(
+                'w-full text-corpo text-neutro-900 bg-white/50 rounded-lg px-3 py-1.5',
+                'border border-vermelho/50 focus:outline-none focus:ring-2 focus:ring-rosa focus:border-transparent'
+              )}
+            />
+          ) : (
+            <span className="text-corpo font-medium text-neutro-900 truncate block">
+              {primeiro.nome}
+            </span>
+          )}
+        </div>
+
+        {/* Valor */}
+        <div className="shrink-0">
+          {primeiro.camposFaltantes.includes('valor') ? (
+            <input
+              type="text"
+              inputMode="decimal"
+              value={primeiro.valor !== null ? String(primeiro.valor) : ''}
+              onChange={(e) =>
+                items.forEach((item) =>
+                  onUpdateLancamento(item.id, 'valor', e.target.value)
+                )
+              }
+              placeholder="R$ 0,00"
+              className={cn(
+                'w-28 text-right text-corpo-medium text-neutro-900 bg-white/50 rounded-lg px-3 py-1.5',
+                'border border-vermelho/50 focus:outline-none focus:ring-2 focus:ring-rosa focus:border-transparent'
+              )}
+            />
+          ) : (
+            <span className={cn(
+              'text-corpo-medium font-semibold',
+              isEntrada ? 'text-verde' : 'text-vermelho'
+            )}>
+              {formatarValor(primeiro.valor)}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Linha de info secundária */}
+      <div className="flex items-center gap-2 px-3 pb-3 -mt-1">
+        {/* Badge de meses ou mês único */}
+        {isRecorrencia ? (
+          <button
+            type="button"
+            onClick={() => onToggleGroup(groupKey)}
+            className={cn(
+              'flex items-center gap-1 px-2 py-1 rounded-md text-micro font-medium transition-colors',
+              'bg-white/60 text-neutro-600 hover:bg-white'
+            )}
+          >
+            {items.length} meses
+            {isExpanded ? (
+              <ChevronUp className="w-3 h-3" />
+            ) : (
+              <ChevronDown className="w-3 h-3" />
+            )}
+          </button>
+        ) : (
+          <span className="px-2 py-1 rounded-md bg-white/60 text-micro text-neutro-500">
+            {formatarMesExibicao(primeiro.mes)}
+          </span>
+        )}
+
+        {/* Dia previsto */}
+        {primeiro.diaPrevisto && (
+          <span className="px-2 py-1 rounded-md bg-white/60 text-micro text-neutro-500">
+            Dia {primeiro.diaPrevisto}
+          </span>
+        )}
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Botão remover */}
+        <button
+          type="button"
+          onClick={() => items.forEach((item) => onRemoveLancamento(item.id))}
+          className="p-1.5 rounded-md text-neutro-400 hover:text-vermelho hover:bg-white/60 transition-colors"
+          title="Remover"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Meses expandidos */}
+      <AnimatePresence>
+        {isRecorrencia && isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="border-t border-neutro-200/50 bg-white/30 p-3">
+              <div className="flex flex-wrap gap-2">
+                {items.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-white text-micro shadow-sm"
+                  >
+                    <span className="text-neutro-700 font-medium">
+                      {formatarMesExibicao(item.mes)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onRemoveLancamento(item.id)}
+                      className="text-neutro-400 hover:text-vermelho transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  )
+})
 
 interface QuickInputSheetProps {
   open: boolean
@@ -223,8 +430,8 @@ export function QuickInputSheet({
     textareaRef.current?.focus()
   }, [])
 
-  // Agrupa lançamentos para exibição
-  const grupos = agruparRecorrencias(lancamentos)
+  // Agrupa lançamentos para exibição (memoizado para evitar re-renders)
+  const grupos = useMemo(() => agruparRecorrencias(lancamentos), [lancamentos])
 
   // Conta total de lançamentos
   const totalLancamentos = lancamentos.length
@@ -232,195 +439,6 @@ export function QuickInputSheet({
   // Verifica se pode confirmar
   const temIncompletos = lancamentos.some((l) => l.status === 'incompleto')
   const podeConfirmar = lancamentos.length > 0 && !temIncompletos && !isLoading
-
-  // Componente do card de lançamento (para reutilizar)
-  const LancamentoCard = ({ items, groupKey }: { items: ParsedLancamento[]; groupKey: string }) => {
-    const isRecorrencia = items.length > 1
-    const isExpanded = expandedGroups.has(groupKey)
-    const primeiro = items[0]
-    const isEntrada = primeiro.tipo === 'entrada'
-
-    return (
-      <motion.div
-        key={groupKey}
-        layout
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, x: -100 }}
-        className={cn(
-          'rounded-xl border-2 mb-3 overflow-hidden transition-colors',
-          primeiro.status === 'incompleto'
-            ? 'border-vermelho/50 bg-vermelho/5'
-            : isEntrada
-            ? 'border-verde/30 bg-verde/5'
-            : 'border-vermelho/30 bg-vermelho/5'
-        )}
-      >
-        {/* Header do grupo */}
-        <div className="flex items-center gap-3 p-3">
-          {/* Badge de tipo (clicável para alternar) */}
-          <button
-            type="button"
-            onClick={() => {
-              items.forEach((item) => handleToggleTipo(item.id))
-            }}
-            className={cn(
-              'shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-micro font-medium transition-all',
-              'hover:scale-105 active:scale-95',
-              isEntrada
-                ? 'bg-verde text-white'
-                : 'bg-vermelho text-white'
-            )}
-            title={`Clique para mudar para ${isEntrada ? 'saída' : 'entrada'}`}
-          >
-            {isEntrada ? (
-              <>
-                <TrendingUp className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Entrada</span>
-              </>
-            ) : (
-              <>
-                <TrendingDown className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Saída</span>
-              </>
-            )}
-          </button>
-
-          {/* Nome */}
-          <div className="flex-1 min-w-0">
-            {primeiro.camposFaltantes.includes('nome') ? (
-              <input
-                type="text"
-                value={primeiro.nome}
-                onChange={(e) =>
-                  items.forEach((item) =>
-                    handleUpdateLancamento(item.id, 'nome', e.target.value)
-                  )
-                }
-                placeholder="Nome do lançamento"
-                className={cn(
-                  'w-full text-corpo text-neutro-900 bg-white/50 rounded-lg px-3 py-1.5',
-                  'border border-vermelho/50 focus:outline-none focus:ring-2 focus:ring-rosa focus:border-transparent'
-                )}
-              />
-            ) : (
-              <span className="text-corpo font-medium text-neutro-900 truncate block">
-                {primeiro.nome}
-              </span>
-            )}
-          </div>
-
-          {/* Valor */}
-          <div className="shrink-0">
-            {primeiro.camposFaltantes.includes('valor') ? (
-              <input
-                type="text"
-                inputMode="decimal"
-                value={primeiro.valor !== null ? String(primeiro.valor) : ''}
-                onChange={(e) =>
-                  items.forEach((item) =>
-                    handleUpdateLancamento(item.id, 'valor', e.target.value)
-                  )
-                }
-                placeholder="R$ 0,00"
-                className={cn(
-                  'w-28 text-right text-corpo-medium text-neutro-900 bg-white/50 rounded-lg px-3 py-1.5',
-                  'border border-vermelho/50 focus:outline-none focus:ring-2 focus:ring-rosa focus:border-transparent'
-                )}
-              />
-            ) : (
-              <span className={cn(
-                'text-corpo-medium font-semibold',
-                isEntrada ? 'text-verde' : 'text-vermelho'
-              )}>
-                {formatarValor(primeiro.valor)}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Linha de info secundária */}
-        <div className="flex items-center gap-2 px-3 pb-3 -mt-1">
-          {/* Badge de meses ou mês único */}
-          {isRecorrencia ? (
-            <button
-              type="button"
-              onClick={() => toggleGroup(groupKey)}
-              className={cn(
-                'flex items-center gap-1 px-2 py-1 rounded-md text-micro font-medium transition-colors',
-                'bg-white/60 text-neutro-600 hover:bg-white'
-              )}
-            >
-              {items.length} meses
-              {isExpanded ? (
-                <ChevronUp className="w-3 h-3" />
-              ) : (
-                <ChevronDown className="w-3 h-3" />
-              )}
-            </button>
-          ) : (
-            <span className="px-2 py-1 rounded-md bg-white/60 text-micro text-neutro-500">
-              {formatarMesExibicao(primeiro.mes)}
-            </span>
-          )}
-
-          {/* Dia previsto */}
-          {primeiro.diaPrevisto && (
-            <span className="px-2 py-1 rounded-md bg-white/60 text-micro text-neutro-500">
-              Dia {primeiro.diaPrevisto}
-            </span>
-          )}
-
-          {/* Spacer */}
-          <div className="flex-1" />
-
-          {/* Botão remover */}
-          <button
-            type="button"
-            onClick={() => items.forEach((item) => handleRemoveLancamento(item.id))}
-            className="p-1.5 rounded-md text-neutro-400 hover:text-vermelho hover:bg-white/60 transition-colors"
-            title="Remover"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Meses expandidos */}
-        <AnimatePresence>
-          {isRecorrencia && isExpanded && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
-            >
-              <div className="border-t border-neutro-200/50 bg-white/30 p-3">
-                <div className="flex flex-wrap gap-2">
-                  {items.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-white text-micro shadow-sm"
-                    >
-                      <span className="text-neutro-700 font-medium">
-                        {formatarMesExibicao(item.mes)}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveLancamento(item.id)}
-                        className="text-neutro-400 hover:text-vermelho transition-colors"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
-    )
-  }
 
   // Conteúdo compartilhado entre drawer e bottomsheet
   const sharedContent = (
@@ -534,9 +552,18 @@ export function QuickInputSheet({
         'flex-1 overflow-y-auto -mx-4 px-4',
         isDesktop && '-mx-6 px-6'
       )}>
-        <AnimatePresence mode="popLayout">
+        <AnimatePresence mode="sync">
           {Array.from(grupos.entries()).map(([key, items]) => (
-            <LancamentoCard key={key} items={items} groupKey={key} />
+            <LancamentoCard
+              key={key}
+              items={items}
+              groupKey={key}
+              isExpanded={expandedGroups.has(key)}
+              onToggleGroup={toggleGroup}
+              onToggleTipo={handleToggleTipo}
+              onUpdateLancamento={handleUpdateLancamento}
+              onRemoveLancamento={handleRemoveLancamento}
+            />
           ))}
         </AnimatePresence>
 
