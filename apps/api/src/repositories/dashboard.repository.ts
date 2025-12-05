@@ -83,4 +83,40 @@ export const dashboardRepository = {
 
     return result
   },
+
+  /**
+   * Busca próximos vencimentos (saídas pendentes nos próximos 7 dias)
+   */
+  async findProximosVencimentos(userId: string, limit: number = 5): Promise<Array<{
+    id: string
+    nome: string
+    valor: number
+    data_prevista: string
+  }>> {
+    const hoje = new Date()
+    const seteDias = new Date()
+    seteDias.setDate(hoje.getDate() + 7)
+
+    const hojeStr = hoje.toISOString().split('T')[0]
+    const seteDiasStr = seteDias.toISOString().split('T')[0]
+
+    const { data, error } = await supabase
+      .from('lancamentos')
+      .select('id, nome, valor, data_prevista')
+      .eq('user_id', userId)
+      .eq('tipo', 'saida')
+      .eq('concluido', false)
+      .gte('data_prevista', hojeStr)
+      .lte('data_prevista', seteDiasStr)
+      .order('data_prevista', { ascending: true })
+      .limit(limit)
+
+    if (error) throw error
+    return (data || []).filter(d => d.data_prevista !== null) as Array<{
+      id: string
+      nome: string
+      valor: number
+      data_prevista: string
+    }>
+  },
 }

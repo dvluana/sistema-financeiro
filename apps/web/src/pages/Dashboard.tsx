@@ -2,7 +2,7 @@
  * Dashboard Page
  *
  * Tela inicial com visão geral do financeiro.
- * Exibe: resumo do mês atual, pendências, gráfico e lançamentos recentes.
+ * Exibe: resumo do mês atual, próximos vencimentos, gráfico e lançamentos recentes.
  */
 
 import { useEffect } from 'react'
@@ -10,7 +10,7 @@ import { Settings, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
 import { HeroCard } from '@/components/HeroCard'
-import { PendingCard } from '@/components/PendingCard'
+import { UpcomingCard } from '@/components/UpcomingCard'
 import { MiniChart } from '@/components/MiniChart'
 import { RecentList } from '@/components/RecentList'
 import { LoadingSkeleton } from '@/components/LoadingSkeleton'
@@ -37,6 +37,7 @@ export function Dashboard({
     historico,
     pendentesEntrada,
     pendentesSaida,
+    proximosVencimentos,
     isLoading,
     carregarDashboard,
     toggleConcluido,
@@ -48,6 +49,18 @@ export function Dashboard({
 
   const handleLogout = async () => {
     await logout()
+  }
+
+  // Handler para clicar em um vencimento
+  const handleVencimentoClick = (id: string) => {
+    // Busca o lançamento nos recentes ou navega para o mês
+    const lancamento = recentLancamentos.find(l => l.id === id)
+    if (lancamento) {
+      onEditLancamento(lancamento)
+    } else {
+      // Navega para o mês com filtro de pendentes de saída
+      onNavigateToMes('pendentes-saida')
+    }
   }
 
   // Extrai nome do usuário (primeiro nome apenas)
@@ -109,47 +122,37 @@ export function Dashboard({
         ) : (
           <>
             {/* Hero Card - Resumo do mês */}
-            <HeroCard
-              mes={mesAtual}
-              saldo={totais?.saldo ?? 0}
-              totalEntradas={totais?.entradas ?? 0}
-              totalSaidas={totais?.saidas ?? 0}
+            <button
+              type="button"
               onClick={() => onNavigateToMes()}
-            />
+              className="w-full text-left"
+            >
+              <HeroCard
+                mes={mesAtual}
+                nome={primeiroNome}
+                saldo={totais?.saldo ?? 0}
+                jaEntrou={totais?.jaEntrou ?? 0}
+                jaPaguei={totais?.jaPaguei ?? 0}
+                pendentesEntrada={pendentesEntrada}
+                pendentesSaida={pendentesSaida}
+              />
+            </button>
 
-            {/* Cards de Pendentes */}
-            <div className="flex gap-3">
-              <PendingCard
-                tipo="entrada"
-                valor={totais?.faltaEntrar ?? 0}
-                quantidade={pendentesEntrada}
-                onClick={() => onNavigateToMes('pendentes-entrada')}
-              />
-              <PendingCard
-                tipo="saida"
-                valor={totais?.faltaPagar ?? 0}
-                quantidade={pendentesSaida}
-                onClick={() => onNavigateToMes('pendentes-saida')}
-              />
-            </div>
+            {/* Próximos Vencimentos */}
+            <UpcomingCard
+              vencimentos={proximosVencimentos}
+              onItemClick={handleVencimentoClick}
+            />
 
             {/* Gráfico dos últimos 6 meses */}
             {historico.length > 0 && (
               <Card className="overflow-hidden">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-titulo-card text-neutro-900">
-                    Histórico
-                  </h2>
-                  <span className="text-micro text-neutro-400 bg-neutro-100 px-2 py-1 rounded-full">
-                    últimos 6 meses
-                  </span>
-                </div>
+                <h2 className="text-titulo-card text-neutro-900 mb-4">
+                  Histórico
+                </h2>
                 <MiniChart
                   dados={historico}
-                  onMesClick={() => {
-                    // Navega para a tela de mês
-                    onNavigateToMes()
-                  }}
+                  onMesClick={() => onNavigateToMes()}
                 />
               </Card>
             )}

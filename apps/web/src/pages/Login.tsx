@@ -67,7 +67,7 @@ export function Login({ onSwitchToRegister }: LoginProps) {
           >
             <Wallet className="w-8 h-8 text-white" />
           </motion.div>
-          <h1 className="text-titulo-mes text-neutro-900">Bem-vindo de volta</h1>
+          <h1 className="text-titulo-mes text-rosa">Financify</h1>
           <p className="text-corpo text-neutro-600 mt-1">
             Entre na sua conta para continuar
           </p>

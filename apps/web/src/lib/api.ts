@@ -113,6 +113,13 @@ export interface MesHistorico {
   saidas: number
 }
 
+export interface Vencimento {
+  id: string
+  nome: string
+  valor: number
+  data_prevista: string
+}
+
 export interface DashboardResponse {
   mesAtual: string
   totais: Totais
@@ -120,6 +127,7 @@ export interface DashboardResponse {
   historico: MesHistorico[]
   pendentesEntrada: number
   pendentesSaida: number
+  proximosVencimentos: Vencimento[]
 }
 
 /**

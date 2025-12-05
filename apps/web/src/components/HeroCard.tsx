@@ -1,66 +1,133 @@
 /**
  * HeroCard Component
  *
- * Card principal da dashboard mostrando resumo do mês atual.
- * Exibe saldo, total de entradas e saídas.
+ * Card principal da dashboard com saudação contextual,
+ * valores de entradas/saídas e resumo do saldo.
  */
 
-import { ChevronRight, ArrowUp, ArrowDown } from 'lucide-react'
 import { Card } from '@/components/ui/card'
-import { formatarMoeda, formatarMesAno } from '@/lib/utils'
-import { cn } from '@/lib/utils'
+import { formatarMoeda } from '@/lib/utils'
 
 interface HeroCardProps {
   mes: string
+  nome: string
   saldo: number
-  totalEntradas: number
-  totalSaidas: number
-  onClick: () => void
+  jaEntrou: number
+  jaPaguei: number
+  pendentesEntrada: number
+  pendentesSaida: number
+}
+
+/**
+ * Retorna saudação baseada no horário
+ */
+function getSaudacao(): { texto: string; emoji: string } {
+  const hora = new Date().getHours()
+
+  if (hora >= 5 && hora < 12) {
+    return { texto: 'Bom dia', emoji: '☕' }
+  } else if (hora >= 12 && hora < 18) {
+    return { texto: 'Boa tarde', emoji: '☀️' }
+  } else {
+    return { texto: 'Boa noite', emoji: '🌙' }
+  }
+}
+
+/**
+ * Retorna nome do mês por extenso em minúsculo
+ */
+function getMesExtenso(mes: string): string {
+  const meses = [
+    'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+    'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'
+  ]
+  const [, month] = mes.split('-')
+  return meses[parseInt(month) - 1]
 }
 
 export function HeroCard({
   mes,
+  nome,
   saldo,
-  totalEntradas,
-  totalSaidas,
-  onClick,
+  jaEntrou,
+  jaPaguei,
+  pendentesEntrada,
+  pendentesSaida,
 }: HeroCardProps) {
-  const corSaldo = saldo > 0 ? 'text-verde' : saldo < 0 ? 'text-vermelho' : 'text-neutro-900'
+  const saudacao = getSaudacao()
+  const mesExtenso = getMesExtenso(mes)
+
+  // Texto de pendentes para entradas
+  const getPendentesEntradaTexto = () => {
+    if (pendentesEntrada === 0) {
+      return jaEntrou > 0 ? '· tudo recebido' : null
+    }
+    return `· ${pendentesEntrada} pendente${pendentesEntrada > 1 ? 's' : ''}`
+  }
+
+  // Texto de pendentes para saídas
+  const getPendentesSaidaTexto = () => {
+    if (pendentesSaida === 0) {
+      return jaPaguei > 0 ? '· tudo pago' : null
+    }
+    return `· ${pendentesSaida} pendente${pendentesSaida > 1 ? 's' : ''}`
+  }
+
+  // Frase do saldo
+  const getFraseSaldo = () => {
+    if (saldo > 0) {
+      return { texto: `Sobrou ${formatarMoeda(saldo)} em ${mesExtenso}`, cor: 'text-[#008A05]' }
+    } else if (saldo < 0) {
+      return { texto: `Faltou ${formatarMoeda(Math.abs(saldo))} em ${mesExtenso}`, cor: 'text-[#D93025]' }
+    } else {
+      return { texto: `Fechou certinho em ${mesExtenso} ✓`, cor: 'text-[#222222]' }
+    }
+  }
+
+  const fraseSaldo = getFraseSaldo()
+  const pendentesEntradaTexto = getPendentesEntradaTexto()
+  const pendentesSaidaTexto = getPendentesSaidaTexto()
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="w-full text-left"
-    >
-      <Card className="relative hover:border-rosa/50 transition-colors">
-        {/* Mês */}
-        <p className="text-pequeno text-neutro-600 mb-1">{formatarMesAno(mes)}</p>
+    <Card className="hover:border-rosa/50 transition-colors">
+      {/* Saudação */}
+      <p className="text-[18px] font-normal text-[#222222] mb-4">
+        {saudacao.texto}, {nome} {saudacao.emoji}
+      </p>
 
-        {/* Saldo */}
-        <p className={cn('text-[32px] font-bold leading-tight', corSaldo)}>
-          {formatarMoeda(saldo)}
-        </p>
-
-        {/* Entradas e Saídas */}
-        <div className="flex gap-6 mt-3">
-          <div className="flex items-center gap-1.5">
-            <ArrowUp className="w-4 h-4 text-verde" />
-            <span className="text-pequeno text-neutro-700">
-              {formatarMoeda(totalEntradas)}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <ArrowDown className="w-4 h-4 text-vermelho" />
-            <span className="text-pequeno text-neutro-700">
-              {formatarMoeda(totalSaidas)}
-            </span>
-          </div>
+      {/* Valores Entrou/Saiu */}
+      <div className="flex gap-4 mb-4">
+        {/* Coluna Entrou */}
+        <div className="flex-1">
+          <p className="text-[14px] text-[#717171] mb-1">Entrou</p>
+          <p className="text-[24px] font-bold text-[#008A05]">
+            {formatarMoeda(jaEntrou)}
+          </p>
+          {pendentesEntradaTexto && (
+            <p className="text-[13px] text-[#9CA3AF] mt-0.5">
+              {pendentesEntradaTexto}
+            </p>
+          )}
         </div>
 
-        {/* Chevron indicando que é clicável */}
-        <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutro-300" />
-      </Card>
-    </button>
+        {/* Coluna Saiu */}
+        <div className="flex-1">
+          <p className="text-[14px] text-[#717171] mb-1">Saiu</p>
+          <p className="text-[24px] font-bold text-[#D93025]">
+            {formatarMoeda(jaPaguei)}
+          </p>
+          {pendentesSaidaTexto && (
+            <p className="text-[13px] text-[#9CA3AF] mt-0.5">
+              {pendentesSaidaTexto}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Frase do saldo */}
+      <p className={`text-[16px] font-medium ${fraseSaldo.cor}`}>
+        {fraseSaldo.texto}
+      </p>
+    </Card>
   )
 }

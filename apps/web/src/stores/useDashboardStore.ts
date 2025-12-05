@@ -18,6 +18,13 @@ interface MesHistorico {
   saidas: number
 }
 
+interface Vencimento {
+  id: string
+  nome: string
+  valor: number
+  data_prevista: string
+}
+
 interface DashboardState {
   mesAtual: string
   totais: Totais | null
@@ -25,6 +32,7 @@ interface DashboardState {
   historico: MesHistorico[]
   pendentesEntrada: number
   pendentesSaida: number
+  proximosVencimentos: Vencimento[]
   isLoading: boolean
   error: string | null
 
@@ -40,6 +48,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   historico: [],
   pendentesEntrada: 0,
   pendentesSaida: 0,
+  proximosVencimentos: [],
   isLoading: false,
   error: null,
 
@@ -55,6 +64,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         historico: data.historico,
         pendentesEntrada: data.pendentesEntrada,
         pendentesSaida: data.pendentesSaida,
+        proximosVencimentos: data.proximosVencimentos || [],
         isLoading: false,
       })
     } catch (error) {

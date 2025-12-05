@@ -53,10 +53,11 @@ export const dashboardService = {
     const ultimosMeses = getUltimosMeses(6)
 
     // Busca dados em paralelo para melhor performance
-    const [lancamentosMesAtual, recentLancamentos, totaisPorMes] = await Promise.all([
+    const [lancamentosMesAtual, recentLancamentos, totaisPorMes, proximosVencimentos] = await Promise.all([
       lancamentoRepository.findByMes(mesAtual, userId),
       dashboardRepository.findRecent(userId, 5),
       dashboardRepository.getTotaisPorMes(ultimosMeses, userId),
+      dashboardRepository.findProximosVencimentos(userId, 5),
     ])
 
     // Calcula totais do mês atual
@@ -116,6 +117,7 @@ export const dashboardService = {
       historico,
       pendentesEntrada,
       pendentesSaida,
+      proximosVencimentos,
     }
   },
 }
