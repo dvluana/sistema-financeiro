@@ -6,7 +6,7 @@
  */
 
 import { useEffect } from 'react'
-import { Settings, LogOut } from 'lucide-react'
+import { Settings, LogOut, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { HeroCard } from '@/components/HeroCard'
 import { UpcomingCard } from '@/components/UpcomingCard'
@@ -22,12 +22,14 @@ interface DashboardProps {
   onNavigateToMes: (filtro?: 'pendentes-entrada' | 'pendentes-saida') => void
   onOpenConfig: () => void
   onEditLancamento: (lancamento: Lancamento) => void
+  onNovoLancamento: () => void
 }
 
 export function Dashboard({
   onNavigateToMes,
   onOpenConfig,
   onEditLancamento,
+  onNovoLancamento,
 }: DashboardProps) {
   const { usuario, logout } = useAuthStore()
   const {
@@ -169,10 +171,18 @@ export function Dashboard({
 
             {/* Últimos lançamentos */}
             <div className="space-y-3">
-              <div className="px-1">
+              <div className="flex items-center justify-between px-1">
                 <h2 className="text-corpo-medium text-foreground">
                   Últimos lançamentos
                 </h2>
+                <button
+                  type="button"
+                  onClick={onNovoLancamento}
+                  className="flex items-center gap-1 text-pequeno text-rosa hover:text-rosa/80 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Novo
+                </button>
               </div>
               <div className="bg-card border border-border rounded-xl p-4">
                 {isLoading ? (

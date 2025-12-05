@@ -232,6 +232,7 @@ export function Home() {
               onNavigateToMes={handleNavigateToMes}
               onOpenConfig={() => setConfigDrawerOpen(true)}
               onEditLancamento={handleEditLancamento}
+              onNovoLancamento={handleOpenManualInput}
             />
           </motion.div>
         ) : (
