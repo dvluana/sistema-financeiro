@@ -374,15 +374,30 @@ export function QuickInputSheet({
     }
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      console.error('Erro no reconhecimento de voz:', event.error)
+      console.error('Erro no reconhecimento de voz:', event.error, event.message)
       setIsListening(false)
 
-      if (event.error === 'not-allowed') {
-        setErro('Permissão de microfone negada. Habilite nas configurações do navegador.')
-      } else if (event.error === 'no-speech') {
-        setErro('Nenhuma fala detectada. Tente novamente.')
-      } else {
-        setErro('Erro no reconhecimento de voz. Tente novamente.')
+      switch (event.error) {
+        case 'not-allowed':
+          setErro('Permissão de microfone negada. Habilite nas configurações do navegador.')
+          break
+        case 'no-speech':
+          // Silencioso - apenas para quando não detecta fala
+          break
+        case 'audio-capture':
+          setErro('Nenhum microfone encontrado. Verifique se o microfone está conectado.')
+          break
+        case 'network':
+          setErro('Erro de rede. Verifique sua conexão com a internet.')
+          break
+        case 'aborted':
+          // Usuário cancelou - não mostra erro
+          break
+        case 'service-not-allowed':
+          setErro('Serviço de reconhecimento não disponível. Tente usar Chrome ou Edge.')
+          break
+        default:
+          setErro(`Erro no reconhecimento de voz: ${event.error}. Tente novamente.`)
       }
     }
 
@@ -391,7 +406,14 @@ export function QuickInputSheet({
     }
 
     recognitionRef.current = recognition
-    recognition.start()
+
+    try {
+      recognition.start()
+    } catch (error) {
+      console.error('Erro ao iniciar reconhecimento:', error)
+      setIsListening(false)
+      setErro('Não foi possível iniciar o reconhecimento de voz. Verifique as permissões do navegador.')
+    }
   }, [speechSupported, isListening])
 
   // Limite máximo de lançamentos na lista

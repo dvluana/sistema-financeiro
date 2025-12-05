@@ -22,126 +22,82 @@ interface ParseResult {
 // Limite máximo de lançamentos por requisição (segurança)
 const MAX_LANCAMENTOS_POR_REQUEST = 20
 
-const SYSTEM_PROMPT = `Você é um assistente financeiro. Extraia lançamentos do texto do usuário.
+const SYSTEM_PROMPT = `Você é um assistente de finanças pessoais especializado em classificar transações financeiras.
 
-## REGRAS CRÍTICAS
+## SUA TAREFA
+Extrair lançamentos financeiros do texto do usuário, identificando:
+1. **tipo**: "entrada" (dinheiro ENTRANDO) ou "saida" (dinheiro SAINDO)
+2. **nome**: descrição clara do que é o lançamento
+3. **valor**: valor numérico
+4. **diaPrevisto**: dia do mês se mencionado (1-31 ou null)
 
-### VALORES ABREVIADOS (MUITO IMPORTANTE!)
-- "5k" = 5000 (k = mil)
-- "2k" = 2000
-- "1.5k" = 1500
-- "10k" = 10000
-- "mil" ou "2mil" = 2000
-- Valores NUNCA devem ser menores que o contexto sugere (salário não é R$ 5!)
+## REGRA FUNDAMENTAL DE CLASSIFICAÇÃO
 
-### TIPO DO LANÇAMENTO
+### ENTRADA = Dinheiro ENTRANDO no bolso
+Pergunta-chave: "O dinheiro está VINDO para mim?"
+- Verbos: ganhei, recebi, vendi, lucrei, faturei, entrou
+- Contextos: salário, freelance, venda, comissão, bônus, dividendos, restituição, reembolso, prêmio, mesada, pensão, aluguel que eu COBRO de inquilino
 
-**ENTRADA** (receita - dinheiro que ENTRA):
-- sal, salário, salario → ENTRADA
-- freela, freelance → ENTRADA
-- vendi, venda, vendas → ENTRADA
-- recebi, recebido → ENTRADA
-- bonus, bônus → ENTRADA
-- comissão → ENTRADA
-- renda, rendimento → ENTRADA
-- dividendos, lucros → ENTRADA
-- restituição → ENTRADA
+### SAÍDA = Dinheiro SAINDO do bolso
+Pergunta-chave: "O dinheiro está SAINDO de mim?"
+- Verbos: paguei, gastei, comprei, perdi
+- Contextos: contas, parcelas, compras, assinaturas, aluguel que eu PAGO
 
-**SAÍDA** (despesa - dinheiro que SAI):
-- luz, água, gas, internet, telefone → SAÍDA
-- aluguel, condomínio → SAÍDA
-- parcela, fatura, boleto → SAÍDA
-- mercado, supermercado → SAÍDA
-- gasolina, combustível, uber → SAÍDA
-- netflix, spotify, prime, streaming → SAÍDA
-- farmácia, remédio → SAÍDA
-- academia, escola, faculdade → SAÍDA
-- paguei, gastei, comprei → SAÍDA
+## VALORES ABREVIADOS
+- "5k" = 5000, "2k" = 2000, "1.5k" = 1500
+- "mil" = 1000, "2mil" = 2000
 
-### NOME DO LANÇAMENTO (MUITO IMPORTANTE!)
-O nome deve descrever O QUE foi comprado/recebido, NÃO a ação:
-- "gastei 50 numa torta" → nome: "Torta" (NÃO "Gastei")
-- "paguei 100 de uber" → nome: "Uber" (NÃO "Paguei")
-- "comprei um livro por 80" → nome: "Livro" (NÃO "Comprei")
-- "recebi 500 do cliente X" → nome: "Cliente X" ou "Pagamento cliente X"
-
-Regras:
-- NUNCA use verbos como nome (gastei, paguei, comprei, recebi)
-- Extraia o OBJETO/CONTEXTO da frase
-- Preserve detalhes: "torta de nega maluca" → "Torta de nega maluca"
-- Mapeie abreviações: "sal" → "Salário", "freela" → "Freelance"
+## NOME DO LANÇAMENTO
+- Extraia O QUE é, não a ação: "gastei 50 em pizza" → nome: "Pizza"
+- Preserve contexto: "torta de limão" → "Torta de limão"
+- Abreviações: "sal" → "Salário", "freela" → "Freelance"
 - Primeira letra maiúscula
-- Marcas: Netflix, Spotify, Uber, iFood
 
-## FORMATO
+## EXEMPLOS DE CLASSIFICAÇÃO
+
+ENTRADAS (dinheiro entrando):
+- "ganhei 100 na rifa" → entrada (ganhei = recebi dinheiro)
+- "recebi 5000 de salário" → entrada
+- "vendi meu celular por 500" → entrada (venda = dinheiro entrando)
+- "freela 1200" → entrada (trabalho = receita)
+- "bônus 2000" → entrada
+- "recebi o aluguel do inquilino 1500" → entrada
+
+SAÍDAS (dinheiro saindo):
+- "paguei 150 de luz" → saída
+- "gastei 80 no mercado" → saída
+- "comprei um tênis 350" → saída
+- "netflix 55" → saída (assinatura = gasto)
+- "aluguel 1500" → saída (pagar aluguel)
+- "parcela do carro 800" → saída
+
+## FORMATO DE RESPOSTA
+Retorne APENAS JSON válido, sem markdown:
 {"lancamentos":[{"tipo":"entrada","nome":"Nome","valor":1234.56,"diaPrevisto":5}]}
 
-## EXEMPLOS CRÍTICOS
+Máximo ${MAX_LANCAMENTOS_POR_REQUEST} lançamentos por requisição.`
 
-"sal 5k dia 5" → {"lancamentos":[{"tipo":"entrada","nome":"Salário","valor":5000,"diaPrevisto":5}]}
+/**
+ * Pós-processamento MÍNIMO de segurança
+ *
+ * A IA é responsável pela classificação principal.
+ * Este código apenas corrige casos ÓBVIOS onde a IA errou claramente.
+ *
+ * Filosofia: Confiar na IA, intervir minimamente.
+ */
 
-"freela 1200" → {"lancamentos":[{"tipo":"entrada","nome":"Freelance","valor":1200,"diaPrevisto":null}]}
-
-"freela design 800" → {"lancamentos":[{"tipo":"entrada","nome":"Freelance design","valor":800,"diaPrevisto":null}]}
-
-"vendi o celular por 500" → {"lancamentos":[{"tipo":"entrada","nome":"Venda celular","valor":500,"diaPrevisto":null}]}
-
-"vendi notebook 2k" → {"lancamentos":[{"tipo":"entrada","nome":"Venda notebook","valor":2000,"diaPrevisto":null}]}
-
-"luz 150 agua 80 gas 60" → {"lancamentos":[{"tipo":"saida","nome":"Luz","valor":150,"diaPrevisto":null},{"tipo":"saida","nome":"Água","valor":80,"diaPrevisto":null},{"tipo":"saida","nome":"Gás","valor":60,"diaPrevisto":null}]}
-
-"parcela do carro 800" → {"lancamentos":[{"tipo":"saida","nome":"Parcela do carro","valor":800,"diaPrevisto":null}]}
-
-"netflix 55 spotify 22" → {"lancamentos":[{"tipo":"saida","nome":"Netflix","valor":55,"diaPrevisto":null},{"tipo":"saida","nome":"Spotify","valor":22,"diaPrevisto":null}]}
-
-"recebi 1000 do aluguel" → {"lancamentos":[{"tipo":"entrada","nome":"Aluguel recebido","valor":1000,"diaPrevisto":null}]}
-
-"paguei aluguel 1500" → {"lancamentos":[{"tipo":"saida","nome":"Aluguel","valor":1500,"diaPrevisto":null}]}
-
-"gastei 50 numa torta de nega maluca" → {"lancamentos":[{"tipo":"saida","nome":"Torta de nega maluca","valor":50,"diaPrevisto":null}]}
-
-"comprei um tênis por 350" → {"lancamentos":[{"tipo":"saida","nome":"Tênis","valor":350,"diaPrevisto":null}]}
-
-"paguei 200 no mercado" → {"lancamentos":[{"tipo":"saida","nome":"Mercado","valor":200,"diaPrevisto":null}]}
-
-"gastei 80 com remédio" → {"lancamentos":[{"tipo":"saida","nome":"Remédio","valor":80,"diaPrevisto":null}]}
-
-## IMPORTANTE
-- "k" após número = multiplicar por 1000
-- "freela" e "vendi" são SEMPRE entrada
-- Retorne APENAS JSON válido
-- Máximo ${MAX_LANCAMENTOS_POR_REQUEST} lançamentos
-`
-
-// Palavras que SEMPRE indicam entrada
-const PALAVRAS_ENTRADA = [
-  'salário', 'salario', 'sal',
-  'freelance', 'freela',
-  'vendi', 'venda', 'vendas',
-  'recebi', 'recebido', 'receber',
-  'bonus', 'bônus', 'bonificação',
-  'comissão', 'comissao',
-  'renda', 'rendimento', 'rendimentos',
-  'dividendo', 'dividendos', 'lucro', 'lucros',
-  'restituição', 'restituicao',
-  '13º', 'decimo terceiro',
-  'mesada', 'pensão'
+// Verbos que indicam INEQUIVOCAMENTE entrada (dinheiro vindo para o usuário)
+const VERBOS_ENTRADA_INEQUIVOCOS = [
+  'ganhei', 'ganha', 'ganhar', 'ganhou',
+  'recebi', 'receber', 'recebeu',
+  'vendi', 'vender', 'vendeu',
 ]
 
-// Palavras que indicam saída
-const PALAVRAS_SAIDA = [
-  'luz', 'água', 'agua', 'gás', 'gas', 'internet', 'telefone', 'celular',
-  'aluguel', 'condomínio', 'condominio', 'iptu',
-  'parcela', 'fatura', 'boleto', 'prestação',
-  'mercado', 'supermercado', 'feira',
-  'gasolina', 'combustível', 'combustivel', 'uber', '99', 'taxi',
-  'netflix', 'spotify', 'prime', 'disney', 'hbo', 'streaming',
-  'farmácia', 'farmacia', 'remédio', 'remedio',
-  'academia', 'pilates', 'crossfit',
-  'escola', 'faculdade', 'curso', 'mensalidade',
-  'plano de saúde', 'plano de saude', 'seguro',
-  'empréstimo', 'emprestimo', 'financiamento',
-  'paguei', 'pago', 'pagar', 'gastei', 'gasto', 'gastar', 'comprei', 'compra'
+// Verbos que indicam INEQUIVOCAMENTE saída (dinheiro saindo do usuário)
+const VERBOS_SAIDA_INEQUIVOCOS = [
+  'paguei', 'pagar', 'pagou',
+  'gastei', 'gastar', 'gastou',
+  'comprei', 'comprar', 'comprou',
 ]
 
 export class AIService {
@@ -209,29 +165,67 @@ export class AIService {
   }
 
   /**
-   * Determina o tipo correto baseado no texto original e nome do lançamento
+   * Verifica se o tipo retornado pela IA está correto
+   *
+   * IMPORTANTE: Confiamos na IA para a classificação principal.
+   * Este método só corrige quando há verbos INEQUÍVOCOS no texto
+   * que contradizem a classificação da IA.
+   *
+   * @param tipoIA - O tipo retornado pela IA
+   * @param textoOriginal - O texto original do usuário
+   * @returns O tipo corrigido (ou o original se não houver contradição)
    */
-  private corrigirTipo(nome: string, textoOriginal: string): 'entrada' | 'saida' {
-    const nomeL = nome.toLowerCase()
+  private validarTipo(tipoIA: 'entrada' | 'saida', textoOriginal: string): 'entrada' | 'saida' {
     const textoL = textoOriginal.toLowerCase()
 
-    // Verifica se alguma palavra de entrada está presente
-    for (const palavra of PALAVRAS_ENTRADA) {
-      if (nomeL.includes(palavra) || textoL.includes(palavra)) {
-        // Exceção: "paguei aluguel" é saída, "recebi aluguel" é entrada
-        if (palavra === 'aluguel') {
-          if (textoL.includes('paguei') || textoL.includes('pagar')) {
-            return 'saida'
-          }
-          if (textoL.includes('recebi') || textoL.includes('receber')) {
-            return 'entrada'
-          }
+    // Verifica se há verbos INEQUÍVOCOS de entrada
+    for (const verbo of VERBOS_ENTRADA_INEQUIVOCOS) {
+      if (textoL.includes(verbo)) {
+        // Se a IA disse saída mas tem "ganhei/vendi", corrige para entrada
+        if (tipoIA === 'saida') {
+          return 'entrada'
         }
+        return tipoIA
+      }
+    }
+
+    // Verifica se há verbos INEQUÍVOCOS de saída
+    for (const verbo of VERBOS_SAIDA_INEQUIVOCOS) {
+      if (textoL.includes(verbo)) {
+        // Se a IA disse entrada mas tem "paguei/gastei/comprei", corrige para saída
+        if (tipoIA === 'entrada') {
+          return 'saida'
+        }
+        return tipoIA
+      }
+    }
+
+    // Sem contradição clara - confia na IA
+    return tipoIA
+  }
+
+  /**
+   * Determina o tipo quando não há IA disponível (fallback)
+   * Baseado apenas em verbos de ação no texto
+   */
+  private determinarTipoSemIA(textoOriginal: string): 'entrada' | 'saida' {
+    const textoL = textoOriginal.toLowerCase()
+
+    // Verifica verbos de entrada
+    for (const verbo of VERBOS_ENTRADA_INEQUIVOCOS) {
+      if (textoL.includes(verbo)) {
         return 'entrada'
       }
     }
 
-    // Se não encontrou entrada, assume saída
+    // Verifica verbos de saída
+    for (const verbo of VERBOS_SAIDA_INEQUIVOCOS) {
+      if (textoL.includes(verbo)) {
+        return 'saida'
+      }
+    }
+
+    // Default: saída (mais comum)
     return 'saida'
   }
 
@@ -282,11 +276,12 @@ export class AIService {
           // Capitaliza primeira letra
           nome = nome.charAt(0).toUpperCase() + nome.slice(1)
 
-          // Corrige o tipo baseado nas palavras-chave
-          const tipoCorrigido = this.corrigirTipo(nome, texto)
+          // Valida o tipo da IA (corrige apenas se houver contradição óbvia)
+          const tipoIA = l.tipo === 'entrada' ? 'entrada' : 'saida'
+          const tipoValidado = this.validarTipo(tipoIA, texto)
 
           lancamentos.push({
-            tipo: tipoCorrigido,
+            tipo: tipoValidado,
             nome,
             valor: Math.round(Number(l.valor) * 100) / 100,
             diaPrevisto: l.diaPrevisto && l.diaPrevisto >= 1 && l.diaPrevisto <= 31
@@ -347,8 +342,8 @@ export class AIService {
         // Corrige o nome se for apenas um verbo
         nome = this.corrigirNome(nome, textoOriginal)
 
-        // Usa a função de correção de tipo
-        const tipo = this.corrigirTipo(nome, textoOriginal)
+        // Determina o tipo baseado no texto (fallback sem IA)
+        const tipo = this.determinarTipoSemIA(textoOriginal)
 
         lancamentos.push({
           tipo,

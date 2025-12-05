@@ -20,6 +20,11 @@ const testes = [
   { texto: "paguei 200 no mercado", esperado: { tipo: "saida", nomeContem: "mercado" } },
   { texto: "gastei 80 com remédio", esperado: { tipo: "saida", nomeContem: "remédio" } },
 
+  // Testes de GANHEI (deve ser entrada!)
+  { texto: "ganhei 100 na rifa", esperado: { tipo: "entrada" } },
+  { texto: "ganhei 500 de presente", esperado: { tipo: "entrada" } },
+  { texto: "ganhei um bônus de 2000", esperado: { tipo: "entrada" } },
+
   // Entradas básicas
   { texto: "sal 5k dia 5", esperado: { tipo: "entrada" } },
   { texto: "salário 5000", esperado: { tipo: "entrada" } },
