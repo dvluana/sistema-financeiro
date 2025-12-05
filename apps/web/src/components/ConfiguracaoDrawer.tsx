@@ -6,14 +6,16 @@
  * - Marcar entradas como recebidas automaticamente
  * - Marcar saídas como pagas automaticamente
  * - Mostrar itens concluídos com menos destaque
+ *
+ * Responsivo: drawer lateral em desktop, bottomsheet em mobile.
  */
 
 import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-} from '@/components/ui/drawer'
+  ResponsiveDrawer,
+  ResponsiveDrawerContent,
+  ResponsiveDrawerHeader,
+  ResponsiveDrawerTitle,
+} from '@/components/ui/responsive-drawer'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 
@@ -49,11 +51,11 @@ export function ConfiguracaoDrawer({
   ]
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent>
-        <DrawerHeader>
-          <DrawerTitle>Configurações</DrawerTitle>
-        </DrawerHeader>
+    <ResponsiveDrawer open={open} onOpenChange={onOpenChange}>
+      <ResponsiveDrawerContent>
+        <ResponsiveDrawerHeader>
+          <ResponsiveDrawerTitle>Configurações</ResponsiveDrawerTitle>
+        </ResponsiveDrawerHeader>
 
         <div className="space-y-6">
           {configs.map((config) => (
@@ -82,7 +84,7 @@ export function ConfiguracaoDrawer({
             </div>
           ))}
         </div>
-      </DrawerContent>
-    </Drawer>
+      </ResponsiveDrawerContent>
+    </ResponsiveDrawer>
   )
 }

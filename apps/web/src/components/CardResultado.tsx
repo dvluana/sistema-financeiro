@@ -35,12 +35,12 @@ export function CardResultado({
       : 'text-neutro-900'
 
   return (
-    <Card>
+    <Card className="border-l-4 border-l-azul bg-gradient-to-r from-white to-azul-bg/30">
       <CardContent className="p-0 space-y-3">
         {/* Linha: Entradas */}
         <div className="flex justify-between items-center">
           <span className="text-corpo text-neutro-600">Entradas</span>
-          <span className="text-corpo-medium text-neutro-900">
+          <span className="text-corpo-medium text-verde">
             {formatarMoeda(totalEntradas)}
           </span>
         </div>
@@ -48,7 +48,7 @@ export function CardResultado({
         {/* Linha: Saídas */}
         <div className="flex justify-between items-center">
           <span className="text-corpo text-neutro-600">Saídas</span>
-          <span className="text-corpo-medium text-neutro-900">
+          <span className="text-corpo-medium text-rosa">
             {formatarMoeda(totalSaidas)}
           </span>
         </div>

@@ -25,8 +25,9 @@ import { ConfiguracaoDrawer } from '@/components/ConfiguracaoDrawer'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { LoadingSkeleton } from '@/components/LoadingSkeleton'
 import { Toast } from '@/components/Toast'
-import { Drawer, DrawerContent } from '@/components/ui/drawer'
+import { ResponsiveDrawer, ResponsiveDrawerContent } from '@/components/ui/responsive-drawer'
 import type { Lancamento } from '@/lib/api'
+import type { FormLancamentoData } from '@/components/FormLancamento'
 
 export function Home() {
   // Estado global
@@ -43,6 +44,7 @@ export function Home() {
     carregarMes,
     carregarConfiguracoes,
     criarLancamento,
+    criarLancamentoRecorrente,
     atualizarLancamento,
     toggleConcluido,
     excluirLancamento,
@@ -100,12 +102,7 @@ export function Home() {
   /**
    * Submete o formulário (criar ou atualizar)
    */
-  const handleFormSubmit = async (data: {
-    nome: string
-    valor: number
-    data_prevista: string | null
-    concluido: boolean
-  }) => {
+  const handleFormSubmit = async (data: FormLancamentoData) => {
     try {
       if (lancamentoSelecionado) {
         // Atualizar
@@ -114,9 +111,25 @@ export function Home() {
           valor: data.valor,
           data_prevista: data.data_prevista,
           concluido: data.concluido,
+          categoria_id: data.categoria_id,
+        })
+      } else if (data.recorrencia) {
+        // Criar lançamentos recorrentes
+        const diaPrevisto = data.data_prevista
+          ? parseInt(data.data_prevista.split('-')[2], 10)
+          : null
+        await criarLancamentoRecorrente({
+          tipo: formTipo,
+          nome: data.nome,
+          valor: data.valor,
+          mes_inicial: mesAtual,
+          dia_previsto: diaPrevisto,
+          concluido: data.concluido,
+          categoria_id: data.categoria_id,
+          recorrencia: data.recorrencia,
         })
       } else {
-        // Criar
+        // Criar lançamento único
         await criarLancamento({
           tipo: formTipo,
           nome: data.nome,
@@ -124,6 +137,7 @@ export function Home() {
           mes: mesAtual,
           concluido: data.concluido,
           data_prevista: data.data_prevista,
+          categoria_id: data.categoria_id,
         })
       }
       setFormDrawerOpen(false)
@@ -188,7 +202,7 @@ export function Home() {
     : Boolean(configuracoes.saidas_auto_pago)
 
   return (
-    <div className="min-h-screen bg-neutro-100">
+    <div className="min-h-screen bg-gradient-to-b from-neutro-100 to-neutro-200">
       {/* Header */}
       <Header
         mes={mesAtual}
@@ -248,19 +262,20 @@ export function Home() {
         )}
       </main>
 
-      {/* Drawer do formulário */}
-      <Drawer open={formDrawerOpen} onOpenChange={setFormDrawerOpen}>
-        <DrawerContent>
+      {/* Drawer do formulário (responsivo: lateral em desktop, bottom em mobile) */}
+      <ResponsiveDrawer open={formDrawerOpen} onOpenChange={setFormDrawerOpen}>
+        <ResponsiveDrawerContent>
           <FormLancamento
             tipo={formTipo}
+            mesAtual={mesAtual}
             lancamento={lancamentoSelecionado}
             autoMarcarConcluido={autoMarcarConcluido}
             onSubmit={handleFormSubmit}
             onDelete={lancamentoSelecionado ? handleDeleteClick : undefined}
             isLoading={isLoading}
           />
-        </DrawerContent>
-      </Drawer>
+        </ResponsiveDrawerContent>
+      </ResponsiveDrawer>
 
       {/* Drawer de configurações */}
       <ConfiguracaoDrawer

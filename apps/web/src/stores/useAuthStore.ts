@@ -13,6 +13,7 @@ import {
   setToken,
   removeToken,
   getToken,
+  ApiError,
   type Usuario,
 } from '@/lib/api'
 
@@ -119,13 +120,23 @@ export const useAuthStore = create<AuthState>((set) => ({
         isAuthenticated: true,
         isLoading: false,
       })
-    } catch {
-      removeToken()
-      set({
-        usuario: null,
-        isAuthenticated: false,
-        isLoading: false,
-      })
+    } catch (error) {
+      // Só remove o token se for erro de autenticação (401/403)
+      // Erros de rede ou servidor não devem deslogar o usuário
+      const isAuthError = error instanceof ApiError &&
+        (error.status === 401 || error.status === 403)
+
+      if (isAuthError) {
+        removeToken()
+        set({
+          usuario: null,
+          isAuthenticated: false,
+          isLoading: false,
+        })
+      } else {
+        // Em caso de erro de rede, mantém o usuário logado (assume válido)
+        set({ isLoading: false, isAuthenticated: true })
+      }
     }
   },
 

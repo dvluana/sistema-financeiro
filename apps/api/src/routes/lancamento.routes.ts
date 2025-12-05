@@ -10,6 +10,7 @@ import { lancamentoService } from '../services/lancamento.service.js'
 import {
   criarLancamentoSchema,
   atualizarLancamentoSchema,
+  criarLancamentoRecorrenteSchema,
   mesQuerySchema,
 } from '../schemas/lancamento.js'
 import { requireAuth } from '../middleware/auth.middleware.js'
@@ -45,6 +46,24 @@ export async function lancamentoRoutes(app: FastifyInstance) {
       const input = criarLancamentoSchema.parse(request.body)
       const userId = request.usuario!.id
       const result = await lancamentoService.criar(input, userId)
+      return reply.status(201).send(result)
+    } catch (error) {
+      if (error instanceof Error) {
+        return reply.status(400).send({ error: error.message })
+      }
+      throw error
+    }
+  })
+
+  /**
+   * POST /api/lancamentos/recorrente
+   * Cria lançamentos recorrentes (mensal ou parcelas)
+   */
+  app.post('/api/lancamentos/recorrente', async (request, reply) => {
+    try {
+      const input = criarLancamentoRecorrenteSchema.parse(request.body)
+      const userId = request.usuario!.id
+      const result = await lancamentoService.criarRecorrente(input, userId)
       return reply.status(201).send(result)
     } catch (error) {
       if (error instanceof Error) {

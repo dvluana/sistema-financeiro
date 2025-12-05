@@ -34,8 +34,8 @@ export function CardEntradas({
   const isEmpty = entradas.length === 0
 
   return (
-    <Card>
-      <CardTitle className="mb-4">Entradas</CardTitle>
+    <Card className="border-l-4 border-l-verde">
+      <CardTitle className="mb-4 text-verde">Entradas</CardTitle>
 
       <CardContent className="p-0">
         {isEmpty ? (
@@ -53,6 +53,7 @@ export function CardEntradas({
                 valor={entrada.valor}
                 dataPrevista={entrada.data_prevista}
                 concluido={entrada.concluido}
+                categoria={entrada.categoria}
                 mostrarConcluidosDiscretos={mostrarConcluidosDiscretos}
                 onToggle={() => onToggle(entrada.id)}
                 onEdit={() => onEdit(entrada)}
@@ -75,7 +76,7 @@ export function CardEntradas({
         <Button
           variant="ghost"
           size="sm"
-          className="w-full mt-4 text-neutro-600"
+          className="w-full mt-4 text-verde hover:text-verde-hover hover:bg-verde-bg"
           onClick={onAdd}
         >
           <Plus className="w-5 h-5 mr-2" />

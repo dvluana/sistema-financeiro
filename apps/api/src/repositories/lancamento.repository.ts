@@ -11,11 +11,15 @@ import type { Lancamento, CriarLancamentoInput, AtualizarLancamentoInput } from 
 export const lancamentoRepository = {
   /**
    * Lista lançamentos de um mês para um usuário
+   * Inclui dados da categoria relacionada
    */
   async findByMes(mes: string, userId: string): Promise<Lancamento[]> {
     const { data, error } = await supabase
       .from('lancamentos')
-      .select('*')
+      .select(`
+        *,
+        categoria:categorias(id, nome, tipo, icone, cor, ordem, is_default)
+      `)
       .eq('mes', mes)
       .eq('user_id', userId)
       .order('created_at', { ascending: true })
@@ -31,7 +35,10 @@ export const lancamentoRepository = {
     const { data, error } = await supabase
       .from('lancamentos')
       .insert({ ...input, user_id: userId })
-      .select()
+      .select(`
+        *,
+        categoria:categorias(id, nome, tipo, icone, cor, ordem, is_default)
+      `)
       .single()
 
     if (error) throw error
@@ -47,7 +54,10 @@ export const lancamentoRepository = {
       .update(input)
       .eq('id', id)
       .eq('user_id', userId)
-      .select()
+      .select(`
+        *,
+        categoria:categorias(id, nome, tipo, icone, cor, ordem, is_default)
+      `)
       .single()
 
     if (error) throw error
@@ -74,7 +84,10 @@ export const lancamentoRepository = {
       .update({ concluido: !current.concluido })
       .eq('id', id)
       .eq('user_id', userId)
-      .select()
+      .select(`
+        *,
+        categoria:categorias(id, nome, tipo, icone, cor, ordem, is_default)
+      `)
       .single()
 
     if (error) throw error
@@ -100,7 +113,10 @@ export const lancamentoRepository = {
   async findById(id: string, userId: string): Promise<Lancamento | null> {
     const { data, error } = await supabase
       .from('lancamentos')
-      .select('*')
+      .select(`
+        *,
+        categoria:categorias(id, nome, tipo, icone, cor, ordem, is_default)
+      `)
       .eq('id', id)
       .eq('user_id', userId)
       .single()

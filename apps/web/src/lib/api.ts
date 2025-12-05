@@ -26,6 +26,16 @@ export interface AuthResponse {
   token: string
 }
 
+export interface Categoria {
+  id: string
+  nome: string
+  tipo: 'entrada' | 'saida'
+  icone: string | null
+  cor: string | null
+  ordem: number
+  is_default: boolean
+}
+
 export interface Lancamento {
   id: string
   tipo: 'entrada' | 'saida'
@@ -34,6 +44,8 @@ export interface Lancamento {
   concluido: boolean
   data_prevista: string | null
   mes: string
+  categoria_id: string | null
+  categoria?: Categoria | null
   created_at: string
   updated_at: string
 }
@@ -62,6 +74,21 @@ export interface CriarLancamentoInput {
   mes: string
   concluido?: boolean
   data_prevista?: string | null
+  categoria_id?: string | null
+}
+
+export interface CriarLancamentoRecorrenteInput {
+  tipo: 'entrada' | 'saida'
+  nome: string
+  valor: number
+  mes_inicial: string
+  dia_previsto?: number | null
+  concluido?: boolean
+  categoria_id?: string | null
+  recorrencia: {
+    tipo: 'mensal' | 'parcelas'
+    quantidade: number
+  }
 }
 
 export interface AtualizarLancamentoInput {
@@ -69,6 +96,7 @@ export interface AtualizarLancamentoInput {
   valor?: number
   data_prevista?: string | null
   concluido?: boolean
+  categoria_id?: string | null
 }
 
 export interface Configuracao {
@@ -76,6 +104,22 @@ export interface Configuracao {
   chave: string
   valor: boolean | string | number
   updated_at: string
+}
+
+export interface MesHistorico {
+  mes: string
+  label: string
+  entradas: number
+  saidas: number
+}
+
+export interface DashboardResponse {
+  mesAtual: string
+  totais: Totais
+  recentLancamentos: Lancamento[]
+  historico: MesHistorico[]
+  pendentesEntrada: number
+  pendentesSaida: number
 }
 
 /**
@@ -202,6 +246,15 @@ export const lancamentosApi = {
     }),
 
   /**
+   * Cria lançamentos recorrentes (mensal ou parcelas)
+   */
+  criarRecorrente: (data: CriarLancamentoRecorrenteInput): Promise<{ criados: number }> =>
+    request('/api/lancamentos/recorrente', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  /**
    * Atualiza um lançamento existente
    */
   atualizar: (id: string, data: AtualizarLancamentoInput): Promise<LancamentoResponse> =>
@@ -245,4 +298,58 @@ export const configuracoesApi = {
       method: 'PUT',
       body: JSON.stringify({ valor }),
     }),
+}
+
+/**
+ * API de Categorias
+ */
+export const categoriasApi = {
+  /**
+   * Lista todas as categorias
+   */
+  listar: (): Promise<Categoria[]> =>
+    request('/api/categorias'),
+
+  /**
+   * Lista categorias por tipo (entrada ou saida)
+   */
+  listarPorTipo: (tipo: 'entrada' | 'saida'): Promise<Categoria[]> =>
+    request(`/api/categorias/tipo/${tipo}`),
+
+  /**
+   * Cria nova categoria
+   */
+  criar: (data: { nome: string; tipo: 'entrada' | 'saida'; icone?: string; cor?: string }): Promise<Categoria> =>
+    request('/api/categorias', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  /**
+   * Atualiza categoria
+   */
+  atualizar: (id: string, data: { nome?: string; icone?: string; cor?: string }): Promise<Categoria> =>
+    request(`/api/categorias/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  /**
+   * Remove categoria
+   */
+  excluir: (id: string): Promise<void> =>
+    request(`/api/categorias/${id}`, {
+      method: 'DELETE',
+    }),
+}
+
+/**
+ * API da Dashboard
+ */
+export const dashboardApi = {
+  /**
+   * Retorna dados consolidados da dashboard
+   */
+  get: (): Promise<DashboardResponse> =>
+    request('/api/dashboard'),
 }

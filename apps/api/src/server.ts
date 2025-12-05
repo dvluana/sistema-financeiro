@@ -4,6 +4,8 @@ import cors from '@fastify/cors'
 import { authRoutes } from './routes/auth.routes.js'
 import { lancamentoRoutes } from './routes/lancamento.routes.js'
 import { configuracaoRoutes } from './routes/configuracao.routes.js'
+import { categoriaRoutes } from './routes/categoria.routes.js'
+import { dashboardRoutes } from './routes/dashboard.routes.js'
 
 const app = Fastify({
   logger: true,
@@ -20,6 +22,8 @@ await app.register(cors, {
 await app.register(authRoutes)
 await app.register(lancamentoRoutes)
 await app.register(configuracaoRoutes)
+await app.register(categoriaRoutes, { prefix: '/api/categorias' })
+await app.register(dashboardRoutes)
 
 // Health check
 app.get('/health', async () => {

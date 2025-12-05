@@ -101,4 +101,65 @@ export const lancamentoService = {
     await lancamentoRepository.delete(id, userId)
     return this.listarPorMes(mes, userId)
   },
+
+  /**
+   * Cria lançamentos recorrentes (mensal ou parcelas)
+   */
+  async criarRecorrente(
+    input: {
+      tipo: 'entrada' | 'saida'
+      nome: string
+      valor: number
+      mes_inicial: string
+      dia_previsto?: number | null
+      concluido?: boolean
+      recorrencia: {
+        tipo: 'mensal' | 'parcelas'
+        quantidade: number
+      }
+    },
+    userId: string
+  ): Promise<{ criados: number }> {
+    const { tipo, nome, valor, mes_inicial, dia_previsto, concluido, recorrencia } = input
+    const quantidade = recorrencia.quantidade
+
+    // Gera lista de meses
+    const meses: string[] = []
+    const [anoInicial, mesInicial] = mes_inicial.split('-').map(Number)
+
+    for (let i = 0; i < quantidade; i++) {
+      const totalMeses = mesInicial - 1 + i // -1 porque mês é 1-indexed
+      const ano = anoInicial + Math.floor(totalMeses / 12)
+      const mes = (totalMeses % 12) + 1
+      meses.push(`${ano}-${String(mes).padStart(2, '0')}`)
+    }
+
+    // Cria os lançamentos
+    const isParcelas = recorrencia.tipo === 'parcelas'
+
+    for (let i = 0; i < meses.length; i++) {
+      const mes = meses[i]
+      const nomeFinal = isParcelas
+        ? `${nome} (${i + 1}/${quantidade})`
+        : nome
+
+      // Monta data_prevista se dia foi informado
+      let data_prevista: string | null = null
+      if (dia_previsto) {
+        const [ano, mesNum] = mes.split('-')
+        data_prevista = `${ano}-${mesNum}-${String(dia_previsto).padStart(2, '0')}`
+      }
+
+      await lancamentoRepository.create({
+        tipo,
+        nome: nomeFinal,
+        valor,
+        mes,
+        concluido: concluido ?? false,
+        data_prevista,
+      }, userId)
+    }
+
+    return { criados: quantidade }
+  },
 }
