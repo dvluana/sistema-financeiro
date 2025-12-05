@@ -146,7 +146,7 @@ export function Dashboard({
 
             {/* Gráfico dos últimos 6 meses */}
             {historico.length > 0 && (
-              <Card className="overflow-hidden">
+              <Card>
                 <h2 className="text-titulo-card text-neutro-900 mb-4">
                   Histórico
                 </h2>
