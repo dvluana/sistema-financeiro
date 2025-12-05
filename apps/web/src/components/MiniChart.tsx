@@ -276,44 +276,6 @@ export function MiniChart({
               animate={{ opacity: 1 }}
               transition={{ delay: index * 0.05 }}
             >
-              {/* Tooltip - posicionado acima do topo da barra ou no meio se zerada */}
-              <AnimatePresence>
-                {isActive && (() => {
-                  const alturaMaior = Math.max(alturaEntradas, alturaSaidas)
-                  // Se a barra é muito pequena ou zero, posiciona no meio do container
-                  // Caso contrário, posiciona 8px acima do topo da barra
-                  const isBarraZerada = alturaMaior < 20
-                  const topPosition = isBarraZerada ? 60 : (120 - alturaMaior - 8)
-                  return (
-                    <motion.div
-                      initial={{ opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 4 }}
-                      transition={{ duration: 0.1 }}
-                      className={`absolute left-1/2 -translate-x-1/2 z-20 pointer-events-none ${isBarraZerada ? '-translate-y-1/2' : '-translate-y-full'}`}
-                      style={{ top: `${topPosition}px` }}
-                    >
-                      <div className="relative bg-foreground px-2.5 py-1.5 rounded-md shadow-lg whitespace-nowrap">
-                        <div className="flex items-center gap-3 text-[11px]">
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-2 h-2 rounded-full bg-rosa" />
-                            <span className="text-background font-medium">{formatarMoeda(item.entradas)}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-2 h-2 rounded-full bg-muted-foreground" />
-                            <span className="text-background font-medium">{formatarMoeda(item.saidas)}</span>
-                          </div>
-                        </div>
-                        {/* Seta do tooltip - só mostra se tiver barra */}
-                        {!isBarraZerada && (
-                          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-foreground rotate-45" />
-                        )}
-                      </div>
-                    </motion.div>
-                  )
-                })()}
-              </AnimatePresence>
-
               {/* Container das barras sobrepostas */}
               <button
                 type="button"
@@ -331,6 +293,44 @@ export function MiniChart({
                   isPressing && 'scale-105'
                 )}
               >
+                {/* Tooltip - dentro do botão para alinhar com as barras */}
+                <AnimatePresence>
+                  {isActive && (() => {
+                    const alturaMaior = Math.max(alturaEntradas, alturaSaidas)
+                    // Se a barra é muito pequena ou zero, posiciona no meio
+                    const isBarraZerada = alturaMaior < 20
+                    // bottom é a partir da base, então: altura da barra + 8px de espaço
+                    const bottomPosition = isBarraZerada ? 60 : (alturaMaior + 8)
+                    return (
+                      <motion.div
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 4 }}
+                        transition={{ duration: 0.1 }}
+                        className="absolute left-1/2 -translate-x-1/2 z-20 pointer-events-none"
+                        style={{ bottom: `${bottomPosition}px` }}
+                      >
+                        <div className="relative bg-foreground px-2.5 py-1.5 rounded-md shadow-lg whitespace-nowrap">
+                          <div className="flex items-center gap-3 text-[11px]">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-2 h-2 rounded-full bg-rosa" />
+                              <span className="text-background font-medium">{formatarMoeda(item.entradas)}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-2 h-2 rounded-full bg-muted-foreground" />
+                              <span className="text-background font-medium">{formatarMoeda(item.saidas)}</span>
+                            </div>
+                          </div>
+                          {/* Seta do tooltip - só mostra se tiver barra */}
+                          {!isBarraZerada && (
+                            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-foreground rotate-45" />
+                          )}
+                        </div>
+                      </motion.div>
+                    )
+                  })()}
+                </AnimatePresence>
+
                 {/* Barra de saídas (trás) - cinza */}
                 <motion.div
                   className="absolute bottom-0 w-8 bg-muted rounded-t-md"
