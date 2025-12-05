@@ -124,6 +124,7 @@ export function Register({ onSwitchToLogin }: RegisterProps) {
                   placeholder="seu@email.com"
                   className="pl-12"
                   autoComplete="email"
+                  enableAutofill
                 />
               </div>
             </div>
@@ -141,6 +142,7 @@ export function Register({ onSwitchToLogin }: RegisterProps) {
                   placeholder="Mínimo 6 caracteres"
                   className="pl-12 pr-12"
                   autoComplete="new-password"
+                  enableAutofill
                 />
                 <button
                   type="button"
