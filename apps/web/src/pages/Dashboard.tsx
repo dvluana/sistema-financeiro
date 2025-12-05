@@ -48,6 +48,7 @@ export function Dashboard({
     carregarDashboard,
     navegarMesAnterior,
     navegarMesProximo,
+    irParaMesAtual,
   } = useDashboardStore()
 
   // Store financeiro para lançamentos detalhados do mês
@@ -169,6 +170,7 @@ export function Dashboard({
               pendentesSaida={pendentesSaida}
               onMesAnterior={navegarMesAnterior}
               onMesProximo={navegarMesProximo}
+              onIrParaHoje={irParaMesAtual}
               podeAvancar={podeAvancar}
               isLoading={isLoading}
             />

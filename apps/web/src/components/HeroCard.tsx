@@ -20,6 +20,7 @@ interface HeroCardProps {
   pendentesSaida: number
   onMesAnterior: () => void
   onMesProximo: () => void
+  onIrParaHoje: () => void
   podeAvancar: boolean
   isLoading?: boolean
 }
@@ -48,6 +49,16 @@ function formatarMes(mes: string): string {
   return `${meses[parseInt(mesNum) - 1]} ${ano}`
 }
 
+/**
+ * Retorna o mês atual no formato YYYY-MM
+ */
+function getMesAtual(): string {
+  const hoje = new Date()
+  const ano = hoje.getFullYear()
+  const mes = String(hoje.getMonth() + 1).padStart(2, '0')
+  return `${ano}-${mes}`
+}
+
 export function HeroCard({
   nome,
   mesSelecionado,
@@ -58,11 +69,14 @@ export function HeroCard({
   pendentesSaida,
   onMesAnterior,
   onMesProximo,
+  onIrParaHoje,
   podeAvancar,
   isLoading = false,
 }: HeroCardProps) {
   const saudacao = getSaudacao()
   const [hasInteracted, setHasInteracted] = useState(false)
+  const mesAtual = getMesAtual()
+  const mostrarBotaoHoje = mesSelecionado !== mesAtual
 
   // Texto de pendentes para entradas
   const getPendentesEntradaTexto = () => {
@@ -99,6 +113,27 @@ export function HeroCard({
 
         {/* Navegação de mês */}
         <div className="flex items-center gap-1.5">
+          <AnimatePresence>
+            {mostrarBotaoHoje && (
+              <motion.button
+                type="button"
+                initial={{ opacity: 0, scale: 0.8, width: 0 }}
+                animate={{ opacity: 1, scale: 1, width: 'auto' }}
+                exit={{ opacity: 0, scale: 0.8, width: 0 }}
+                transition={{ duration: 0.15 }}
+                onClick={() => {
+                  setHasInteracted(true)
+                  onIrParaHoje()
+                }}
+                className={cn(
+                  'h-7 px-2 flex items-center justify-center rounded-md transition-all overflow-hidden',
+                  'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 text-[11px] font-medium'
+                )}
+              >
+                Hoje
+              </motion.button>
+            )}
+          </AnimatePresence>
           <button
             type="button"
             onClick={() => {

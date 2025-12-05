@@ -39,6 +39,7 @@ interface DashboardState {
   carregarDashboard: (mes?: string) => Promise<void>
   navegarMesAnterior: () => void
   navegarMesProximo: () => void
+  irParaMesAtual: () => void
   toggleConcluido: (id: string) => Promise<void>
   limparErro: () => void
 }
@@ -112,6 +113,13 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     // Atualiza o mês imediatamente (antes do loading)
     set({ mesSelecionado: mesProximo })
     carregarDashboard(mesProximo)
+  },
+
+  irParaMesAtual: () => {
+    const { carregarDashboard } = get()
+    const mesAtual = getMesAtual()
+    set({ mesSelecionado: mesAtual })
+    carregarDashboard(mesAtual)
   },
 
   toggleConcluido: async (id: string) => {
