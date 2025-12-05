@@ -89,40 +89,43 @@ export function HeroCard({
   const pendentesSaidaTexto = getPendentesSaidaTexto()
 
   return (
-    <Card className="hover:border-rosa/50 transition-colors">
-      {/* Saudação estilizada */}
-      <div className="mb-5">
-        <p className="text-micro text-neutro-400 uppercase tracking-wider mb-0.5">
-          {saudacao.texto}
-        </p>
-        <p className="text-[22px] font-semibold text-neutro-900">
-          {nome} <span className="font-normal">{saudacao.emoji}</span>
-        </p>
+    <Card className="hover:border-rosa/50 transition-colors p-4">
+      {/* Header: Saudação + Valores lado a lado */}
+      <div className="flex items-start justify-between mb-3">
+        {/* Saudação */}
+        <div>
+          <p className="text-[11px] text-neutro-400 uppercase tracking-wider">
+            {saudacao.texto}
+          </p>
+          <p className="text-[18px] font-semibold text-neutro-900 leading-tight">
+            {nome} {saudacao.emoji}
+          </p>
+        </div>
       </div>
 
-      {/* Valores Entrou/Saiu */}
-      <div className="flex gap-4 mb-4">
+      {/* Valores Entrou/Saiu - mais compacto */}
+      <div className="flex gap-6 mb-3">
         {/* Coluna Entrou */}
-        <div className="flex-1">
-          <p className="text-[14px] text-[#717171] mb-1">Entrou</p>
-          <p className="text-[24px] font-bold text-[#008A05]">
+        <div>
+          <p className="text-[12px] text-neutro-500 mb-0.5">Entrou</p>
+          <p className="text-[20px] font-bold text-verde leading-none">
             {formatarMoeda(jaEntrou)}
           </p>
           {pendentesEntradaTexto && (
-            <p className="text-[13px] text-[#9CA3AF] mt-0.5">
+            <p className="text-[11px] text-neutro-400 mt-0.5">
               {pendentesEntradaTexto}
             </p>
           )}
         </div>
 
         {/* Coluna Saiu */}
-        <div className="flex-1">
-          <p className="text-[14px] text-[#717171] mb-1">Saiu</p>
-          <p className="text-[24px] font-bold text-[#D93025]">
+        <div>
+          <p className="text-[12px] text-neutro-500 mb-0.5">Saiu</p>
+          <p className="text-[20px] font-bold text-vermelho leading-none">
             {formatarMoeda(jaPaguei)}
           </p>
           {pendentesSaidaTexto && (
-            <p className="text-[13px] text-[#9CA3AF] mt-0.5">
+            <p className="text-[11px] text-neutro-400 mt-0.5">
               {pendentesSaidaTexto}
             </p>
           )}
@@ -130,7 +133,7 @@ export function HeroCard({
       </div>
 
       {/* Frase do saldo */}
-      <p className={`text-[16px] font-medium ${fraseSaldo.cor}`}>
+      <p className={`text-[14px] font-medium ${fraseSaldo.cor}`}>
         {fraseSaldo.texto}
       </p>
     </Card>
