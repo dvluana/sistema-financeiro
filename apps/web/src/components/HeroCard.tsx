@@ -90,10 +90,15 @@ export function HeroCard({
 
   return (
     <Card className="hover:border-rosa/50 transition-colors">
-      {/* Saudação */}
-      <p className="text-[18px] font-normal text-[#222222] mb-4">
-        {saudacao.texto}, {nome} {saudacao.emoji}
-      </p>
+      {/* Saudação estilizada */}
+      <div className="mb-5">
+        <p className="text-micro text-neutro-400 uppercase tracking-wider mb-0.5">
+          {saudacao.texto}
+        </p>
+        <p className="text-[22px] font-semibold text-neutro-900">
+          {nome} <span className="font-normal">{saudacao.emoji}</span>
+        </p>
+      </div>
 
       {/* Valores Entrou/Saiu */}
       <div className="flex gap-4 mb-4">

@@ -142,7 +142,7 @@ export function Dashboard({
             {historico.length > 0 && (
               <Card>
                 <h2 className="text-titulo-card text-neutro-900 mb-4">
-                  Histórico
+                  Histórico dos últimos 6 meses
                 </h2>
                 <MiniChart
                   dados={historico}
