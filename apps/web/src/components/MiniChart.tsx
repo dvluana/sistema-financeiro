@@ -321,45 +321,44 @@ export function MiniChart({
                               <span className="text-background font-medium">{formatarMoeda(item.saidas)}</span>
                             </div>
                           </div>
-                          {/* Seta do tooltip - só mostra se tiver barra */}
-                          {!isBarraZerada && (
-                            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-foreground rotate-45" />
-                          )}
                         </div>
                       </motion.div>
                     )
                   })()}
                 </AnimatePresence>
 
-                {/* Barra de saídas (trás) - cinza */}
-                <motion.div
-                  className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 bg-muted rounded-t-md"
-                  initial={{ height: 0 }}
-                  animate={{ height: alturaSaidas }}
-                  transition={{
-                    duration: 0.4,
-                    delay: index * 0.05,
-                    ease: 'easeOut',
-                  }}
-                />
+                {/* Container centralizado para as barras */}
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8">
+                  {/* Barra de saídas (trás) - cinza */}
+                  <motion.div
+                    className="absolute bottom-0 w-full bg-muted rounded-t-md"
+                    initial={{ height: 0 }}
+                    animate={{ height: alturaSaidas }}
+                    transition={{
+                      duration: 0.4,
+                      delay: index * 0.05,
+                      ease: 'easeOut',
+                    }}
+                  />
 
-                {/* Barra de entradas (frente) - gradiente rosa */}
-                <motion.div
-                  className={cn(
-                    'absolute bottom-0 left-1/2 -translate-x-1/2 w-8 rounded-t-md',
-                    'bg-gradient-to-t from-rosa to-[#FF6B81]',
-                    isActive && 'shadow-md shadow-rosa/30'
-                  )}
-                  initial={{ height: 0 }}
-                  animate={{
-                    height: alturaEntradas,
-                    scale: isActive ? 1.05 : 1,
-                  }}
-                  transition={{
-                    height: { duration: 0.4, delay: index * 0.05 + 0.08, ease: 'easeOut' },
-                    scale: { duration: 0.15 },
-                  }}
-                />
+                  {/* Barra de entradas (frente) - gradiente rosa */}
+                  <motion.div
+                    className={cn(
+                      'absolute bottom-0 w-full rounded-t-md',
+                      'bg-gradient-to-t from-rosa to-[#FF6B81]',
+                      isActive && 'shadow-md shadow-rosa/30'
+                    )}
+                    initial={{ height: 0 }}
+                    animate={{
+                      height: alturaEntradas,
+                      scale: isActive ? 1.05 : 1,
+                    }}
+                    transition={{
+                      height: { duration: 0.4, delay: index * 0.05 + 0.08, ease: 'easeOut' },
+                      scale: { duration: 0.15 },
+                    }}
+                  />
+                </div>
               </button>
 
               {/* Label do mês */}
