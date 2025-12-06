@@ -1,9 +1,17 @@
 /**
- * Parser de texto para lançamentos rápidos
- * Interpreta texto natural e extrai informações de lançamentos financeiros
+ * Parser robusto de texto para lançamentos financeiros
+ * Detecta automaticamente o formato da entrada e extrai informações
+ *
+ * Formatos suportados:
+ * - Texto livre (digitado manualmente)
+ * - TSV (dados colados de Excel/Google Sheets)
+ * - CSV (separado por vírgula ou ponto-vírgula)
+ * - Extrato bancário (padrões comuns de extratos)
  */
 
 export type TipoLancamento = 'entrada' | 'saida'
+export type FormatoEntrada = 'texto-livre' | 'csv' | 'tsv' | 'extrato'
+export type StatusItem = 'completo' | 'atencao' | 'incompleto'
 
 export interface ParsedLancamento {
   id: string
@@ -12,327 +20,556 @@ export interface ParsedLancamento {
   valor: number | null
   mes: string // YYYY-MM
   diaPrevisto: number | null
-  status: 'completo' | 'incompleto'
+  status: StatusItem
   camposFaltantes: ('valor' | 'nome')[]
-  groupId: string // ID do grupo (para recorrências da mesma linha)
+  groupId: string
+  avisos?: string[]
+  erros?: string[]
+  textoOriginal?: string
 }
 
 export interface ParseResult {
   lancamentos: ParsedLancamento[]
   textoOriginal: string
+  formatoDetectado: FormatoEntrada
+  resumo: {
+    total: number
+    completos: number
+    atencao: number
+    incompletos: number
+    totalEntradas: number
+    totalSaidas: number
+  }
 }
 
-// Palavras-chave para detectar tipo
+// ============================================================================
+// PALAVRAS-CHAVE PARA DETECÇÃO DE TIPO
+// ============================================================================
+
 const PALAVRAS_ENTRADA = [
-  'recebi', 'receber', 'recebendo', 'recebido',
-  'entrada', 'entrou',
-  'salário', 'salario', 'sal',
-  'pagamento recebido',
-  'freelance', 'freela',
-  'venda', 'vendi', 'vendendo',
-  'rendimento', 'renda',
-  'depósito', 'deposito', 'depositado',
-  'transferência recebida', 'transferencia recebida',
-  'pix recebido', 'recebi pix',
-  'ganho', 'ganhei', 'ganhando',
-  'bônus', 'bonus',
-  'comissão', 'comissao',
+  // Verbos de recebimento
+  'recebi', 'receber', 'recebendo', 'recebido', 'recebemos',
+  'ganhei', 'ganhar', 'ganhando', 'ganho', 'ganhamos',
+  'vendi', 'vender', 'vendendo', 'vendido', 'vendemos',
+  // Substantivos de entrada
+  'entrada', 'entrou', 'entradas',
+  'salário', 'salario', 'sal', 'salários', 'salarios',
+  'freelance', 'freela', 'freelancer',
+  'rendimento', 'renda', 'rendimentos', 'rendas',
+  'depósito', 'deposito', 'depositado', 'depósitos', 'depositos',
   'dividendo', 'dividendos',
-  'reembolso', 'reembolsado'
+  'reembolso', 'reembolsado', 'reembolsos',
+  'bônus', 'bonus', 'bonificação', 'bonificacao',
+  'comissão', 'comissao', 'comissões', 'comissoes',
+  'lucro', 'lucros', 'lucrei',
+  'faturamento', 'faturei', 'faturado',
+  'prêmio', 'premio', 'prêmios', 'premios',
+  'restituição', 'restituicao',
+  'resgate', 'resgatei', 'resgatado',
+  // Contextos de entrada
+  'pagamento recebido', 'transferência recebida', 'transferencia recebida',
+  'pix recebido', 'recebi pix', 'ted recebida', 'doc recebido',
+  'venda de', 'vendas de',
 ]
 
 const PALAVRAS_SAIDA = [
-  'gastei', 'gastar', 'gastando', 'gasto',
-  'paguei', 'pagar', 'pagando', 'pago',
-  'comprei', 'comprar', 'comprando', 'compra',
+  // Verbos de gasto
+  'gastei', 'gastar', 'gastando', 'gasto', 'gastamos',
+  'paguei', 'pagar', 'pagando', 'pago', 'pagamos',
+  'comprei', 'comprar', 'comprando', 'compra', 'compramos',
+  'perdi', 'perder', 'perdendo', 'perdido',
+  // Substantivos de saída
   'parcela', 'parcelas',
   'conta', 'contas',
   'boleto', 'boletos',
-  'fatura',
+  'fatura', 'faturas',
   'despesa', 'despesas',
-  'saída', 'saida', 'saiu',
-  'débito', 'debito', 'debitado',
-  'mensalidade',
-  'assinatura',
-  'aluguel',
-  'luz', 'água', 'agua', 'gás', 'gas',
-  'internet', 'telefone', 'celular',
-  'mercado', 'supermercado', 'feira',
-  'combustível', 'combustivel', 'gasolina',
-  'uber', 'taxi', 'transporte',
-  'restaurante', 'lanche', 'comida',
-  'farmácia', 'farmacia', 'remédio', 'remedio'
+  'saída', 'saida', 'saiu', 'saídas', 'saidas',
+  'débito', 'debito', 'debitado', 'débitos', 'debitos',
+  'mensalidade', 'mensalidades',
+  'assinatura', 'assinaturas',
+  'aluguel', 'aluguéis', 'alugueis',
+  // Contas de casa
+  'luz', 'energia', 'elétrica', 'eletrica',
+  'água', 'agua',
+  'gás', 'gas',
+  'internet', 'telefone', 'celular', 'fone',
+  'condomínio', 'condominio',
+  'iptu', 'ipva',
+  // Compras e serviços
+  'mercado', 'supermercado', 'feira', 'hortifruti',
+  'farmácia', 'farmacia', 'remédio', 'remedio', 'medicamento',
+  'combustível', 'combustivel', 'gasolina', 'etanol', 'álcool', 'alcool',
+  'uber', 'taxi', 'táxi', '99', 'transporte', 'ônibus', 'onibus', 'metrô', 'metro',
+  'restaurante', 'lanche', 'comida', 'almoço', 'almoco', 'janta', 'jantar',
+  'ifood', 'rappi', 'delivery',
+  // Assinaturas comuns
+  'netflix', 'spotify', 'amazon', 'prime', 'hbo', 'disney', 'globoplay',
+  'youtube', 'deezer', 'apple music',
+  // Cartões e bancos
+  'cartão', 'cartao', 'crédito', 'credito',
+  'anuidade', 'tarifa', 'taxa', 'juros', 'multa',
+  // Educação e saúde
+  'escola', 'faculdade', 'curso', 'mensalidade escolar',
+  'plano de saúde', 'plano de saude', 'convênio', 'convenio',
+  'academia', 'gym',
+  // Outros
+  'presente', 'gift', 'doação', 'doacao',
+  'imposto', 'impostos', 'tributo', 'tributos',
+  'seguro', 'seguros',
 ]
 
-// Mapeamento de meses
+// Indicadores de tipo no extrato bancário
+const INDICADORES_CREDITO = ['c', 'cr', 'cred', 'crédito', 'credito', '+']
+const INDICADORES_DEBITO = ['d', 'db', 'deb', 'débito', 'debito', '-']
+
+// ============================================================================
+// MAPEAMENTO DE MESES
+// ============================================================================
+
 const MESES_MAP: Record<string, number> = {
-  'janeiro': 1, 'jan': 1, 'janeiro/': 1,
-  'fevereiro': 2, 'fev': 2, 'fevereiro/': 2,
-  'março': 3, 'marco': 3, 'mar': 3, 'março/': 3,
-  'abril': 4, 'abr': 4, 'abril/': 4,
-  'maio': 5, 'mai': 5, 'maio/': 5,
-  'junho': 6, 'jun': 6, 'junho/': 6,
-  'julho': 7, 'jul': 7, 'julho/': 7,
-  'agosto': 8, 'ago': 8, 'agosto/': 8,
-  'setembro': 9, 'set': 9, 'setembro/': 9,
-  'outubro': 10, 'out': 10, 'outubro/': 10,
-  'novembro': 11, 'nov': 11, 'novembro/': 11,
-  'dezembro': 12, 'dez': 12, 'dezembro/': 12
+  'janeiro': 1, 'jan': 1,
+  'fevereiro': 2, 'fev': 2,
+  'março': 3, 'marco': 3, 'mar': 3,
+  'abril': 4, 'abr': 4,
+  'maio': 5, 'mai': 5,
+  'junho': 6, 'jun': 6,
+  'julho': 7, 'jul': 7,
+  'agosto': 8, 'ago': 8,
+  'setembro': 9, 'set': 9,
+  'outubro': 10, 'out': 10,
+  'novembro': 11, 'nov': 11,
+  'dezembro': 12, 'dez': 12,
 }
 
-/**
- * Gera ID único para cada lançamento parseado
- */
+// ============================================================================
+// FUNÇÕES UTILITÁRIAS
+// ============================================================================
+
 function generateId(): string {
   return Math.random().toString(36).substring(2, 11)
 }
 
-/**
- * Retorna o mês atual no formato YYYY-MM
- */
 function getMesAtual(): string {
   const now = new Date()
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
-/**
- * Retorna o ano atual
- */
 function getAnoAtual(): number {
   return new Date().getFullYear()
 }
 
-/**
- * Converte mês e ano para formato YYYY-MM
- */
 function formatarMes(mes: number, ano: number): string {
   return `${ano}-${String(mes).padStart(2, '0')}`
 }
 
+// ============================================================================
+// DETECÇÃO AUTOMÁTICA DE FORMATO
+// ============================================================================
+
 /**
- * Extrai valor do texto
- * Suporta: 5000, 5.000, 5000.00, 5.000,00, R$ 5.000, R$5000, 5k, 5mil
+ * Detecta automaticamente o formato da entrada
  */
-function extrairValor(texto: string): { valor: number | null; textoRestante: string } {
-  let textoRestante = texto
+export function detectarFormato(input: string): FormatoEntrada {
+  const linhas = input.trim().split('\n').filter(l => l.trim())
+  if (linhas.length === 0) return 'texto-livre'
 
-  // Padrão: R$ com ou sem espaço, seguido de número
-  // Ex: R$ 5.000,00 | R$5000 | R$ 5000.00
-  const regexRS = /R\$\s*([\d.,]+)/gi
-  let match = regexRS.exec(texto)
-  if (match) {
-    const valorStr = match[1]
-    const valor = parseValorString(valorStr)
-    if (valor !== null) {
-      textoRestante = texto.replace(match[0], ' ').trim()
-      return { valor, textoRestante }
+  const primeiraLinha = linhas[0]
+  const todasLinhas = linhas.join('\n')
+
+  // Se tem tab, provavelmente veio de planilha (copy/paste do Excel/Sheets)
+  if (todasLinhas.includes('\t')) {
+    // Verifica se é consistente (múltiplas tabs por linha)
+    const tabsCount = linhas.map(l => (l.match(/\t/g) || []).length)
+    const temTabsConsistentes = tabsCount.every(c => c > 0 && c === tabsCount[0])
+    if (temTabsConsistentes || tabsCount[0] >= 2) {
+      return 'tsv'
     }
   }
 
-  // Padrão: número com k ou mil
-  // Ex: 5k, 5mil, 5 mil, 10k
-  const regexKMil = /(\d+)\s*(k|mil)\b/gi
-  match = regexKMil.exec(texto)
-  if (match) {
-    const valor = parseInt(match[1]) * 1000
-    textoRestante = texto.replace(match[0], ' ').trim()
-    return { valor, textoRestante }
+  // Se tem padrão CSV (3+ campos separados por vírgula ou ponto-vírgula)
+  const camposPorVirgula = primeiraLinha.split(',').length
+  const camposPorPontoVirgula = primeiraLinha.split(';').length
+
+  if (camposPorVirgula >= 3 || camposPorPontoVirgula >= 3) {
+    // Verifica se não é texto com vírgulas naturais (ex: "paguei 100, mercado")
+    const pareceCSV = linhas.every(l => {
+      const campos = l.split(camposPorVirgula >= 3 ? ',' : ';')
+      return campos.length >= 3
+    })
+    if (pareceCSV) return 'csv'
   }
 
-  // Padrão: número com formato brasileiro ou internacional
-  // Ex: 5.000,00 | 5000.00 | 5000 | 5,000.00
-  // Prioriza formatos mais específicos (com decimais)
-  const regexNumero = /\b(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?|\d+(?:[.,]\d{1,2})?)\b/g
-  const matches = [...texto.matchAll(regexNumero)]
-
-  // Pega o maior número encontrado (geralmente é o valor)
-  let maiorValor: number | null = null
-  let matchUsado: RegExpMatchArray | null = null
-
-  for (const m of matches) {
-    const valor = parseValorString(m[1])
-    if (valor !== null && (maiorValor === null || valor > maiorValor)) {
-      maiorValor = valor
-      matchUsado = m
+  // Se começa com data em padrão de extrato (dd/mm ou dd/mm/yyyy)
+  const padraoExtrato = /^\d{2}\/\d{2}(\/\d{2,4})?\s+/
+  if (padraoExtrato.test(primeiraLinha)) {
+    // Verifica se múltiplas linhas seguem o padrão
+    const linhasExtrato = linhas.filter(l => padraoExtrato.test(l))
+    if (linhasExtrato.length >= linhas.length * 0.5) {
+      return 'extrato'
     }
   }
 
-  if (maiorValor !== null && matchUsado) {
-    textoRestante = texto.replace(matchUsado[0], ' ').trim()
-    return { valor: maiorValor, textoRestante }
-  }
+  // Fallback: texto livre
+  return 'texto-livre'
+}
 
-  return { valor: null, textoRestante }
+// ============================================================================
+// EXTRAÇÃO DE VALOR (ROBUSTA)
+// ============================================================================
+
+interface ExtraidoValor {
+  valor: number
+  match: string
+  posicao: number
 }
 
 /**
- * Converte string de valor para número
+ * Extrai valor monetário do texto com múltiplos padrões
  */
-function parseValorString(str: string): number | null {
-  if (!str) return null
+function extrairValorRobusto(texto: string): ExtraidoValor | null {
+  const padroes: Array<{ regex: RegExp; processador: (m: RegExpMatchArray) => number | null }> = [
+    // R$ 1.500,00 ou R$1500,00
+    {
+      regex: /R\$\s*([\d.,]+)/gi,
+      processador: (m) => parseNumero(m[1])
+    },
+    // Abreviação: 5k, 5.5k, 10k
+    {
+      regex: /\b(\d+(?:[.,]\d+)?)\s*k\b/gi,
+      processador: (m) => {
+        const num = parseFloat(m[1].replace(',', '.'))
+        return isNaN(num) ? null : num * 1000
+      }
+    },
+    // Abreviação: 5 mil, 5mil, 5.5 mil
+    {
+      regex: /\b(\d+(?:[.,]\d+)?)\s*mil\b/gi,
+      processador: (m) => {
+        const num = parseFloat(m[1].replace(',', '.'))
+        return isNaN(num) ? null : num * 1000
+      }
+    },
+    // Formato BR completo: 1.500,00
+    {
+      regex: /\b(\d{1,3}(?:\.\d{3})+,\d{2})\b/g,
+      processador: (m) => parseNumero(m[1])
+    },
+    // Formato BR simples: 1500,00
+    {
+      regex: /\b(\d+,\d{2})\b/g,
+      processador: (m) => parseNumero(m[1])
+    },
+    // Formato INT: 1,500.00 ou 1500.00
+    {
+      regex: /\b(\d{1,3}(?:,\d{3})*\.\d{2})\b/g,
+      processador: (m) => parseNumero(m[1])
+    },
+    // Número com ponto decimal: 150.50
+    {
+      regex: /\b(\d+\.\d{1,2})\b/g,
+      processador: (m) => {
+        const num = parseFloat(m[1])
+        // Só aceita se for decimal (não milhar BR)
+        return !isNaN(num) && num < 1000 ? num : null
+      }
+    },
+    // Número inteiro grande (>= 10)
+    {
+      regex: /\b(\d{2,})\b/g,
+      processador: (m) => {
+        const num = parseInt(m[1])
+        return !isNaN(num) && num >= 10 ? num : null
+      }
+    },
+  ]
 
-  // Remove espaços
-  str = str.trim()
+  let melhorMatch: ExtraidoValor | null = null
 
-  // Detecta formato brasileiro (1.234,56) vs internacional (1,234.56)
-  const temVirgula = str.includes(',')
-  const temPonto = str.includes('.')
+  for (const { regex, processador } of padroes) {
+    regex.lastIndex = 0
+    let match: RegExpExecArray | null
 
-  let valorLimpo: string
-
-  if (temVirgula && temPonto) {
-    // Formato: 1.234,56 (BR) ou 1,234.56 (INT)
-    // Se vírgula vem depois do ponto, é formato BR
-    if (str.lastIndexOf(',') > str.lastIndexOf('.')) {
-      // Formato brasileiro: 1.234,56
-      valorLimpo = str.replace(/\./g, '').replace(',', '.')
-    } else {
-      // Formato internacional: 1,234.56
-      valorLimpo = str.replace(/,/g, '')
+    while ((match = regex.exec(texto)) !== null) {
+      const valor = processador(match)
+      if (valor !== null && valor > 0) {
+        // Prioriza valores maiores (geralmente são os valores corretos)
+        // mas também considera a posição (valores que aparecem depois de descrição)
+        if (!melhorMatch || valor > melhorMatch.valor) {
+          melhorMatch = {
+            valor,
+            match: match[0],
+            posicao: match.index
+          }
+        }
+      }
     }
-  } else if (temVirgula) {
-    // Pode ser 1234,56 (BR decimal) ou 1,234 (INT separador de milhar)
-    // Se tem exatamente 2 dígitos após vírgula, assume decimal BR
-    if (/,\d{2}$/.test(str)) {
-      valorLimpo = str.replace(',', '.')
-    } else {
-      // Separador de milhar internacional
-      valorLimpo = str.replace(/,/g, '')
-    }
-  } else if (temPonto) {
-    // Pode ser 1234.56 (decimal) ou 1.234 (separador de milhar BR)
-    // Se tem exatamente 3 dígitos após o último ponto, pode ser milhar
-    if (/\.\d{3}$/.test(str) && !/\.\d{3}\.\d{3}/.test(str)) {
-      // Único ponto com 3 dígitos depois - provavelmente milhar
-      // Ex: 5.000 = 5000
-      valorLimpo = str.replace(/\./g, '')
-    } else {
-      // Decimal normal
-      valorLimpo = str
-    }
-  } else {
-    valorLimpo = str
   }
 
-  const valor = parseFloat(valorLimpo)
-  return isNaN(valor) ? null : valor
+  return melhorMatch
+}
+
+/**
+ * Converte string numérica para número, detectando formato BR/INT
+ */
+function parseNumero(str: string): number | null {
+  if (!str) return null
+
+  let limpo = str
+    .replace(/R\$\s*/gi, '')
+    .replace(/\s*(reais|real)\s*/gi, '')
+    .trim()
+
+  // Detecta formato BR (1.234,56) vs INT (1,234.56)
+  const temVirgula = limpo.includes(',')
+  const temPonto = limpo.includes('.')
+
+  if (temVirgula && temPonto) {
+    // Ambos presentes: verifica qual é decimal
+    if (limpo.lastIndexOf(',') > limpo.lastIndexOf('.')) {
+      // BR: 1.234,56
+      limpo = limpo.replace(/\./g, '').replace(',', '.')
+    } else {
+      // INT: 1,234.56
+      limpo = limpo.replace(/,/g, '')
+    }
+  } else if (temVirgula) {
+    // Só vírgula: assume decimal BR se tem 2 dígitos depois
+    if (/,\d{2}$/.test(limpo)) {
+      limpo = limpo.replace(',', '.')
+    } else {
+      // Separador de milhar INT
+      limpo = limpo.replace(/,/g, '')
+    }
+  } else if (temPonto) {
+    // Só ponto: pode ser decimal ou milhar BR
+    if (/\.\d{3}$/.test(limpo) && !/\.\d{3}\.\d{3}/.test(limpo)) {
+      // Provavelmente milhar BR: 5.000
+      limpo = limpo.replace(/\./g, '')
+    }
+    // Caso contrário mantém como decimal
+  }
+
+  const valor = parseFloat(limpo)
+  return isNaN(valor) ? null : Math.round(valor * 100) / 100 // Arredonda para 2 casas
+}
+
+// ============================================================================
+// EXTRAÇÃO DE DATA
+// ============================================================================
+
+interface ExtraidaData {
+  data: string // YYYY-MM-DD
+  mes: string // YYYY-MM
+  dia: number
+  match: string
+}
+
+/**
+ * Extrai data do texto com múltiplos padrões
+ */
+function extrairDataRobusta(texto: string): ExtraidaData | null {
+  const anoAtual = getAnoAtual()
+  const mesAtual = new Date().getMonth() + 1
+
+  const padroes: Array<{ regex: RegExp; extrator: (m: RegExpMatchArray) => ExtraidaData | null }> = [
+    // dd/mm/yyyy ou dd-mm-yyyy
+    {
+      regex: /\b(\d{2})[\/\-](\d{2})[\/\-](\d{4})\b/g,
+      extrator: (m) => {
+        const dia = parseInt(m[1])
+        const mes = parseInt(m[2])
+        const ano = parseInt(m[3])
+        if (dia >= 1 && dia <= 31 && mes >= 1 && mes <= 12) {
+          return {
+            data: `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`,
+            mes: formatarMes(mes, ano),
+            dia,
+            match: m[0]
+          }
+        }
+        return null
+      }
+    },
+    // dd/mm/yy
+    {
+      regex: /\b(\d{2})[\/\-](\d{2})[\/\-](\d{2})\b/g,
+      extrator: (m) => {
+        const dia = parseInt(m[1])
+        const mes = parseInt(m[2])
+        let ano = parseInt(m[3])
+        if (ano < 100) ano += 2000
+        if (dia >= 1 && dia <= 31 && mes >= 1 && mes <= 12) {
+          return {
+            data: `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`,
+            mes: formatarMes(mes, ano),
+            dia,
+            match: m[0]
+          }
+        }
+        return null
+      }
+    },
+    // dd/mm (assume ano atual)
+    {
+      regex: /\b(\d{2})[\/\-](\d{2})(?!\d|[\/\-])/g,
+      extrator: (m) => {
+        const dia = parseInt(m[1])
+        const mes = parseInt(m[2])
+        if (dia >= 1 && dia <= 31 && mes >= 1 && mes <= 12) {
+          // Se mês é anterior ao atual, assume próximo ano
+          const ano = mes < mesAtual ? anoAtual + 1 : anoAtual
+          return {
+            data: `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`,
+            mes: formatarMes(mes, ano),
+            dia,
+            match: m[0]
+          }
+        }
+        return null
+      }
+    },
+    // "dia X" ou "todo dia X"
+    {
+      regex: /\b(?:todo\s+)?dia\s+(\d{1,2})\b/gi,
+      extrator: (m) => {
+        const dia = parseInt(m[1])
+        if (dia >= 1 && dia <= 31) {
+          return {
+            data: '', // Sem data completa
+            mes: getMesAtual(),
+            dia,
+            match: m[0]
+          }
+        }
+        return null
+      }
+    },
+  ]
+
+  for (const { regex, extrator } of padroes) {
+    regex.lastIndex = 0
+    const match = regex.exec(texto)
+    if (match) {
+      const resultado = extrator(match)
+      if (resultado) return resultado
+    }
+  }
+
+  return null
+}
+
+// ============================================================================
+// EXTRAÇÃO DE MÊS/PERÍODO
+// ============================================================================
+
+interface ExtraidoMes {
+  mes: string // YYYY-MM
+  match: string
+}
+
+interface ExtraidoPeriodo {
+  meses: string[] // Array de YYYY-MM
+  match: string
 }
 
 /**
  * Extrai mês do texto
- * Suporta: outubro, out, 10/2025, 10/25, out/25
  */
-function extrairMes(texto: string): { mes: string | null; textoRestante: string } {
+function extrairMesRobusto(texto: string): ExtraidoMes | null {
   const textoLower = texto.toLowerCase()
-  let textoRestante = texto
+  const anoAtual = getAnoAtual()
 
-  // Padrão: MM/YYYY ou MM/YY
-  const regexNumerico = /\b(\d{1,2})\/(\d{2,4})\b/g
+  // MM/YYYY ou MM/YY
+  const regexNumerico = /\b(\d{1,2})[\/\-](\d{2,4})\b/g
   let match = regexNumerico.exec(textoLower)
   if (match) {
     const mesNum = parseInt(match[1])
     let ano = parseInt(match[2])
     if (ano < 100) ano += 2000
-
     if (mesNum >= 1 && mesNum <= 12) {
-      textoRestante = texto.replace(match[0], ' ').trim()
-      return { mes: formatarMes(mesNum, ano), textoRestante }
+      return { mes: formatarMes(mesNum, ano), match: match[0] }
     }
   }
 
-  // Padrão: nome_mes/YY ou nome_mes/YYYY
-  const regexMesAno = /\b(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[\s/]*(de\s+)?(\d{2,4})\b/gi
+  // Nome do mês com ano: "outubro 2025", "out/25"
+  const regexMesAno = /\b(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[\s\/]*(de\s+)?(\d{2,4})\b/gi
   match = regexMesAno.exec(texto)
   if (match) {
     const mesNome = match[1].toLowerCase()
     let ano = parseInt(match[3])
     if (ano < 100) ano += 2000
-
     const mesNum = MESES_MAP[mesNome]
     if (mesNum) {
-      textoRestante = texto.replace(match[0], ' ').trim()
-      return { mes: formatarMes(mesNum, ano), textoRestante }
+      return { mes: formatarMes(mesNum, ano), match: match[0] }
     }
   }
 
-  // Padrão: apenas nome do mês (assume ano atual)
+  // Apenas nome do mês (assume ano atual)
   for (const [nome, num] of Object.entries(MESES_MAP)) {
     const regex = new RegExp(`\\b${nome}\\b`, 'gi')
     if (regex.test(textoLower)) {
-      textoRestante = texto.replace(regex, ' ').trim()
-      return { mes: formatarMes(num, getAnoAtual()), textoRestante }
+      return { mes: formatarMes(num, anoAtual), match: nome }
     }
   }
 
-  return { mes: null, textoRestante }
+  return null
 }
 
 /**
- * Extrai período de recorrência do texto
- * Suporta: "de out até dez", "out a dez", "por 3 meses", "próximos 4 meses"
+ * Extrai período de recorrência
  */
-function extrairPeriodo(texto: string): { meses: string[] | null; textoRestante: string } {
-  let textoRestante = texto
+function extrairPeriodoRobusto(texto: string): ExtraidoPeriodo | null {
+  const mesAtual = getMesAtual()
 
-  // Padrão: "por X meses" ou "próximos X meses"
+  // "por X meses" ou "próximos X meses"
   const regexPorMeses = /\b(por|próximos?|proximos?)\s+(\d+)\s+mes(es)?\b/gi
   let match = regexPorMeses.exec(texto)
   if (match) {
-    const quantidade = parseInt(match[2])
-    const meses = gerarMesesAPartirDe(getMesAtual(), quantidade)
-    textoRestante = texto.replace(match[0], ' ').trim()
-    return { meses, textoRestante }
+    const quantidade = Math.min(parseInt(match[2]), 60) // Máximo 5 anos
+    return {
+      meses: gerarMesesAPartirDe(mesAtual, quantidade),
+      match: match[0]
+    }
   }
 
-  // Padrão: "mes1 até mes2" ou "mes1 a mes2" ou "de mes1 até mes2"
-  const regexAte = /\b(de\s+)?(\w+)\/(\d{2,4})\s*(até|a|ate)\s*(\w+)\/(\d{2,4})\b/gi
+  // "X parcelas" ou "em X vezes"
+  const regexParcelas = /\b(\d+)\s*(parcelas?|vezes|x)\b/gi
+  match = regexParcelas.exec(texto)
+  if (match) {
+    const quantidade = Math.min(parseInt(match[1]), 60)
+    if (quantidade > 1) {
+      return {
+        meses: gerarMesesAPartirDe(mesAtual, quantidade),
+        match: match[0]
+      }
+    }
+  }
+
+  // "mes1 até mes2" ou "mes1 a mes2"
+  const regexAte = /\b(de\s+)?(\w+)[\/\s]*(\d{2,4})?\s*(até|a|ate)\s*(\w+)[\/\s]*(\d{2,4})?\b/gi
   match = regexAte.exec(texto)
   if (match) {
-    const mesInicio = parseMesString(match[2], match[3])
-    const mesFim = parseMesString(match[5], match[6])
-
+    const mesInicio = parseMesString(match[2], match[3] || String(getAnoAtual()))
+    const mesFim = parseMesString(match[5], match[6] || String(getAnoAtual()))
     if (mesInicio && mesFim) {
-      const meses = gerarMesesEntre(mesInicio, mesFim)
-      textoRestante = texto.replace(match[0], ' ').trim()
-      return { meses, textoRestante }
+      return {
+        meses: gerarMesesEntre(mesInicio, mesFim),
+        match: match[0]
+      }
     }
   }
 
-  // Padrão simplificado: "out até dez" ou "outubro a dezembro" (assume ano atual)
-  const regexAteSimples = /\b(de\s+)?(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\s*(até|a|ate)\s*(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\b/gi
-  match = regexAteSimples.exec(texto)
-  if (match) {
-    const mesInicioNum = MESES_MAP[match[2].toLowerCase()]
-    const mesFimNum = MESES_MAP[match[4].toLowerCase()]
-
-    if (mesInicioNum && mesFimNum) {
-      const anoAtual = getAnoAtual()
-      const mesInicio = formatarMes(mesInicioNum, anoAtual)
-      // Se mês fim é menor que início, assume próximo ano
-      const anoFim = mesFimNum < mesInicioNum ? anoAtual + 1 : anoAtual
-      const mesFim = formatarMes(mesFimNum, anoFim)
-
-      const meses = gerarMesesEntre(mesInicio, mesFim)
-      textoRestante = texto.replace(match[0], ' ').trim()
-      return { meses, textoRestante }
-    }
-  }
-
-  return { meses: null, textoRestante }
+  return null
 }
 
-/**
- * Converte nome/número de mês e ano para formato YYYY-MM
- */
 function parseMesString(mesStr: string, anoStr: string): string | null {
   let mesNum: number
 
-  // Tenta como número primeiro
   const mesNumerico = parseInt(mesStr)
   if (!isNaN(mesNumerico) && mesNumerico >= 1 && mesNumerico <= 12) {
     mesNum = mesNumerico
   } else {
-    // Tenta como nome
     mesNum = MESES_MAP[mesStr.toLowerCase()]
     if (!mesNum) return null
   }
@@ -344,9 +581,6 @@ function parseMesString(mesStr: string, anoStr: string): string | null {
   return formatarMes(mesNum, ano)
 }
 
-/**
- * Gera array de meses a partir de um mês inicial
- */
 function gerarMesesAPartirDe(mesInicial: string, quantidade: number): string[] {
   const meses: string[] = []
   const [ano, mes] = mesInicial.split('-').map(Number)
@@ -366,13 +600,15 @@ function gerarMesesAPartirDe(mesInicial: string, quantidade: number): string[] {
   return meses
 }
 
-/**
- * Gera array de meses entre dois meses (inclusive)
- */
 function gerarMesesEntre(mesInicio: string, mesFim: string): string[] {
   const meses: string[] = []
   const [anoInicio, mesInicioNum] = mesInicio.split('-').map(Number)
-  const [anoFim, mesFimNum] = mesFim.split('-').map(Number)
+  let [anoFim, mesFimNum] = mesFim.split('-').map(Number)
+
+  // Se mês fim < mês início e mesmo ano, assume próximo ano
+  if (mesFimNum < mesInicioNum && anoFim === anoInicio) {
+    anoFim++
+  }
 
   let ano = anoInicio
   let mes = mesInicioNum
@@ -384,110 +620,104 @@ function gerarMesesEntre(mesInicio: string, mesFim: string): string[] {
       mes = 1
       ano++
     }
-
-    // Proteção contra loop infinito
-    if (meses.length > 120) break // Máximo 10 anos
+    if (meses.length > 120) break // Proteção
   }
 
   return meses
 }
 
-/**
- * Extrai dia previsto do texto
- * Suporta: "dia 5", "todo dia 10", "vence dia 15", "no dia 20"
- */
-function extrairDia(texto: string): { dia: number | null; textoRestante: string } {
-  let textoRestante = texto
-
-  // Padrão: "dia X" com variações
-  const regexDia = /\b(todo\s+)?dia\s+(\d{1,2})\b/gi
-  const match = regexDia.exec(texto)
-  if (match) {
-    const dia = parseInt(match[2])
-    if (dia >= 1 && dia <= 31) {
-      textoRestante = texto.replace(match[0], ' ').trim()
-      return { dia, textoRestante }
-    }
-  }
-
-  // Padrão: "vence dia X", "vencimento dia X"
-  const regexVence = /\b(vence|vencimento)\s+(no\s+)?dia\s+(\d{1,2})\b/gi
-  const matchVence = regexVence.exec(texto)
-  if (matchVence) {
-    const dia = parseInt(matchVence[3])
-    if (dia >= 1 && dia <= 31) {
-      textoRestante = texto.replace(matchVence[0], ' ').trim()
-      return { dia, textoRestante }
-    }
-  }
-
-  return { dia: null, textoRestante }
-}
+// ============================================================================
+// DETECÇÃO DE TIPO
+// ============================================================================
 
 /**
- * Detecta tipo do lançamento baseado em palavras-chave
+ * Detecta tipo do lançamento com análise de contexto
  */
-function detectarTipo(texto: string): TipoLancamento {
+function detectarTipoRobusto(texto: string, valorNegativo?: boolean): TipoLancamento {
   const textoLower = texto.toLowerCase()
 
-  // Verifica palavras de entrada primeiro (menos comuns)
+  // Se valor é negativo, é saída
+  if (valorNegativo) return 'saida'
+
+  // Verifica indicadores explícitos de crédito/débito
+  for (const indicador of INDICADORES_CREDITO) {
+    const regex = new RegExp(`\\b${indicador}\\b`, 'i')
+    if (regex.test(textoLower)) return 'entrada'
+  }
+
+  for (const indicador of INDICADORES_DEBITO) {
+    const regex = new RegExp(`\\b${indicador}\\b`, 'i')
+    if (regex.test(textoLower)) return 'saida'
+  }
+
+  // Score baseado em palavras-chave
+  let scoreEntrada = 0
+  let scoreSaida = 0
+
   for (const palavra of PALAVRAS_ENTRADA) {
-    if (textoLower.includes(palavra)) {
-      return 'entrada'
+    if (textoLower.includes(palavra.toLowerCase())) {
+      scoreEntrada++
     }
   }
 
-  // Verifica palavras de saída
   for (const palavra of PALAVRAS_SAIDA) {
-    if (textoLower.includes(palavra)) {
-      return 'saida'
+    if (textoLower.includes(palavra.toLowerCase())) {
+      scoreSaida++
     }
   }
 
-  // Default é saída (mais comum no dia a dia)
+  if (scoreEntrada > scoreSaida) return 'entrada'
+  if (scoreSaida > scoreEntrada) return 'saida'
+
+  // Default: saída (mais comum no dia a dia)
   return 'saida'
 }
 
-/**
- * Extrai nome do lançamento (o que sobra após remover valor, data, tipo)
- */
-function extrairNome(texto: string): string {
-  // Remove palavras auxiliares do início e fim
-  const palavrasRemover = [
-    'de', 'do', 'da', 'dos', 'das',
-    'no', 'na', 'nos', 'nas',
-    'para', 'pra', 'pro',
-    'com', 'em', 'ao', 'à',
-    'o', 'a', 'os', 'as',
-    'um', 'uma', 'uns', 'umas',
-    'e', 'ou'
-  ]
+// ============================================================================
+// LIMPEZA DE NOME
+// ============================================================================
 
+const PALAVRAS_REMOVER = [
+  'de', 'do', 'da', 'dos', 'das',
+  'no', 'na', 'nos', 'nas',
+  'para', 'pra', 'pro',
+  'com', 'em', 'ao', 'à',
+  'o', 'a', 'os', 'as',
+  'um', 'uma', 'uns', 'umas',
+  'e', 'ou', 'que',
+  'reais', 'real', 'r$'
+]
+
+/**
+ * Limpa e normaliza nome do lançamento
+ */
+function limparNome(texto: string): string {
   let nome = texto.trim()
 
   // Remove múltiplos espaços
   nome = nome.replace(/\s+/g, ' ')
 
   // Remove palavras auxiliares do início
-  for (const palavra of palavrasRemover) {
+  for (const palavra of PALAVRAS_REMOVER) {
     const regex = new RegExp(`^${palavra}\\s+`, 'i')
     nome = nome.replace(regex, '')
   }
 
   // Remove palavras auxiliares do fim
-  for (const palavra of palavrasRemover) {
+  for (const palavra of PALAVRAS_REMOVER) {
     const regex = new RegExp(`\\s+${palavra}$`, 'i')
     nome = nome.replace(regex, '')
   }
 
-  // Remove palavras-chave de tipo que podem ter sobrado
+  // Remove palavras-chave de tipo
   const todasPalavras = [...PALAVRAS_ENTRADA, ...PALAVRAS_SAIDA]
   for (const palavra of todasPalavras) {
-    const regex = new RegExp(`\\b${palavra}\\b`, 'gi')
+    // Só remove se for palavra isolada no início
+    const regex = new RegExp(`^${palavra}\\s+`, 'gi')
     nome = nome.replace(regex, '')
   }
 
-  // Limpa espaços extras novamente
+  // Limpa novamente
   nome = nome.replace(/\s+/g, ' ').trim()
 
   // Capitaliza primeira letra
@@ -498,45 +728,295 @@ function extrairNome(texto: string): string {
   return nome
 }
 
+// ============================================================================
+// PARSERS POR FORMATO
+// ============================================================================
+
 /**
- * Parseia uma única linha de texto
+ * Parser para dados TSV (colados de Excel/Google Sheets)
+ */
+function parseTSV(input: string, mesDefault: string): ParsedLancamento[] {
+  const linhas = input.split('\n').filter(l => l.trim())
+  const lancamentos: ParsedLancamento[] = []
+
+  for (const linha of linhas) {
+    const colunas = linha.split('\t').map(c => c.trim())
+    if (colunas.length < 2) continue
+
+    // Pula header se detectado
+    if (isHeaderLinha(colunas.join(' '))) continue
+
+    const item = extrairDeColunas(colunas, mesDefault, linha)
+    if (item) lancamentos.push(item)
+  }
+
+  return lancamentos
+}
+
+/**
+ * Parser para dados CSV
+ */
+function parseCSV(input: string, mesDefault: string): ParsedLancamento[] {
+  // Detecta separador
+  const primeiraLinha = input.split('\n')[0]
+  const separador = primeiraLinha.split(';').length > primeiraLinha.split(',').length ? ';' : ','
+
+  const linhas = input.split('\n').filter(l => l.trim())
+  const lancamentos: ParsedLancamento[] = []
+
+  for (const linha of linhas) {
+    const colunas = linha.split(separador).map(c => c.trim())
+    if (colunas.length < 2) continue
+
+    // Pula header
+    if (isHeaderLinha(colunas.join(' '))) continue
+
+    const item = extrairDeColunas(colunas, mesDefault, linha)
+    if (item) lancamentos.push(item)
+  }
+
+  return lancamentos
+}
+
+/**
+ * Parser para extrato bancário
+ */
+function parseExtrato(input: string, mesDefault: string): ParsedLancamento[] {
+  const linhas = input.split('\n').filter(l => l.trim())
+  const lancamentos: ParsedLancamento[] = []
+
+  for (const linha of linhas) {
+    // Pula header
+    if (isHeaderLinha(linha)) continue
+
+    const item = parseLinhaExtrato(linha, mesDefault)
+    if (item) lancamentos.push(item)
+  }
+
+  return lancamentos
+}
+
+/**
+ * Parser para texto livre
+ */
+function parseTextoLivre(input: string, mesDefault: string): ParsedLancamento[] {
+  const linhas = input.split('\n').filter(l => l.trim())
+  const lancamentos: ParsedLancamento[] = []
+
+  for (const linha of linhas) {
+    const items = parseLinha(linha, mesDefault)
+    lancamentos.push(...items)
+  }
+
+  return lancamentos
+}
+
+// ============================================================================
+// FUNÇÕES AUXILIARES DE PARSING
+// ============================================================================
+
+/**
+ * Detecta se uma linha é header
+ */
+function isHeaderLinha(linha: string): boolean {
+  const lower = linha.toLowerCase()
+  const palavrasHeader = [
+    'data', 'descrição', 'descricao', 'valor', 'tipo',
+    'historico', 'histórico', 'lançamento', 'lancamento',
+    'categoria', 'date', 'description', 'amount', 'type'
+  ]
+
+  let matches = 0
+  for (const palavra of palavrasHeader) {
+    if (lower.includes(palavra)) matches++
+  }
+
+  return matches >= 2
+}
+
+/**
+ * Extrai lançamento de colunas (TSV/CSV)
+ */
+function extrairDeColunas(colunas: string[], mesDefault: string, textoOriginal: string): ParsedLancamento | null {
+  let data: ExtraidaData | null = null
+  let valor: number | null = null
+  let tipo: TipoLancamento | null = null
+  let nome = ''
+  let valorNegativo = false
+
+  for (const col of colunas) {
+    const limpo = col.trim()
+    if (!limpo) continue
+
+    // Tenta como data
+    if (!data) {
+      const dataExtraida = extrairDataRobusta(limpo)
+      if (dataExtraida) {
+        data = dataExtraida
+        continue
+      }
+    }
+
+    // Tenta como valor
+    if (valor === null) {
+      // Verifica se é negativo
+      const negativo = limpo.startsWith('-') || limpo.startsWith('(')
+      const valorExtraido = extrairValorRobusto(limpo.replace(/[()]/g, ''))
+      if (valorExtraido) {
+        valor = valorExtraido.valor
+        valorNegativo = negativo
+        continue
+      }
+    }
+
+    // Tenta como tipo
+    if (!tipo) {
+      const lowerCol = limpo.toLowerCase()
+      if (INDICADORES_CREDITO.some(i => lowerCol === i)) {
+        tipo = 'entrada'
+        continue
+      }
+      if (INDICADORES_DEBITO.some(i => lowerCol === i)) {
+        tipo = 'saida'
+        continue
+      }
+    }
+
+    // Resto é nome (se ainda não tem e não é apenas número)
+    if (!nome && limpo.length > 0 && !/^\d+$/.test(limpo)) {
+      nome = limpo
+    }
+  }
+
+  // Se não tem valor, não é válido
+  if (valor === null) return null
+
+  // Determina tipo se não veio explícito
+  if (!tipo) {
+    tipo = valorNegativo ? 'saida' : detectarTipoRobusto(nome)
+  }
+
+  // Limpa nome
+  nome = limparNome(nome)
+
+  // Valida e cria resultado
+  const { status, camposFaltantes, avisos, erros } = validarItem({ nome, valor, tipo })
+
+  return {
+    id: generateId(),
+    tipo,
+    nome: nome || 'Sem descrição',
+    valor,
+    mes: data?.mes || mesDefault,
+    diaPrevisto: data?.dia || null,
+    status,
+    camposFaltantes,
+    groupId: generateId(),
+    avisos,
+    erros,
+    textoOriginal
+  }
+}
+
+/**
+ * Parseia linha de extrato bancário
+ */
+function parseLinhaExtrato(linha: string, mesDefault: string): ParsedLancamento | null {
+  // Padrão típico: "15/01 DESCRIÇÃO 150,00" ou "15/01/2025 TED RECEBIDA 5.000,00 C"
+
+  // Extrai data do início
+  const data = extrairDataRobusta(linha)
+  let textoRestante = data ? linha.replace(data.match, '').trim() : linha
+
+  // Extrai valor (geralmente no final)
+  const valor = extrairValorRobusto(textoRestante)
+  if (!valor) return null
+
+  textoRestante = textoRestante.replace(valor.match, '').trim()
+
+  // Verifica indicador de tipo no final
+  const matchTipo = textoRestante.match(/\s+([CD]|CR|DB)$/i)
+  let tipo: TipoLancamento
+
+  if (matchTipo) {
+    tipo = ['c', 'cr'].includes(matchTipo[1].toLowerCase()) ? 'entrada' : 'saida'
+    textoRestante = textoRestante.replace(matchTipo[0], '').trim()
+  } else {
+    // Detecta por palavras ou assume saída
+    tipo = detectarTipoRobusto(textoRestante)
+  }
+
+  // O que sobra é o nome
+  const nome = limparNome(textoRestante)
+
+  const { status, camposFaltantes, avisos, erros } = validarItem({ nome, valor: valor.valor, tipo })
+
+  return {
+    id: generateId(),
+    tipo,
+    nome: nome || 'Sem descrição',
+    valor: valor.valor,
+    mes: data?.mes || mesDefault,
+    diaPrevisto: data?.dia || null,
+    status,
+    camposFaltantes,
+    groupId: generateId(),
+    avisos,
+    erros,
+    textoOriginal: linha
+  }
+}
+
+/**
+ * Parseia uma linha de texto livre
  */
 function parseLinha(texto: string, mesDefault: string): ParsedLancamento[] {
   if (!texto.trim()) return []
 
   const lancamentos: ParsedLancamento[] = []
+  let textoRestante = texto
 
-  // Detecta tipo primeiro (antes de modificar o texto)
-  const tipo = detectarTipo(texto)
+  // Detecta tipo primeiro (antes de modificar)
+  const tipo = detectarTipoRobusto(texto)
 
   // Extrai valor
-  const { valor, textoRestante: textoSemValor } = extrairValor(texto)
+  const valorExtraido = extrairValorRobusto(texto)
+  const valor = valorExtraido?.valor || null
+  if (valorExtraido) {
+    textoRestante = textoRestante.replace(valorExtraido.match, ' ')
+  }
 
-  // Extrai dia previsto
-  const { dia: diaPrevisto, textoRestante: textoSemDia } = extrairDia(textoSemValor)
+  // Extrai data/dia
+  const dataExtraida = extrairDataRobusta(textoRestante)
+  const diaPrevisto = dataExtraida?.dia || null
+  if (dataExtraida) {
+    textoRestante = textoRestante.replace(dataExtraida.match, ' ')
+  }
 
   // Extrai período (recorrência)
-  const { meses: mesesRecorrencia, textoRestante: textoSemPeriodo } = extrairPeriodo(textoSemDia)
+  const periodoExtraido = extrairPeriodoRobusto(textoRestante)
+  if (periodoExtraido) {
+    textoRestante = textoRestante.replace(periodoExtraido.match, ' ')
+  }
 
   // Extrai mês único
-  const { mes: mesUnico, textoRestante: textoSemMes } = extrairMes(textoSemPeriodo)
+  const mesExtraido = extrairMesRobusto(textoRestante)
+  if (mesExtraido) {
+    textoRestante = textoRestante.replace(mesExtraido.match, ' ')
+  }
 
-  // Extrai nome
-  const nome = extrairNome(textoSemMes)
+  // Limpa nome
+  const nome = limparNome(textoRestante)
 
-  // Determina campos faltantes
-  const camposFaltantes: ('valor' | 'nome')[] = []
-  if (valor === null) camposFaltantes.push('valor')
-  if (!nome) camposFaltantes.push('nome')
+  // Valida
+  const { status, camposFaltantes, avisos, erros } = validarItem({ nome, valor, tipo })
 
-  const status = camposFaltantes.length > 0 ? 'incompleto' : 'completo'
-
-  // Gera um ID de grupo único para lançamentos da mesma linha
+  // Gera ID de grupo
   const groupId = generateId()
 
-  // Se tem recorrência, cria múltiplos lançamentos com mesmo groupId
-  if (mesesRecorrencia && mesesRecorrencia.length > 0) {
-    for (const mes of mesesRecorrencia) {
+  // Se tem recorrência, cria múltiplos
+  if (periodoExtraido && periodoExtraido.meses.length > 1) {
+    for (const mes of periodoExtraido.meses) {
       lancamentos.push({
         id: generateId(),
         tipo,
@@ -546,12 +1026,15 @@ function parseLinha(texto: string, mesDefault: string): ParsedLancamento[] {
         diaPrevisto,
         status,
         camposFaltantes,
-        groupId, // Mesmo grupo para recorrências
+        groupId,
+        avisos,
+        erros,
+        textoOriginal: texto
       })
     }
   } else {
-    // Lançamento único - groupId único
-    const mes = mesUnico || mesDefault
+    // Lançamento único
+    const mes = mesExtraido?.mes || dataExtraida?.mes || mesDefault
     lancamentos.push({
       id: generateId(),
       tipo,
@@ -562,32 +1045,140 @@ function parseLinha(texto: string, mesDefault: string): ParsedLancamento[] {
       status,
       camposFaltantes,
       groupId,
+      avisos,
+      erros,
+      textoOriginal: texto
     })
   }
 
   return lancamentos
 }
 
+// ============================================================================
+// VALIDAÇÃO
+// ============================================================================
+
+interface ValidacaoResult {
+  status: StatusItem
+  camposFaltantes: ('valor' | 'nome')[]
+  avisos: string[]
+  erros: string[]
+}
+
+/**
+ * Valida item e determina status
+ */
+function validarItem(item: { nome?: string; valor: number | null; tipo?: TipoLancamento }): ValidacaoResult {
+  const erros: string[] = []
+  const avisos: string[] = []
+  const camposFaltantes: ('valor' | 'nome')[] = []
+
+  // Campos obrigatórios
+  if (item.valor === null || item.valor <= 0) {
+    erros.push('Valor não identificado')
+    camposFaltantes.push('valor')
+  }
+
+  if (!item.nome || item.nome.length < 2) {
+    erros.push('Descrição não identificada')
+    camposFaltantes.push('nome')
+  }
+
+  // Avisos (não bloqueiam)
+  if (item.valor !== null && (item.valor < 1 || item.valor > 1000000)) {
+    avisos.push('Valor parece incomum')
+  }
+
+  let status: StatusItem
+  if (erros.length > 0) {
+    status = 'incompleto'
+  } else if (avisos.length > 0) {
+    status = 'atencao'
+  } else {
+    status = 'completo'
+  }
+
+  return { status, camposFaltantes, avisos, erros }
+}
+
+// ============================================================================
+// FUNÇÃO PRINCIPAL
+// ============================================================================
+
 /**
  * Função principal do parser
- * Recebe texto (pode ter múltiplas linhas) e retorna lançamentos interpretados
+ * Detecta automaticamente o formato e processa a entrada
  */
 export function parseInput(texto: string, mesDefault?: string): ParseResult {
   const mesAtual = mesDefault || getMesAtual()
-  const linhas = texto.split('\n').filter(l => l.trim())
+  const textoLimpo = texto.trim()
 
-  const lancamentos: ParsedLancamento[] = []
-
-  for (const linha of linhas) {
-    const resultados = parseLinha(linha, mesAtual)
-    lancamentos.push(...resultados)
+  if (!textoLimpo) {
+    return {
+      lancamentos: [],
+      textoOriginal: texto,
+      formatoDetectado: 'texto-livre',
+      resumo: {
+        total: 0,
+        completos: 0,
+        atencao: 0,
+        incompletos: 0,
+        totalEntradas: 0,
+        totalSaidas: 0
+      }
+    }
   }
+
+  // Detecta formato automaticamente
+  const formato = detectarFormato(textoLimpo)
+
+  // Usa parser apropriado
+  let lancamentos: ParsedLancamento[]
+  switch (formato) {
+    case 'tsv':
+      lancamentos = parseTSV(textoLimpo, mesAtual)
+      break
+    case 'csv':
+      lancamentos = parseCSV(textoLimpo, mesAtual)
+      break
+    case 'extrato':
+      lancamentos = parseExtrato(textoLimpo, mesAtual)
+      break
+    default:
+      lancamentos = parseTextoLivre(textoLimpo, mesAtual)
+  }
+
+  // Calcula resumo
+  const completos = lancamentos.filter(l => l.status === 'completo').length
+  const atencao = lancamentos.filter(l => l.status === 'atencao').length
+  const incompletos = lancamentos.filter(l => l.status === 'incompleto').length
+
+  const totalEntradas = lancamentos
+    .filter(l => l.tipo === 'entrada' && l.valor !== null)
+    .reduce((sum, l) => sum + (l.valor || 0), 0)
+
+  const totalSaidas = lancamentos
+    .filter(l => l.tipo === 'saida' && l.valor !== null)
+    .reduce((sum, l) => sum + (l.valor || 0), 0)
 
   return {
     lancamentos,
-    textoOriginal: texto
+    textoOriginal: texto,
+    formatoDetectado: formato,
+    resumo: {
+      total: lancamentos.length,
+      completos,
+      atencao,
+      incompletos,
+      totalEntradas,
+      totalSaidas
+    }
   }
 }
+
+// ============================================================================
+// FUNÇÕES AUXILIARES EXPORTADAS
+// ============================================================================
 
 /**
  * Formata valor para exibição
@@ -611,19 +1202,17 @@ export function formatarMesExibicao(mes: string): string {
 
 /**
  * Agrupa lançamentos por groupId para mostrar recorrências
- * Usa o groupId como chave (lançamentos da mesma linha têm o mesmo groupId)
  */
 export function agruparRecorrencias(lancamentos: ParsedLancamento[]): Map<string, ParsedLancamento[]> {
   const grupos = new Map<string, ParsedLancamento[]>()
 
   for (const lancamento of lancamentos) {
-    // Agrupa pelo groupId (lançamentos da mesma linha/recorrência)
     const grupo = grupos.get(lancamento.groupId) || []
     grupo.push(lancamento)
     grupos.set(lancamento.groupId, grupo)
   }
 
-  // Ordena cada grupo por mês para consistência
+  // Ordena cada grupo por mês
   for (const items of grupos.values()) {
     items.sort((a, b) => a.mes.localeCompare(b.mes))
   }
