@@ -3,6 +3,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
+import rateLimit from '@fastify/rate-limit'
 import fastifyStatic from '@fastify/static'
 import { authRoutes } from './routes/auth.routes.js'
 import { lancamentoRoutes } from './routes/lancamento.routes.js'
@@ -10,12 +11,20 @@ import { configuracaoRoutes } from './routes/configuracao.routes.js'
 import { categoriaRoutes } from './routes/categoria.routes.js'
 import { dashboardRoutes } from './routes/dashboard.routes.js'
 import { aiRoutes } from './routes/ai.routes.js'
+import { validateEnv } from './lib/env.js'
+import { supabase } from './lib/supabase.js'
+
+// Validate environment variables at startup
+validateEnv()
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 const app = Fastify({
-  logger: true,
+  logger: process.env.NODE_ENV !== 'production' ? true : {
+    level: 'warn',
+    transport: undefined,
+  },
   trustProxy: true,
 })
 
@@ -31,11 +40,30 @@ app.addHook('onRequest', async (request, reply) => {
   }
 })
 
-// CORS configuration
+// CORS configuration - restrict origins in production
+const allowedOrigins = process.env.NODE_ENV === 'production'
+  ? [
+      'https://www.financify.uxnaut.com.br',
+      'https://financify.uxnaut.com.br',
+      process.env.FRONTEND_URL,
+    ].filter(Boolean) as string[]
+  : true // Allow all origins in development
+
 await app.register(cors, {
-  origin: true,
+  origin: allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+})
+
+// Rate limiting - protect against abuse
+await app.register(rateLimit, {
+  max: 100, // Max 100 requests per window
+  timeWindow: '1 minute',
+  // Stricter limits for AI endpoint
+  keyGenerator: (request) => {
+    return request.headers['x-forwarded-for'] as string || request.ip
+  },
 })
 
 // Register routes
@@ -46,9 +74,34 @@ await app.register(categoriaRoutes, { prefix: '/api/categorias' })
 await app.register(dashboardRoutes)
 await app.register(aiRoutes)
 
-// Health check
+// Health check with service status
 app.get('/health', async () => {
-  return { status: 'ok' }
+  const checks: Record<string, 'ok' | 'error'> = {
+    server: 'ok',
+    database: 'ok',
+    ai: 'ok',
+  }
+
+  // Check database connection
+  try {
+    const { error } = await supabase.from('lancamentos').select('id').limit(1)
+    if (error) checks.database = 'error'
+  } catch {
+    checks.database = 'error'
+  }
+
+  // Check if AI key is configured
+  if (!process.env.GEMINI_API_KEY) {
+    checks.ai = 'error'
+  }
+
+  const allOk = Object.values(checks).every(v => v === 'ok')
+
+  return {
+    status: allOk ? 'healthy' : 'degraded',
+    checks,
+    timestamp: new Date().toISOString(),
+  }
 })
 
 // Serve frontend static files in production
@@ -71,7 +124,7 @@ const port = Number(process.env.PORT) || 3333
 
 try {
   await app.listen({ port, host: '0.0.0.0' })
-  console.log(`Server running on http://localhost:${port}`)
+  app.log.info(`Server running on http://localhost:${port}`)
 } catch (err) {
   app.log.error(err)
   process.exit(1)

@@ -61,11 +61,22 @@ const CORES_DISPONIVEIS = [
   '#84CC16', // lime
 ]
 
+// Type-safe icon lookup with proper typing
+type LucideIconModule = typeof LucideIcons
+type IconName = keyof LucideIconModule
+
 // Função para obter o componente de ícone do Lucide dinamicamente
 function getIconComponent(iconName: string | null): LucideIcon | null {
   if (!iconName) return null
-  const icons = LucideIcons as unknown as Record<string, LucideIcon>
-  return icons[iconName] || null
+  // Check if the icon name exists in the module
+  if (iconName in LucideIcons) {
+    const icon = LucideIcons[iconName as IconName]
+    // Verify it's a valid component (not a utility or type)
+    if (typeof icon === 'function' || (typeof icon === 'object' && icon !== null)) {
+      return icon as LucideIcon
+    }
+  }
+  return null
 }
 
 export function CategoriaSelect({
@@ -91,8 +102,9 @@ export function CategoriaSelect({
       setIsLoading(true)
       const data = await categoriasApi.listarPorTipo(tipo)
       setCategorias(data)
-    } catch (error) {
-      console.error('Erro ao carregar categorias:', error)
+    } catch {
+      // Silently handle error - categorias will remain empty
+      setCategorias([])
     } finally {
       setIsLoading(false)
     }

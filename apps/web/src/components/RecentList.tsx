@@ -6,6 +6,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { StatusCircle } from './StatusCircle'
+import { EmptyState } from './EmptyState'
 import { formatarMoeda, cn } from '@/lib/utils'
 import type { Lancamento } from '@/lib/api'
 
@@ -47,11 +48,7 @@ export function RecentList({
   showVerTodos = true,
 }: RecentListProps) {
   if (lancamentos.length === 0) {
-    return (
-      <div className="text-center py-6 text-muted-foreground text-corpo">
-        Nenhum lançamento recente
-      </div>
-    )
+    return <EmptyState variant="default" />
   }
 
   return (
@@ -70,6 +67,7 @@ export function RecentList({
             type="button"
             onClick={() => onItemClick(lancamento)}
             className="flex-1 flex justify-between items-center py-3 text-left min-h-touch"
+            aria-label={`Editar ${lancamento.nome}, ${lancamento.tipo === 'entrada' ? 'entrada' : 'saída'} de ${formatarMoeda(lancamento.valor)}`}
           >
             <div className={cn(
               'flex flex-col',

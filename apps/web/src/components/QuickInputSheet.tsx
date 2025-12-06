@@ -476,8 +476,7 @@ export function QuickInputSheet({
 
       // Limpa o texto após adicionar com sucesso
       setTexto('')
-    } catch (e) {
-      console.error('Erro ao processar com IA:', e)
+    } catch {
       setErro('Erro ao processar com IA. Tente novamente.')
     } finally {
       setIsParsing(false)

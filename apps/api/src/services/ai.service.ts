@@ -296,9 +296,8 @@ export class AIService {
         erro: parsed.erro
       }
 
-    } catch (error) {
-      console.error('Erro ao chamar Gemini:', error)
-      // Fallback para parsing básico
+    } catch {
+      // Fallback silencioso para parsing básico quando Gemini falha
       return this.parseBasico(textoProcessado, texto)
     }
   }

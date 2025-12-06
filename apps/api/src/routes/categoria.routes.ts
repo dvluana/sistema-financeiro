@@ -24,7 +24,7 @@ export async function categoriaRoutes(app: FastifyInstance) {
       const categorias = await categoriaService.listar(userId)
       return reply.send(categorias)
     } catch (error) {
-      console.error('Erro ao listar categorias:', error)
+      request.log.error(error, 'Erro ao listar categorias')
       return reply.status(500).send({ error: 'Erro interno do servidor' })
     }
   })
@@ -47,7 +47,7 @@ export async function categoriaRoutes(app: FastifyInstance) {
       const categorias = await categoriaService.listarPorTipo(tipoValidado.data, userId)
       return reply.send(categorias)
     } catch (error) {
-      console.error('Erro ao listar categorias por tipo:', error)
+      request.log.error(error, 'Erro ao listar categorias por tipo')
       return reply.status(500).send({ error: 'Erro interno do servidor' })
     }
   })
@@ -68,7 +68,7 @@ export async function categoriaRoutes(app: FastifyInstance) {
 
       return reply.send(categoria)
     } catch (error) {
-      console.error('Erro ao buscar categoria:', error)
+      request.log.error(error, 'Erro ao buscar categoria')
       return reply.status(500).send({ error: 'Erro interno do servidor' })
     }
   })
@@ -91,7 +91,7 @@ export async function categoriaRoutes(app: FastifyInstance) {
           details: error.errors,
         })
       }
-      console.error('Erro ao criar categoria:', error)
+      request.log.error(error, 'Erro ao criar categoria')
       return reply.status(500).send({ error: 'Erro interno do servidor' })
     }
   })
@@ -115,7 +115,7 @@ export async function categoriaRoutes(app: FastifyInstance) {
           details: error.errors,
         })
       }
-      console.error('Erro ao atualizar categoria:', error)
+      request.log.error(error, 'Erro ao atualizar categoria')
       return reply.status(500).send({ error: 'Erro interno do servidor' })
     }
   })
@@ -132,7 +132,7 @@ export async function categoriaRoutes(app: FastifyInstance) {
       await categoriaService.excluir(id, userId)
       return reply.status(204).send()
     } catch (error) {
-      console.error('Erro ao excluir categoria:', error)
+      request.log.error(error, 'Erro ao excluir categoria')
       return reply.status(500).send({ error: 'Erro interno do servidor' })
     }
   })

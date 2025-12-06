@@ -24,7 +24,7 @@ export async function dashboardRoutes(app: FastifyInstance) {
         const data = await dashboardService.getDashboard(userId, mes)
         return reply.send(data)
       } catch (error) {
-        console.error('Erro ao buscar dashboard:', error)
+        request.log.error(error, 'Erro ao buscar dashboard')
         return reply.status(500).send({ error: 'Erro ao buscar dados da dashboard' })
       }
     }

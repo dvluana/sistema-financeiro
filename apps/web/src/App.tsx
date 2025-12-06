@@ -12,10 +12,11 @@ import { useAuthStore } from './stores/useAuthStore'
 import { Home } from './pages/Home'
 import { Login } from './pages/Login'
 import { Register } from './pages/Register'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
 type AuthView = 'login' | 'register'
 
-function App() {
+function AppContent() {
   const { isAuthenticated, isLoading, checkAuth } = useAuthStore()
   const [authView, setAuthView] = useState<AuthView>('login')
 
@@ -70,6 +71,14 @@ function App() {
         </motion.div>
       )}
     </AnimatePresence>
+  )
+}
+
+function App() {
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
   )
 }
 

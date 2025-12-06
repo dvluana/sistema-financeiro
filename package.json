@@ -23,6 +23,7 @@
     "heroku-postbuild": "npm run build:web && npm run build:api && cp -r apps/web/dist apps/api/dist/web"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "sharp": "^0.34.5"
   }
 }

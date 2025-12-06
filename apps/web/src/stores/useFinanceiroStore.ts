@@ -135,8 +135,9 @@ export const useFinanceiroStore = create<FinanceiroState>((set, get) => ({
       })
 
       set({ configuracoes: configMap })
-    } catch (error) {
-      console.error('Erro ao carregar configurações:', error)
+    } catch {
+      // Silently fail - use default configs
+      // Error will be visible through network tab if needed
     }
   },
 

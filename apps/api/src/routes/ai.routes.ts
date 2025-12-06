@@ -5,40 +5,59 @@
  */
 
 import { FastifyInstance } from 'fastify'
+import { z } from 'zod'
 import { requireAuth } from '../middleware/auth.middleware.js'
 import { aiService } from '../services/ai.service.js'
 
-interface ParseLancamentosBody {
-  texto: string
-  mes: string
-}
+// Input validation schema
+const parseLancamentosSchema = z.object({
+  texto: z
+    .string()
+    .min(1, 'Texto é obrigatório')
+    .max(10000, 'Texto muito longo (máximo 10.000 caracteres)'),
+  mes: z
+    .string()
+    .regex(/^\d{4}-\d{2}$/, 'Mês deve estar no formato YYYY-MM'),
+})
+
+type ParseLancamentosBody = z.infer<typeof parseLancamentosSchema>
 
 export async function aiRoutes(app: FastifyInstance) {
   /**
    * POST /api/ai/parse-lancamentos
    *
    * Interpreta texto livre e extrai lançamentos financeiros usando IA.
+   * Rate limited to 20 requests per minute per user.
    */
   app.post<{ Body: ParseLancamentosBody }>(
     '/api/ai/parse-lancamentos',
-    { preHandler: requireAuth },
+    {
+      preHandler: requireAuth,
+      config: {
+        rateLimit: {
+          max: 20,
+          timeWindow: '1 minute',
+        },
+      },
+    },
     async (request, reply) => {
+      // Validate input
+      const validation = parseLancamentosSchema.safeParse(request.body)
+
+      if (!validation.success) {
+        const errorMessage = validation.error.errors
+          .map(e => e.message)
+          .join(', ')
+        return reply.status(400).send({ error: errorMessage })
+      }
+
+      const { texto, mes } = validation.data
+
       try {
-        const { texto, mes } = request.body
-
-        if (!texto || typeof texto !== 'string') {
-          return reply.status(400).send({ error: 'Texto é obrigatório' })
-        }
-
-        if (!mes || typeof mes !== 'string') {
-          return reply.status(400).send({ error: 'Mês é obrigatório (formato YYYY-MM)' })
-        }
-
         const result = await aiService.parseLancamentos(texto, mes)
-
         return reply.send(result)
       } catch (error) {
-        console.error('Erro ao processar lançamentos com IA:', error)
+        request.log.error(error, 'Erro ao processar lançamentos com IA')
         return reply.status(500).send({ error: 'Erro ao processar lançamentos' })
       }
     }

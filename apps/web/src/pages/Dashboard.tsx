@@ -5,7 +5,7 @@
  * Exibe: resumo do mês, próximos vencimentos, gráfico e todos os lançamentos do mês.
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Settings, LogOut } from 'lucide-react'
 import { cn, getMesAtual } from '@/lib/utils'
 import { HeroCard } from '@/components/HeroCard'
@@ -88,18 +88,25 @@ export function Dashboard({
     }
   }, [mesSelecionado, carregarMes])
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     await logout()
-  }
+  }, [logout])
 
-  // Handler para clicar em um vencimento
-  const handleVencimentoClick = (id: string) => {
+  // Handler para clicar em um vencimento (memoizado)
+  const handleVencimentoClick = useCallback((id: string) => {
     // Busca o lançamento nas entradas ou saídas
     const lancamento = [...entradas, ...saidas].find(l => l.id === id)
     if (lancamento) {
       onEditLancamento(lancamento)
     }
-  }
+  }, [entradas, saidas, onEditLancamento])
+
+  // Lista ordenada de lançamentos (memoizada para evitar recálculo)
+  const lancamentosOrdenados = useMemo(() => {
+    return [...entradas, ...saidas].sort((a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )
+  }, [entradas, saidas])
 
   // Extrai nome do usuário (primeiro nome apenas)
   const primeiroNome = usuario?.nome?.split(' ')[0] || 'Usuário'
@@ -232,9 +239,7 @@ export function Dashboard({
               {lancamentoFilter === 'todos' && (
                 <div className="bg-card border border-border rounded-xl p-4">
                   <RecentList
-                    lancamentos={[...entradas, ...saidas].sort((a, b) =>
-                      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-                    )}
+                    lancamentos={lancamentosOrdenados}
                     onItemClick={onEditLancamento}
                     onToggle={toggleConcluido}
                     onVerTodos={() => {}}
