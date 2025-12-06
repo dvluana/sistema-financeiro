@@ -16,6 +16,19 @@ const __dirname = path.dirname(__filename)
 
 const app = Fastify({
   logger: true,
+  trustProxy: true,
+})
+
+// HTTPS redirect for Heroku (must be before other middlewares)
+app.addHook('onRequest', async (request, reply) => {
+  const proto = request.headers['x-forwarded-proto']
+  const host = request.headers['host']
+
+  // Only redirect in production and when accessed via HTTP
+  if (proto === 'http' && host && process.env.NODE_ENV === 'production') {
+    const redirectUrl = `https://${host}${request.url}`
+    return reply.status(301).redirect(redirectUrl)
+  }
 })
 
 // CORS configuration
