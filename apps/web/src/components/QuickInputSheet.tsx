@@ -32,6 +32,7 @@ import {
   formatarValor,
   formatarMesExibicao,
   agruparRecorrencias,
+  gerarListaMeses,
   type ParsedLancamento,
 } from '@/lib/parser'
 
@@ -46,8 +47,9 @@ interface LancamentoCardProps {
   isExpanded: boolean
   onToggleGroup: (key: string) => void
   onToggleTipo: (id: string) => void
-  onUpdateLancamento: (id: string, campo: 'valor' | 'nome', valor: string) => void
+  onUpdateLancamento: (id: string, campo: 'valor' | 'nome' | 'mes', valor: string) => void
   onRemoveLancamento: (id: string) => void
+  mesesDisponiveis: Array<{ value: string; label: string }>
 }
 
 // Componente do card de lançamento (memoizado para evitar re-renders)
@@ -59,6 +61,7 @@ const LancamentoCard = React.memo(function LancamentoCard({
   onToggleTipo,
   onUpdateLancamento,
   onRemoveLancamento,
+  mesesDisponiveis,
 }: LancamentoCardProps) {
   const isRecorrencia = items.length > 1
   const primeiro = items[0]
@@ -165,7 +168,7 @@ const LancamentoCard = React.memo(function LancamentoCard({
 
       {/* Linha de info secundária */}
       <div className="flex items-center gap-2 px-3 pb-3 -mt-1">
-        {/* Badge de meses ou mês único */}
+        {/* Badge de meses ou mês único (editável) */}
         {isRecorrencia ? (
           <button
             type="button"
@@ -183,9 +186,27 @@ const LancamentoCard = React.memo(function LancamentoCard({
             )}
           </button>
         ) : (
-          <span className="px-2 py-1 rounded-md bg-card/60 text-micro text-muted-foreground">
-            {formatarMesExibicao(primeiro.mes)}
-          </span>
+          <select
+            value={primeiro.mes}
+            onChange={(e) => {
+              items.forEach((item) =>
+                onUpdateLancamento(item.id, 'mes', e.target.value)
+              )
+            }}
+            className={cn(
+              'px-2 py-1 rounded-md bg-card/60 text-micro text-muted-foreground',
+              'border-none cursor-pointer hover:bg-card focus:outline-none focus:ring-2 focus:ring-rosa/20',
+              'appearance-none pr-6 bg-no-repeat bg-right',
+              '[background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236B7280%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E")]'
+            )}
+            title="Clique para alterar o mês"
+          >
+            {mesesDisponiveis.map((mes) => (
+              <option key={mes.value} value={mes.value}>
+                {formatarMesExibicao(mes.value)}
+              </option>
+            ))}
+          </select>
         )}
 
         {/* Dia previsto */}
@@ -225,9 +246,22 @@ const LancamentoCard = React.memo(function LancamentoCard({
                     key={item.id}
                     className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-card text-micro shadow-sm"
                   >
-                    <span className="text-foreground font-medium">
-                      {formatarMesExibicao(item.mes)}
-                    </span>
+                    <select
+                      value={item.mes}
+                      onChange={(e) => onUpdateLancamento(item.id, 'mes', e.target.value)}
+                      className={cn(
+                        'text-foreground font-medium bg-transparent border-none cursor-pointer',
+                        'focus:outline-none focus:ring-1 focus:ring-rosa/20 rounded',
+                        'appearance-none pr-4 bg-no-repeat bg-right',
+                        '[background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236B7280%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E")]'
+                      )}
+                    >
+                      {mesesDisponiveis.map((mes) => (
+                        <option key={mes.value} value={mes.value}>
+                          {formatarMesExibicao(mes.value)}
+                        </option>
+                      ))}
+                    </select>
                     <button
                       type="button"
                       onClick={() => onRemoveLancamento(item.id)}
@@ -484,10 +518,10 @@ export function QuickInputSheet({
   }, [texto, mesAtual, lancamentos.length])
 
   /**
-   * Atualiza campo de um lançamento incompleto
+   * Atualiza campo de um lançamento
    */
   const handleUpdateLancamento = useCallback(
-    (id: string, campo: 'valor' | 'nome', valor: string) => {
+    (id: string, campo: 'valor' | 'nome' | 'mes', valor: string) => {
       setLancamentos((prev) =>
         prev.map((l) => {
           if (l.id !== id) return l
@@ -496,6 +530,8 @@ export function QuickInputSheet({
           if (campo === 'valor') {
             const valorNumerico = parseFloat(valor.replace(/[^\d.,]/g, '').replace(',', '.'))
             updated.valor = isNaN(valorNumerico) ? null : valorNumerico
+          } else if (campo === 'mes') {
+            updated.mes = valor
           } else {
             updated.nome = valor
           }
@@ -601,6 +637,9 @@ export function QuickInputSheet({
 
   // Agrupa lançamentos para exibição (memoizado para evitar re-renders)
   const grupos = useMemo(() => agruparRecorrencias(lancamentos), [lancamentos])
+
+  // Lista de meses disponíveis para seleção (memoizado)
+  const mesesDisponiveis = useMemo(() => gerarListaMeses(), [])
 
   // Conta total de lançamentos
   const totalLancamentos = lancamentos.length
@@ -782,6 +821,7 @@ export function QuickInputSheet({
               onToggleTipo={handleToggleTipo}
               onUpdateLancamento={handleUpdateLancamento}
               onRemoveLancamento={handleRemoveLancamento}
+              mesesDisponiveis={mesesDisponiveis}
             />
           ))}
         </AnimatePresence>

@@ -32,6 +32,7 @@ export interface ParseResult {
   lancamentos: ParsedLancamento[]
   textoOriginal: string
   formatoDetectado: FormatoEntrada
+  mesExtraido?: string // Mês extraído do contexto global (ex: "tudo de janeiro")
   resumo: {
     total: number
     completos: number
@@ -510,6 +511,68 @@ function extrairMesRobusto(texto: string): ExtraidoMes | null {
     const regex = new RegExp(`\\b${nome}\\b`, 'gi')
     if (regex.test(textoLower)) {
       return { mes: formatarMes(num, anoAtual), match: nome }
+    }
+  }
+
+  return null
+}
+
+/**
+ * Extrai mês global do contexto (ex: "tudo de janeiro", "mês de fevereiro", "para março")
+ * Retorna o mês que deve ser aplicado a todos os lançamentos
+ */
+function extrairMesGlobal(texto: string): ExtraidoMes | null {
+  const anoAtual = getAnoAtual()
+  const mesAtualNum = new Date().getMonth() + 1
+
+  // Padrões que indicam mês global:
+  // "tudo de janeiro", "tudo pra janeiro", "tudo para janeiro"
+  // "mês de janeiro", "mês janeiro"
+  // "para janeiro", "pra janeiro", "de janeiro"
+  // "referente a janeiro", "ref janeiro"
+  const padroesMesGlobal = [
+    // "tudo de/para/pra NOME_MES [ANO]"
+    /\b(?:tudo|todos?)\s+(?:de|para|pra)\s+(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)(?:\s+(?:de\s+)?(\d{2,4}))?\b/gi,
+    // "mês de NOME_MES [ANO]" ou "mês NOME_MES"
+    /\b(?:mês|mes)\s+(?:de\s+)?(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)(?:\s+(?:de\s+)?(\d{2,4}))?\b/gi,
+    // "referente a NOME_MES [ANO]" ou "ref NOME_MES"
+    /\b(?:referente|ref\.?)\s+(?:a\s+)?(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)(?:\s+(?:de\s+)?(\d{2,4}))?\b/gi,
+    // "para NOME_MES [ANO]" ou "pra NOME_MES" (no início do texto)
+    /^(?:para|pra)\s+(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)(?:\s+(?:de\s+)?(\d{2,4}))?[:\s]/gi,
+    // "tudo de MM/YYYY" ou "mês MM/YYYY"
+    /\b(?:tudo|todos?|mês|mes)\s+(?:de\s+)?(\d{1,2})[\/\-](\d{2,4})\b/gi,
+  ]
+
+  for (const regex of padroesMesGlobal) {
+    regex.lastIndex = 0
+    const match = regex.exec(texto)
+    if (match) {
+      // Verifica se é formato numérico (MM/YYYY)
+      if (/^\d+$/.test(match[1])) {
+        const mesNum = parseInt(match[1])
+        let ano = parseInt(match[2])
+        if (ano < 100) ano += 2000
+        if (mesNum >= 1 && mesNum <= 12) {
+          return { mes: formatarMes(mesNum, ano), match: match[0] }
+        }
+      } else {
+        // É nome de mês
+        const mesNome = match[1].toLowerCase()
+        const mesNum = MESES_MAP[mesNome]
+        if (mesNum) {
+          let ano = anoAtual
+          if (match[2]) {
+            ano = parseInt(match[2])
+            if (ano < 100) ano += 2000
+          } else {
+            // Se mês já passou neste ano, assume próximo ano
+            if (mesNum < mesAtualNum) {
+              ano = anoAtual + 1
+            }
+          }
+          return { mes: formatarMes(mesNum, ano), match: match[0] }
+        }
+      }
     }
   }
 
@@ -1129,6 +1192,11 @@ export function parseInput(texto: string, mesDefault?: string): ParseResult {
     }
   }
 
+  // Primeiro, verifica se há um mês global especificado no texto
+  // Ex: "tudo de janeiro", "mês de fevereiro", etc
+  const mesGlobal = extrairMesGlobal(textoLimpo)
+  const mesParaUsar = mesGlobal?.mes || mesAtual
+
   // Detecta formato automaticamente
   const formato = detectarFormato(textoLimpo)
 
@@ -1136,16 +1204,29 @@ export function parseInput(texto: string, mesDefault?: string): ParseResult {
   let lancamentos: ParsedLancamento[]
   switch (formato) {
     case 'tsv':
-      lancamentos = parseTSV(textoLimpo, mesAtual)
+      lancamentos = parseTSV(textoLimpo, mesParaUsar)
       break
     case 'csv':
-      lancamentos = parseCSV(textoLimpo, mesAtual)
+      lancamentos = parseCSV(textoLimpo, mesParaUsar)
       break
     case 'extrato':
-      lancamentos = parseExtrato(textoLimpo, mesAtual)
+      lancamentos = parseExtrato(textoLimpo, mesParaUsar)
       break
     default:
-      lancamentos = parseTextoLivre(textoLimpo, mesAtual)
+      lancamentos = parseTextoLivre(textoLimpo, mesParaUsar)
+  }
+
+  // Se um mês global foi especificado, aplica a todos os lançamentos
+  // que não têm data específica extraída
+  if (mesGlobal) {
+    lancamentos = lancamentos.map(l => {
+      // Se o lançamento tem a mesma data que o default, atualiza para o mês global
+      // Isso permite que datas específicas extraídas de cada linha sejam mantidas
+      if (l.mes === mesAtual || l.mes === mesParaUsar) {
+        return { ...l, mes: mesGlobal.mes }
+      }
+      return l
+    })
   }
 
   // Calcula resumo
@@ -1165,6 +1246,7 @@ export function parseInput(texto: string, mesDefault?: string): ParseResult {
     lancamentos,
     textoOriginal: texto,
     formatoDetectado: formato,
+    mesExtraido: mesGlobal?.mes,
     resumo: {
       total: lancamentos.length,
       completos,
@@ -1218,4 +1300,40 @@ export function agruparRecorrencias(lancamentos: ParsedLancamento[]): Map<string
   }
 
   return grupos
+}
+
+/**
+ * Gera lista de meses para seleção
+ * Retorna os últimos 3 meses e os próximos 12
+ */
+export function gerarListaMeses(): Array<{ value: string; label: string }> {
+  const meses: Array<{ value: string; label: string }> = []
+  const now = new Date()
+  const currentMonth = now.getMonth()
+  const currentYear = now.getFullYear()
+
+  // 3 meses anteriores + mês atual + 12 próximos
+  for (let i = -3; i <= 12; i++) {
+    let month = currentMonth + i
+    let year = currentYear
+
+    while (month < 0) {
+      month += 12
+      year--
+    }
+    while (month > 11) {
+      month -= 12
+      year++
+    }
+
+    const value = `${year}-${String(month + 1).padStart(2, '0')}`
+    const label = new Date(year, month, 1).toLocaleDateString('pt-BR', {
+      month: 'long',
+      year: 'numeric'
+    })
+
+    meses.push({ value, label: label.charAt(0).toUpperCase() + label.slice(1) })
+  }
+
+  return meses
 }

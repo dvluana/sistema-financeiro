@@ -36,6 +36,13 @@ export interface Categoria {
   is_default: boolean
 }
 
+/**
+ * Verifica se uma categoria é padrão do sistema (não pode ser editada/excluída)
+ */
+export function isCategoriaPadrao(id: string): boolean {
+  return id.startsWith('default-')
+}
+
 export interface Lancamento {
   id: string
   tipo: 'entrada' | 'saida'
