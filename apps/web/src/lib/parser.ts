@@ -26,6 +26,11 @@ export interface ParsedLancamento {
   avisos?: string[]
   erros?: string[]
   textoOriginal?: string
+  // Recorrência (opcional)
+  recorrencia?: {
+    tipo: 'mensal' | 'parcelas'
+    quantidade: number // 12 para mensal, ou número de parcelas
+  }
 }
 
 export interface ParseResult {

@@ -23,7 +23,7 @@ import {
   Mic,
   MicOff,
   Trash2,
-  Calendar,
+  Repeat,
 } from 'lucide-react'
 import { Drawer as DrawerPrimitive } from 'vaul'
 import { cn } from '@/lib/utils'
@@ -50,11 +50,12 @@ interface LancamentoCardProps {
   onToggleGroup: (key: string) => void
   onToggleTipo: (id: string) => void
   onUpdateLancamento: (id: string, campo: 'valor' | 'nome' | 'mes', valor: string) => void
+  onUpdateRecorrencia: (id: string, recorrencia: ParsedLancamento['recorrencia']) => void
   onRemoveLancamento: (id: string) => void
   mesesDisponiveis: Array<{ value: string; label: string }>
 }
 
-// Componente do card de lançamento - design moderno e minimalista
+// Componente do card de lançamento - ultra minimalista com edição inline
 const LancamentoCard = React.memo(function LancamentoCard({
   items,
   groupKey,
@@ -62,6 +63,7 @@ const LancamentoCard = React.memo(function LancamentoCard({
   onToggleGroup,
   onToggleTipo,
   onUpdateLancamento,
+  onUpdateRecorrencia,
   onRemoveLancamento,
   mesesDisponiveis,
 }: LancamentoCardProps) {
@@ -69,115 +71,296 @@ const LancamentoCard = React.memo(function LancamentoCard({
   const primeiro = items[0]
   const isEntrada = primeiro.tipo === 'entrada'
   const temErro = primeiro.status === 'incompleto'
+  const temRecorrencia = !!primeiro.recorrencia
+
+  // Estado local para edição de parcelas
+  const [showRecorrenciaOptions, setShowRecorrenciaOptions] = useState(false)
+  const [parcelasInput, setParcelasInput] = useState(
+    primeiro.recorrencia?.tipo === 'parcelas' ? String(primeiro.recorrencia.quantidade) : '12'
+  )
+
+  // Formata valor para exibição no input
+  const valorFormatado = primeiro.valor !== null
+    ? primeiro.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+    : ''
+
+  // Função para alternar recorrência
+  const handleToggleRecorrencia = () => {
+    if (temRecorrencia) {
+      // Remove recorrência
+      items.forEach((item) => onUpdateRecorrencia(item.id, undefined))
+      setShowRecorrenciaOptions(false)
+    } else {
+      // Ativa recorrência mensal por padrão
+      items.forEach((item) => onUpdateRecorrencia(item.id, { tipo: 'mensal', quantidade: 12 }))
+      setShowRecorrenciaOptions(true)
+    }
+  }
+
+  // Função para mudar tipo de recorrência
+  const handleTipoRecorrencia = (tipo: 'mensal' | 'parcelas') => {
+    const quantidade = tipo === 'mensal' ? 12 : parseInt(parcelasInput) || 12
+    items.forEach((item) => onUpdateRecorrencia(item.id, { tipo, quantidade }))
+  }
+
+  // Função para atualizar quantidade de parcelas
+  const handleParcelasChange = (value: string) => {
+    setParcelasInput(value)
+    const num = parseInt(value)
+    if (num >= 2 && num <= 60) {
+      items.forEach((item) => onUpdateRecorrencia(item.id, { tipo: 'parcelas', quantidade: num }))
+    }
+  }
 
   return (
     <motion.div
       layout="position"
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95, height: 0, marginBottom: 0 }}
-      transition={{ duration: 0.15, ease: 'easeOut' }}
-      className={cn(
-        'group relative bg-card rounded-2xl mb-2 overflow-hidden',
-        'border transition-all duration-200',
-        temErro
-          ? 'border-vermelho/40 shadow-sm shadow-vermelho/10'
-          : 'border-border hover:border-muted-foreground/30 hover:shadow-sm'
-      )}
+      initial={{ opacity: 0, x: -8 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 8, height: 0 }}
+      transition={{ duration: 0.15 }}
+      className="group mb-1.5"
     >
-      {/* Indicador lateral de tipo */}
-      <div
-        className={cn(
-          'absolute left-0 top-0 bottom-0 w-1 transition-colors',
-          isEntrada ? 'bg-verde' : 'bg-vermelho'
-        )}
-      />
+      <div className={cn(
+        'flex items-center gap-2 py-2 px-2 rounded-xl transition-colors',
+        'hover:bg-secondary/50',
+        temErro && 'bg-vermelho/5'
+      )}>
+        {/* Toggle tipo - pill minimalista */}
+        <button
+          type="button"
+          onClick={() => items.forEach((item) => onToggleTipo(item.id))}
+          className={cn(
+            'shrink-0 w-6 h-6 rounded-full flex items-center justify-center',
+            'transition-all hover:scale-110 active:scale-95',
+            isEntrada
+              ? 'bg-verde/15 text-verde'
+              : 'bg-vermelho/15 text-vermelho'
+          )}
+          title={isEntrada ? 'Entrada - clique para mudar' : 'Saída - clique para mudar'}
+        >
+          {isEntrada ? (
+            <TrendingUp className="w-3.5 h-3.5" />
+          ) : (
+            <TrendingDown className="w-3.5 h-3.5" />
+          )}
+        </button>
 
-      {/* Conteúdo principal */}
-      <div className="pl-4 pr-3 py-3">
-        {/* Linha principal: Nome + Valor */}
-        <div className="flex items-start gap-3">
-          {/* Botão de tipo - minimalista */}
+        {/* Nome - sempre editável */}
+        <input
+          type="text"
+          value={primeiro.nome}
+          onChange={(e) =>
+            items.forEach((item) =>
+              onUpdateLancamento(item.id, 'nome', e.target.value)
+            )
+          }
+          placeholder="Descrição"
+          className={cn(
+            'flex-1 min-w-0 bg-transparent text-corpo text-foreground',
+            'focus:outline-none placeholder:text-muted-foreground/40',
+            'border-b border-transparent focus:border-muted-foreground/30',
+            'transition-colors py-0.5',
+            temErro && !primeiro.nome && 'border-vermelho/30 placeholder:text-vermelho/50'
+          )}
+        />
+
+        {/* Toggle recorrência - discreto */}
+        <button
+          type="button"
+          onClick={handleToggleRecorrencia}
+          className={cn(
+            'shrink-0 p-1.5 rounded-md transition-all',
+            temRecorrencia
+              ? 'bg-rosa/15 text-rosa'
+              : 'text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent'
+          )}
+          title={temRecorrencia ? 'Remover recorrência' : 'Tornar recorrente'}
+        >
+          <Repeat className="w-3.5 h-3.5" />
+        </button>
+
+        {/* Mês - select discreto */}
+        {isRecorrencia ? (
           <button
             type="button"
-            onClick={() => items.forEach((item) => onToggleTipo(item.id))}
+            onClick={() => onToggleGroup(groupKey)}
             className={cn(
-              'shrink-0 mt-0.5 p-1.5 rounded-lg transition-all',
-              'hover:scale-110 active:scale-95',
-              isEntrada
-                ? 'text-verde hover:bg-verde/10'
-                : 'text-vermelho hover:bg-vermelho/10'
+              'shrink-0 text-micro text-muted-foreground px-2 py-1 rounded-md',
+              'hover:bg-accent transition-colors inline-flex items-center gap-1'
             )}
-            title={`Clique para mudar para ${isEntrada ? 'saída' : 'entrada'}`}
           >
-            {isEntrada ? (
-              <TrendingUp className="w-4 h-4" />
-            ) : (
-              <TrendingDown className="w-4 h-4" />
-            )}
+            <span>{items.length}x</span>
+            {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </button>
-
-          {/* Nome e metadados */}
-          <div className="flex-1 min-w-0 space-y-1">
-            {primeiro.camposFaltantes.includes('nome') ? (
-              <input
-                type="text"
-                value={primeiro.nome}
-                onChange={(e) =>
-                  items.forEach((item) =>
-                    onUpdateLancamento(item.id, 'nome', e.target.value)
-                  )
-                }
-                placeholder="Nome do lançamento"
-                className={cn(
-                  'w-full text-corpo font-medium text-foreground bg-transparent',
-                  'border-b-2 border-vermelho/50 focus:border-rosa',
-                  'focus:outline-none py-0.5 placeholder:text-muted-foreground/50'
-                )}
-                autoFocus
-              />
-            ) : (
-              <p className="text-corpo font-medium text-foreground truncate leading-tight">
-                {primeiro.nome}
-              </p>
+        ) : (
+          <select
+            value={primeiro.mes}
+            onChange={(e) =>
+              items.forEach((item) =>
+                onUpdateLancamento(item.id, 'mes', e.target.value)
+              )
+            }
+            className={cn(
+              'shrink-0 bg-transparent text-micro text-muted-foreground',
+              'border-none cursor-pointer focus:outline-none',
+              'hover:text-foreground transition-colors',
+              'appearance-none text-center w-16'
             )}
+          >
+            {mesesDisponiveis.map((mes) => (
+              <option key={mes.value} value={mes.value}>
+                {formatarMesExibicao(mes.value)}
+              </option>
+            ))}
+          </select>
+        )}
 
-            {/* Metadados: mês e dia */}
-            <div className="flex items-center gap-2 text-micro text-muted-foreground">
-              {isRecorrencia ? (
-                <button
-                  type="button"
-                  onClick={() => onToggleGroup(groupKey)}
-                  className={cn(
-                    'inline-flex items-center gap-1 px-1.5 py-0.5 -ml-1.5 rounded-md',
-                    'hover:bg-accent transition-colors'
-                  )}
-                >
-                  <Calendar className="w-3 h-3" />
-                  <span>{items.length}x</span>
-                  {isExpanded ? (
-                    <ChevronUp className="w-3 h-3" />
-                  ) : (
-                    <ChevronDown className="w-3 h-3" />
-                  )}
-                </button>
-              ) : (
-                <div className="inline-flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  <select
-                    value={primeiro.mes}
-                    onChange={(e) =>
-                      items.forEach((item) =>
-                        onUpdateLancamento(item.id, 'mes', e.target.value)
-                      )
-                    }
+        {/* Valor - sempre editável, com prefixo +/- */}
+        <div className={cn(
+          'shrink-0 flex items-center gap-0.5',
+          isEntrada ? 'text-verde' : 'text-vermelho'
+        )}>
+          <span className="text-corpo font-medium opacity-60">
+            {isEntrada ? '+' : '-'}
+          </span>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={valorFormatado}
+            onChange={(e) => {
+              // Remove tudo exceto números e vírgula/ponto
+              const raw = e.target.value.replace(/[^\d.,]/g, '')
+              items.forEach((item) =>
+                onUpdateLancamento(item.id, 'valor', raw)
+              )
+            }}
+            placeholder="0,00"
+            className={cn(
+              'w-20 text-right bg-transparent text-corpo font-semibold tabular-nums',
+              'focus:outline-none placeholder:text-current placeholder:opacity-30',
+              'border-b border-transparent focus:border-current/30',
+              'transition-colors py-0.5',
+              isEntrada ? 'text-verde' : 'text-vermelho',
+              temErro && !primeiro.valor && 'border-current/30'
+            )}
+          />
+        </div>
+
+        {/* Remover - sempre visível mas discreto */}
+        <button
+          type="button"
+          onClick={() => items.forEach((item) => onRemoveLancamento(item.id))}
+          className={cn(
+            'shrink-0 p-1 rounded-md transition-all',
+            'text-muted-foreground/30 hover:text-vermelho hover:bg-vermelho/10',
+            'group-hover:text-muted-foreground/50'
+          )}
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Opções de recorrência */}
+      <AnimatePresence>
+        {temRecorrencia && showRecorrenciaOptions && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.12 }}
+            className="overflow-hidden"
+          >
+            <div className="flex items-center gap-2 pl-10 pr-2 pb-2 pt-1">
+              <button
+                type="button"
+                onClick={() => handleTipoRecorrencia('mensal')}
+                className={cn(
+                  'px-2.5 py-1 rounded-md text-micro transition-colors',
+                  primeiro.recorrencia?.tipo === 'mensal'
+                    ? 'bg-rosa/15 text-rosa font-medium'
+                    : 'text-muted-foreground hover:bg-accent'
+                )}
+              >
+                Mensal (12x)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTipoRecorrencia('parcelas')}
+                className={cn(
+                  'px-2.5 py-1 rounded-md text-micro transition-colors',
+                  primeiro.recorrencia?.tipo === 'parcelas'
+                    ? 'bg-rosa/15 text-rosa font-medium'
+                    : 'text-muted-foreground hover:bg-accent'
+                )}
+              >
+                Parcelas
+              </button>
+              {primeiro.recorrencia?.tipo === 'parcelas' && (
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min={2}
+                    max={60}
+                    value={parcelasInput}
+                    onChange={(e) => handleParcelasChange(e.target.value)}
                     className={cn(
-                      'bg-transparent border-none cursor-pointer text-micro',
-                      'focus:outline-none hover:text-foreground transition-colors',
-                      'appearance-none pr-3',
-                      '[background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%228%22%20height%3D%228%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%239CA3AF%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E")]',
-                      'bg-no-repeat bg-right'
+                      'w-12 text-center bg-secondary rounded-md py-1 text-micro',
+                      'border-none focus:outline-none focus:ring-1 focus:ring-rosa'
                     )}
+                  />
+                  <span className="text-micro text-muted-foreground">x</span>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowRecorrenciaOptions(false)}
+                className="ml-auto text-muted-foreground/50 hover:text-muted-foreground"
+              >
+                <ChevronUp className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Indicador de recorrência quando colapsado */}
+      {temRecorrencia && !showRecorrenciaOptions && (
+        <button
+          type="button"
+          onClick={() => setShowRecorrenciaOptions(true)}
+          className="flex items-center gap-1 pl-10 pr-2 pb-1 text-micro text-rosa/70 hover:text-rosa transition-colors"
+        >
+          <Repeat className="w-3 h-3" />
+          <span>
+            {primeiro.recorrencia?.tipo === 'mensal'
+              ? '12x mensal'
+              : `${primeiro.recorrencia?.quantidade}x parcelas`
+            }
+          </span>
+        </button>
+      )}
+
+      {/* Meses expandidos */}
+      <AnimatePresence>
+        {isRecorrencia && isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.12 }}
+            className="overflow-hidden"
+          >
+            <div className="flex flex-wrap gap-1 pl-10 pr-2 pb-2">
+              {items.map((item) => (
+                <div
+                  key={item.id}
+                  className="group/item inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-secondary/70 text-micro"
+                >
+                  <select
+                    value={item.mes}
+                    onChange={(e) => onUpdateLancamento(item.id, 'mes', e.target.value)}
+                    className="bg-transparent border-none text-foreground text-micro cursor-pointer focus:outline-none"
                   >
                     {mesesDisponiveis.map((mes) => (
                       <option key={mes.value} value={mes.value}>
@@ -185,115 +368,15 @@ const LancamentoCard = React.memo(function LancamentoCard({
                       </option>
                     ))}
                   </select>
-                </div>
-              )}
-              {primeiro.diaPrevisto && (
-                <>
-                  <span className="text-muted-foreground/40">·</span>
-                  <span>dia {primeiro.diaPrevisto}</span>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Valor */}
-          <div className="shrink-0 text-right">
-            {primeiro.camposFaltantes.includes('valor') ? (
-              <input
-                type="text"
-                inputMode="decimal"
-                value={primeiro.valor !== null ? String(primeiro.valor) : ''}
-                onChange={(e) =>
-                  items.forEach((item) =>
-                    onUpdateLancamento(item.id, 'valor', e.target.value)
-                  )
-                }
-                placeholder="0,00"
-                className={cn(
-                  'w-24 text-right text-corpo font-semibold bg-transparent',
-                  'border-b-2 border-vermelho/50 focus:border-rosa',
-                  'focus:outline-none py-0.5 placeholder:text-muted-foreground/50',
-                  isEntrada ? 'text-verde' : 'text-vermelho'
-                )}
-              />
-            ) : (
-              <p className={cn(
-                'text-corpo font-semibold tabular-nums',
-                isEntrada ? 'text-verde' : 'text-vermelho'
-              )}>
-                {isEntrada ? '+' : '-'}{formatarValor(primeiro.valor).replace('R$', '').trim()}
-              </p>
-            )}
-          </div>
-
-          {/* Botão remover - aparece no hover */}
-          <button
-            type="button"
-            onClick={() => items.forEach((item) => onRemoveLancamento(item.id))}
-            className={cn(
-              'shrink-0 p-1.5 rounded-lg transition-all',
-              'text-muted-foreground/50 hover:text-vermelho hover:bg-vermelho/10',
-              'opacity-0 group-hover:opacity-100 focus:opacity-100'
-            )}
-            title="Remover"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Meses expandidos - para recorrências */}
-      <AnimatePresence>
-        {isRecorrencia && isExpanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="overflow-hidden"
-          >
-            <div className="px-4 pb-3 pt-1 border-t border-border/50">
-              <div className="flex flex-wrap gap-1.5">
-                {items.map((item) => (
-                  <div
-                    key={item.id}
-                    className={cn(
-                      'inline-flex items-center gap-1 px-2 py-1 rounded-lg',
-                      'bg-secondary text-micro text-muted-foreground',
-                      'hover:bg-accent transition-colors group/item'
-                    )}
+                  <button
+                    type="button"
+                    onClick={() => onRemoveLancamento(item.id)}
+                    className="text-muted-foreground/40 hover:text-vermelho transition-colors"
                   >
-                    <select
-                      value={item.mes}
-                      onChange={(e) => onUpdateLancamento(item.id, 'mes', e.target.value)}
-                      className={cn(
-                        'bg-transparent border-none cursor-pointer text-micro font-medium',
-                        'focus:outline-none text-foreground',
-                        'appearance-none pr-3',
-                        '[background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%228%22%20height%3D%228%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%239CA3AF%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E")]',
-                        'bg-no-repeat bg-right'
-                      )}
-                    >
-                      {mesesDisponiveis.map((mes) => (
-                        <option key={mes.value} value={mes.value}>
-                          {formatarMesExibicao(mes.value)}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => onRemoveLancamento(item.id)}
-                      className={cn(
-                        'p-0.5 rounded transition-colors',
-                        'text-muted-foreground/50 hover:text-vermelho',
-                        'opacity-0 group-hover/item:opacity-100'
-                      )}
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
             </div>
           </motion.div>
         )}
@@ -590,6 +673,21 @@ export function QuickInputSheet({
   const handleRemoveLancamento = useCallback((id: string) => {
     setLancamentos((prev) => prev.filter((l) => l.id !== id))
   }, [])
+
+  /**
+   * Atualiza recorrência de um lançamento
+   */
+  const handleUpdateRecorrencia = useCallback(
+    (id: string, recorrencia: ParsedLancamento['recorrencia']) => {
+      setLancamentos((prev) =>
+        prev.map((l) => {
+          if (l.id !== id) return l
+          return { ...l, recorrencia }
+        })
+      )
+    },
+    []
+  )
 
   /**
    * Expande/colapsa grupo de recorrência
@@ -898,6 +996,7 @@ export function QuickInputSheet({
               onToggleGroup={toggleGroup}
               onToggleTipo={handleToggleTipo}
               onUpdateLancamento={handleUpdateLancamento}
+              onUpdateRecorrencia={handleUpdateRecorrencia}
               onRemoveLancamento={handleRemoveLancamento}
               mesesDisponiveis={mesesDisponiveis}
             />
