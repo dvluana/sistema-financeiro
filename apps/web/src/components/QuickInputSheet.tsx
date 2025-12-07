@@ -26,9 +26,7 @@ import { Drawer as DrawerPrimitive } from 'vaul'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui'
 import { useIsDesktop } from '@/hooks/useMediaQuery'
-import { aiApi, getCategoriaPadraoById, getCategoriasPadraoByTipo } from '@/lib/api'
-import * as LucideIcons from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { aiApi, getCategoriasPadraoByTipo } from '@/lib/api'
 import {
   formatarValor,
   formatarMesExibicao,
@@ -36,21 +34,6 @@ import {
   extrairMesGlobal,
   type ParsedLancamento,
 } from '@/lib/parser'
-
-// Type-safe icon lookup with proper typing
-type LucideIconModule = typeof LucideIcons
-type IconName = keyof LucideIconModule
-
-function getIconComponent(iconName: string | null): LucideIcon | null {
-  if (!iconName) return null
-  if (iconName in LucideIcons) {
-    const icon = LucideIcons[iconName as IconName]
-    if (typeof icon === 'function' || (typeof icon === 'object' && icon !== null)) {
-      return icon as LucideIcon
-    }
-  }
-  return null
-}
 
 // Props do card de lançamento compacto
 interface LancamentoItemProps {
