@@ -1,11 +1,8 @@
 /**
  * QuickInputSheet Component
  *
- * Drawer/Bottomsheet responsivo para lançamento rápido por texto.
- * - Desktop/tablets grandes: Drawer lateral direito
- * - Mobile/tablets pequenos: Bottomsheet
- *
- * Permite ao usuário digitar lançamentos de forma natural e confirmar antes de salvar.
+ * Input moderno para lançamento rápido com IA.
+ * Design clean e minimalista com UX clara que é powered by AI.
  */
 
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
@@ -13,17 +10,17 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   TrendingUp,
   TrendingDown,
-  ChevronDown,
-  ChevronUp,
   X,
-  Send,
   Loader2,
-  AlertCircle,
   Sparkles,
   Mic,
   MicOff,
-  Trash2,
+  Check,
+  ChevronDown,
+  ChevronUp,
   Repeat,
+  Trash2,
+  Wand2,
 } from 'lucide-react'
 import { Drawer as DrawerPrimitive } from 'vaul'
 import { cn } from '@/lib/utils'
@@ -35,21 +32,15 @@ import type { LucideIcon } from 'lucide-react'
 import {
   formatarValor,
   formatarMesExibicao,
-  agruparRecorrencias,
   gerarListaMeses,
   extrairMesGlobal,
   type ParsedLancamento,
 } from '@/lib/parser'
 
-// Chave do localStorage para histórico
-const HISTORICO_KEY = 'quick-input-historico'
-const MAX_HISTORICO = 5
-
 // Type-safe icon lookup with proper typing
 type LucideIconModule = typeof LucideIcons
 type IconName = keyof LucideIconModule
 
-// Função para obter o componente de ícone do Lucide dinamicamente
 function getIconComponent(iconName: string | null): LucideIcon | null {
   if (!iconName) return null
   if (iconName in LucideIcons) {
@@ -61,12 +52,9 @@ function getIconComponent(iconName: string | null): LucideIcon | null {
   return null
 }
 
-// Props do card de lançamento
-interface LancamentoCardProps {
-  items: ParsedLancamento[]
-  groupKey: string
-  isExpanded: boolean
-  onToggleGroup: (key: string) => void
+// Props do card de lançamento compacto
+interface LancamentoItemProps {
+  item: ParsedLancamento
   onToggleTipo: (id: string) => void
   onUpdateLancamento: (id: string, campo: 'valor' | 'nome' | 'mes', valor: string) => void
   onUpdateRecorrencia: (id: string, recorrencia: ParsedLancamento['recorrencia']) => void
@@ -75,245 +63,127 @@ interface LancamentoCardProps {
   mesesDisponiveis: Array<{ value: string; label: string }>
 }
 
-// Componente do card de lançamento - ultra minimalista com edição inline
-const LancamentoCard = React.memo(function LancamentoCard({
-  items,
-  groupKey,
-  isExpanded,
-  onToggleGroup,
+// Componente de item individual - ultra compacto
+const LancamentoItem = React.memo(function LancamentoItem({
+  item,
   onToggleTipo,
   onUpdateLancamento,
   onUpdateRecorrencia,
   onUpdateCategoria,
   onRemoveLancamento,
   mesesDisponiveis,
-}: LancamentoCardProps) {
-  const isRecorrencia = items.length > 1
-  const primeiro = items[0]
-  const isEntrada = primeiro.tipo === 'entrada'
-  const temErro = primeiro.status === 'incompleto'
-  const temRecorrencia = !!primeiro.recorrencia
-
-  // Estado local para edição de parcelas
-  const [showRecorrenciaOptions, setShowRecorrenciaOptions] = useState(false)
-  const [parcelasInput, setParcelasInput] = useState(
-    primeiro.recorrencia?.tipo === 'parcelas' ? String(primeiro.recorrencia.quantidade) : '12'
-  )
-
-  // Estado para mostrar/ocultar seletor de categoria
-  const [showCategoriaSelect, setShowCategoriaSelect] = useState(false)
+}: LancamentoItemProps) {
+  const isEntrada = item.tipo === 'entrada'
+  const temRecorrencia = !!item.recorrencia
+  const [showOptions, setShowOptions] = useState(false)
 
   // Obtém categoria atual
-  const categoriaPadrao = primeiro.categoriaId ? getCategoriaPadraoById(primeiro.categoriaId) : null
-  const categoriasDoTipo = getCategoriasPadraoByTipo(primeiro.tipo)
+  const categoriasDoTipo = getCategoriasPadraoByTipo(item.tipo)
 
-  // Formata valor para exibição no input
-  const valorFormatado = primeiro.valor !== null
-    ? primeiro.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+  // Formata valor para exibição
+  const valorFormatado = item.valor !== null
+    ? item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
     : ''
-
-  // Função para alternar recorrência
-  const handleToggleRecorrencia = () => {
-    if (temRecorrencia) {
-      // Remove recorrência
-      items.forEach((item) => onUpdateRecorrencia(item.id, undefined))
-      setShowRecorrenciaOptions(false)
-    } else {
-      // Ativa recorrência mensal por padrão
-      items.forEach((item) => onUpdateRecorrencia(item.id, { tipo: 'mensal', quantidade: 12 }))
-      setShowRecorrenciaOptions(true)
-    }
-  }
-
-  // Função para mudar tipo de recorrência
-  const handleTipoRecorrencia = (tipo: 'mensal' | 'parcelas') => {
-    const quantidade = tipo === 'mensal' ? 12 : parseInt(parcelasInput) || 12
-    items.forEach((item) => onUpdateRecorrencia(item.id, { tipo, quantidade }))
-  }
-
-  // Função para atualizar quantidade de parcelas
-  const handleParcelasChange = (value: string) => {
-    setParcelasInput(value)
-    const num = parseInt(value)
-    if (num >= 2 && num <= 60) {
-      items.forEach((item) => onUpdateRecorrencia(item.id, { tipo: 'parcelas', quantidade: num }))
-    }
-  }
 
   return (
     <motion.div
       layout="position"
-      initial={{ opacity: 0, x: -8 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 8, height: 0 }}
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, x: -20, height: 0 }}
       transition={{ duration: 0.15 }}
-      className="group mb-1.5"
+      className="group"
     >
       <div className={cn(
-        'flex items-center gap-2 py-2 px-2 rounded-xl transition-colors',
-        'hover:bg-secondary/50',
-        temErro && 'bg-vermelho/5'
+        'flex items-center gap-2 py-2.5 px-3 rounded-xl',
+        'bg-secondary/50 border border-transparent',
+        'hover:border-border/50 transition-all',
       )}>
-        {/* Toggle tipo - pill minimalista */}
+        {/* Indicador de tipo - clicável */}
         <button
           type="button"
-          onClick={() => items.forEach((item) => onToggleTipo(item.id))}
+          onClick={() => onToggleTipo(item.id)}
           className={cn(
-            'shrink-0 w-6 h-6 rounded-full flex items-center justify-center',
-            'transition-all hover:scale-110 active:scale-95',
+            'shrink-0 w-7 h-7 rounded-lg flex items-center justify-center',
+            'transition-all hover:scale-105 active:scale-95',
             isEntrada
               ? 'bg-verde/15 text-verde'
               : 'bg-vermelho/15 text-vermelho'
           )}
-          title={isEntrada ? 'Entrada - clique para mudar' : 'Saída - clique para mudar'}
+          title={isEntrada ? 'Entrada' : 'Saída'}
         >
           {isEntrada ? (
-            <TrendingUp className="w-3.5 h-3.5" />
+            <TrendingUp className="w-4 h-4" />
           ) : (
-            <TrendingDown className="w-3.5 h-3.5" />
+            <TrendingDown className="w-4 h-4" />
           )}
         </button>
 
-        {/* Indicador de categoria - compacto */}
-        <button
-          type="button"
-          onClick={() => setShowCategoriaSelect(!showCategoriaSelect)}
-          className={cn(
-            'shrink-0 w-5 h-5 rounded flex items-center justify-center',
-            'transition-all hover:scale-110 active:scale-95',
-            !categoriaPadrao && 'bg-muted text-muted-foreground'
-          )}
-          style={categoriaPadrao ? { backgroundColor: categoriaPadrao.cor || '#6B7280' } : undefined}
-          title={categoriaPadrao ? `Categoria: ${categoriaPadrao.nome} - clique para mudar` : 'Sem categoria - clique para adicionar'}
-        >
-          {categoriaPadrao && categoriaPadrao.icone ? (
-            (() => {
-              const Icon = getIconComponent(categoriaPadrao.icone)
-              return Icon ? <Icon className="w-3 h-3 text-white" /> : null
-            })()
-          ) : (
-            <LucideIcons.Tag className="w-3 h-3" />
-          )}
-        </button>
-
-        {/* Nome - sempre editável */}
+        {/* Nome */}
         <input
           type="text"
-          value={primeiro.nome}
-          onChange={(e) =>
-            items.forEach((item) =>
-              onUpdateLancamento(item.id, 'nome', e.target.value)
-            )
-          }
+          value={item.nome}
+          onChange={(e) => onUpdateLancamento(item.id, 'nome', e.target.value)}
           placeholder="Descrição"
           className={cn(
-            'flex-1 min-w-0 bg-transparent text-corpo text-foreground',
+            'flex-1 min-w-0 bg-transparent text-corpo',
             'focus:outline-none placeholder:text-muted-foreground/40',
-            'border-b border-transparent focus:border-muted-foreground/30',
-            'transition-colors py-0.5',
-            temErro && !primeiro.nome && 'border-vermelho/30 placeholder:text-vermelho/50'
           )}
         />
 
-        {/* Toggle recorrência - discreto */}
-        <button
-          type="button"
-          onClick={handleToggleRecorrencia}
-          className={cn(
-            'shrink-0 p-1.5 rounded-md transition-all',
-            temRecorrencia
-              ? 'bg-rosa/15 text-rosa'
-              : 'text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent'
-          )}
-          title={temRecorrencia ? 'Lançamento único' : 'Repetir nos próximos meses'}
-        >
-          <Repeat className="w-3.5 h-3.5" />
-        </button>
-
-        {/* Mês - select discreto */}
-        {isRecorrencia ? (
-          <button
-            type="button"
-            onClick={() => onToggleGroup(groupKey)}
-            className={cn(
-              'shrink-0 text-micro text-muted-foreground px-2 py-1 rounded-md',
-              'hover:bg-accent transition-colors inline-flex items-center gap-1'
-            )}
-          >
-            <span>{items.length}x</span>
-            {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-          </button>
-        ) : (
-          <select
-            value={primeiro.mes}
-            onChange={(e) =>
-              items.forEach((item) =>
-                onUpdateLancamento(item.id, 'mes', e.target.value)
-              )
-            }
-            className={cn(
-              'shrink-0 bg-transparent text-micro text-muted-foreground',
-              'border-none cursor-pointer focus:outline-none',
-              'hover:text-foreground transition-colors',
-              'appearance-none text-center w-16'
-            )}
-          >
-            {mesesDisponiveis.map((mes) => (
-              <option key={mes.value} value={mes.value}>
-                {formatarMesExibicao(mes.value)}
-              </option>
-            ))}
-          </select>
-        )}
-
-        {/* Valor - sempre editável, com prefixo +/- */}
+        {/* Valor */}
         <div className={cn(
-          'shrink-0 flex items-center gap-0.5',
+          'shrink-0 flex items-center',
           isEntrada ? 'text-verde' : 'text-vermelho'
         )}>
-          <span className="text-corpo font-medium opacity-60">
-            {isEntrada ? '+' : '-'}
-          </span>
+          <span className="text-micro opacity-50 mr-0.5">R$</span>
           <input
             type="text"
             inputMode="decimal"
             value={valorFormatado}
             onChange={(e) => {
-              // Remove tudo exceto números e vírgula/ponto
               const raw = e.target.value.replace(/[^\d.,]/g, '')
-              items.forEach((item) =>
-                onUpdateLancamento(item.id, 'valor', raw)
-              )
+              onUpdateLancamento(item.id, 'valor', raw)
             }}
             placeholder="0,00"
             className={cn(
-              'w-20 text-right bg-transparent text-corpo font-semibold tabular-nums',
+              'w-20 text-right bg-transparent text-corpo font-medium tabular-nums',
               'focus:outline-none placeholder:text-current placeholder:opacity-30',
-              'border-b border-transparent focus:border-current/30',
-              'transition-colors py-0.5',
               isEntrada ? 'text-verde' : 'text-vermelho',
-              temErro && !primeiro.valor && 'border-current/30'
             )}
           />
         </div>
 
-        {/* Remover - sempre visível mas discreto */}
+        {/* Mais opções */}
         <button
           type="button"
-          onClick={() => items.forEach((item) => onRemoveLancamento(item.id))}
+          onClick={() => setShowOptions(!showOptions)}
           className={cn(
-            'shrink-0 p-1 rounded-md transition-all',
-            'text-muted-foreground/30 hover:text-vermelho hover:bg-vermelho/10',
-            'group-hover:text-muted-foreground/50'
+            'shrink-0 p-1.5 rounded-lg transition-colors',
+            showOptions
+              ? 'bg-accent text-foreground'
+              : 'text-muted-foreground/40 hover:text-muted-foreground'
           )}
         >
-          <X className="w-3.5 h-3.5" />
+          {showOptions ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+
+        {/* Remover */}
+        <button
+          type="button"
+          onClick={() => onRemoveLancamento(item.id)}
+          className={cn(
+            'shrink-0 p-1.5 rounded-lg transition-colors',
+            'text-muted-foreground/30 hover:text-vermelho hover:bg-vermelho/10'
+          )}
+        >
+          <X className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Opções de recorrência */}
+      {/* Opções expandidas */}
       <AnimatePresence>
-        {temRecorrencia && showRecorrenciaOptions && (
+        {showOptions && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
@@ -321,183 +191,61 @@ const LancamentoCard = React.memo(function LancamentoCard({
             transition={{ duration: 0.12 }}
             className="overflow-hidden"
           >
-            <div className="flex flex-col gap-2 pl-10 pr-2 pb-2 pt-1">
-              <p className="text-micro text-muted-foreground">
-                Repetir este lançamento:
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleTipoRecorrencia('mensal')}
-                  className={cn(
-                    'px-2.5 py-1 rounded-md text-micro transition-colors',
-                    primeiro.recorrencia?.tipo === 'mensal'
-                      ? 'bg-rosa/15 text-rosa font-medium'
-                      : 'text-muted-foreground hover:bg-accent'
-                  )}
-                >
-                  Todo mês
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleTipoRecorrencia('parcelas')}
-                  className={cn(
-                    'px-2.5 py-1 rounded-md text-micro transition-colors',
-                    primeiro.recorrencia?.tipo === 'parcelas'
-                      ? 'bg-rosa/15 text-rosa font-medium'
-                      : 'text-muted-foreground hover:bg-accent'
-                  )}
-                >
-                  Por tempo limitado
-                </button>
-                {primeiro.recorrencia?.tipo === 'parcelas' && (
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="number"
-                      min={2}
-                      max={60}
-                      value={parcelasInput}
-                      onChange={(e) => handleParcelasChange(e.target.value)}
-                      className={cn(
-                        'w-12 text-center bg-secondary rounded-md py-1 text-micro',
-                        'border-none focus:outline-none focus:ring-1 focus:ring-rosa'
-                      )}
-                    />
-                    <span className="text-micro text-muted-foreground">meses</span>
-                  </div>
+            <div className="flex flex-wrap items-center gap-2 px-3 py-2 mt-1 rounded-xl bg-accent/30">
+              {/* Mês */}
+              <select
+                value={item.mes}
+                onChange={(e) => onUpdateLancamento(item.id, 'mes', e.target.value)}
+                className={cn(
+                  'bg-card border border-border rounded-lg px-2 py-1',
+                  'text-micro text-foreground cursor-pointer focus:outline-none',
                 )}
-                <button
-                  type="button"
-                  onClick={() => setShowRecorrenciaOptions(false)}
-                  className="ml-auto text-muted-foreground/50 hover:text-muted-foreground"
-                >
-                  <ChevronUp className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              >
+                {mesesDisponiveis.map((mes) => (
+                  <option key={mes.value} value={mes.value}>
+                    {formatarMesExibicao(mes.value)}
+                  </option>
+                ))}
+              </select>
 
-      {/* Indicador de recorrência quando colapsado */}
-      {temRecorrencia && !showRecorrenciaOptions && (
-        <button
-          type="button"
-          onClick={() => setShowRecorrenciaOptions(true)}
-          className="flex items-center gap-1 pl-10 pr-2 pb-1 text-micro text-rosa/70 hover:text-rosa transition-colors"
-        >
-          <Repeat className="w-3 h-3" />
-          <span>
-            {primeiro.recorrencia?.tipo === 'mensal'
-              ? 'Repete todo mês'
-              : `Repete por ${primeiro.recorrencia?.quantidade} meses`
-            }
-          </span>
-        </button>
-      )}
+              {/* Categoria */}
+              <select
+                value={item.categoriaId || ''}
+                onChange={(e) => onUpdateCategoria(item.id, e.target.value || null)}
+                className={cn(
+                  'bg-card border border-border rounded-lg px-2 py-1',
+                  'text-micro text-foreground cursor-pointer focus:outline-none',
+                )}
+              >
+                <option value="">Sem categoria</option>
+                {categoriasDoTipo.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.nome}
+                  </option>
+                ))}
+              </select>
 
-      {/* Seletor de categoria */}
-      <AnimatePresence>
-        {showCategoriaSelect && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.12 }}
-            className="overflow-hidden"
-          >
-            <div className="flex flex-wrap gap-1.5 pl-10 pr-2 pb-2 pt-1">
-              {/* Opção sem categoria */}
+              {/* Recorrência */}
               <button
                 type="button"
                 onClick={() => {
-                  items.forEach((item) => onUpdateCategoria(item.id, null))
-                  setShowCategoriaSelect(false)
+                  if (temRecorrencia) {
+                    onUpdateRecorrencia(item.id, undefined)
+                  } else {
+                    onUpdateRecorrencia(item.id, { tipo: 'mensal', quantidade: 12 })
+                  }
                 }}
                 className={cn(
-                  'inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-micro transition-all',
-                  !primeiro.categoriaId
-                    ? 'bg-muted ring-1 ring-foreground/20 font-medium'
-                    : 'bg-secondary/70 hover:bg-secondary'
+                  'inline-flex items-center gap-1 px-2 py-1 rounded-lg text-micro',
+                  'transition-colors',
+                  temRecorrencia
+                    ? 'bg-rosa/15 text-rosa'
+                    : 'bg-card border border-border text-muted-foreground hover:text-foreground'
                 )}
               >
-                <span className="w-4 h-4 rounded flex items-center justify-center bg-muted-foreground/20">
-                  <X className="w-2.5 h-2.5 text-muted-foreground" />
-                </span>
-                <span className="text-muted-foreground">Nenhuma</span>
+                <Repeat className="w-3 h-3" />
+                {temRecorrencia ? 'Mensal' : 'Repetir'}
               </button>
-
-              {/* Categorias do tipo */}
-              {categoriasDoTipo.map((cat) => {
-                const Icon = getIconComponent(cat.icone)
-                const isSelected = primeiro.categoriaId === cat.id
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => {
-                      items.forEach((item) => onUpdateCategoria(item.id, cat.id))
-                      setShowCategoriaSelect(false)
-                    }}
-                    className={cn(
-                      'inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-micro transition-all',
-                      isSelected
-                        ? 'ring-1 ring-foreground/20 font-medium'
-                        : 'bg-secondary/70 hover:bg-secondary'
-                    )}
-                    style={isSelected ? { backgroundColor: `${cat.cor}20` } : undefined}
-                  >
-                    <span
-                      className="w-4 h-4 rounded flex items-center justify-center"
-                      style={{ backgroundColor: cat.cor || '#6B7280' }}
-                    >
-                      {Icon && <Icon className="w-2.5 h-2.5 text-white" />}
-                    </span>
-                    <span>{cat.nome}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Meses expandidos */}
-      <AnimatePresence>
-        {isRecorrencia && isExpanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.12 }}
-            className="overflow-hidden"
-          >
-            <div className="flex flex-wrap gap-1 pl-10 pr-2 pb-2">
-              {items.map((item) => (
-                <div
-                  key={item.id}
-                  className="group/item inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-secondary/70 text-micro"
-                >
-                  <select
-                    value={item.mes}
-                    onChange={(e) => onUpdateLancamento(item.id, 'mes', e.target.value)}
-                    className="bg-transparent border-none text-foreground text-micro cursor-pointer focus:outline-none"
-                  >
-                    {mesesDisponiveis.map((mes) => (
-                      <option key={mes.value} value={mes.value}>
-                        {formatarMesExibicao(mes.value)}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => onRemoveLancamento(item.id)}
-                    className="text-muted-foreground/40 hover:text-vermelho transition-colors"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
             </div>
           </motion.div>
         )}
@@ -533,37 +281,19 @@ export function QuickInputSheet({
   const [speechSupported, setSpeechSupported] = useState(false)
   const recognitionRef = useRef<SpeechRecognition | null>(null)
 
-  // Histórico de inputs
-  const [historico, setHistorico] = useState<string[]>([])
+  // Ref para o input
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  // Grupos expandidos (para recorrências)
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
-
-  // Ref para o textarea
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-
-  // Verifica se o navegador suporta Speech Recognition
+  // Verifica suporte a Speech Recognition
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     setSpeechSupported(!!SpeechRecognition)
   }, [])
 
-  // Carrega histórico do localStorage
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(HISTORICO_KEY)
-      if (saved) {
-        setHistorico(JSON.parse(saved))
-      }
-    } catch {
-      // Ignora erros de parse
-    }
-  }, [])
-
   // Foca no input quando abre
   useEffect(() => {
-    if (open && textareaRef.current) {
-      setTimeout(() => textareaRef.current?.focus(), 100)
+    if (open && inputRef.current) {
+      setTimeout(() => inputRef.current?.focus(), 100)
     }
   }, [open])
 
@@ -572,9 +302,7 @@ export function QuickInputSheet({
     if (!open) {
       setTexto('')
       setLancamentos([])
-      setExpandedGroups(new Set())
       setErro(null)
-      // Para o reconhecimento de voz se estiver ativo
       if (recognitionRef.current) {
         recognitionRef.current.stop()
         setIsListening(false)
@@ -583,22 +311,20 @@ export function QuickInputSheet({
   }, [open])
 
   /**
-   * Inicia/para o reconhecimento de voz
+   * Inicia/para reconhecimento de voz
    */
   const toggleVoiceRecognition = useCallback(() => {
     if (!speechSupported) {
-      setErro('Seu navegador não suporta reconhecimento de voz. Use Chrome ou Edge.')
+      setErro('Navegador não suporta reconhecimento de voz')
       return
     }
 
     if (isListening) {
-      // Para o reconhecimento
       recognitionRef.current?.stop()
       setIsListening(false)
       return
     }
 
-    // Inicia o reconhecimento
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     const recognition = new SpeechRecognition()
 
@@ -613,90 +339,46 @@ export function QuickInputSheet({
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       let finalTranscript = ''
-      let interimTranscript = ''
-
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript
         if (event.results[i].isFinal) {
           finalTranscript += transcript
-        } else {
-          interimTranscript += transcript
         }
       }
-
-      // Adiciona o texto reconhecido ao campo
       if (finalTranscript) {
-        setTexto(prev => {
-          const newText = prev ? `${prev} ${finalTranscript}` : finalTranscript
-          return newText.trim()
-        })
+        setTexto(prev => prev ? `${prev} ${finalTranscript}` : finalTranscript)
       }
     }
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       setIsListening(false)
-
-      switch (event.error) {
-        case 'not-allowed':
-          setErro('Permissão de microfone negada. Habilite nas configurações do navegador.')
-          break
-        case 'no-speech':
-          // Silencioso - apenas para quando não detecta fala
-          break
-        case 'audio-capture':
-          setErro('Nenhum microfone encontrado. Verifique se o microfone está conectado.')
-          break
-        case 'network':
-          setErro('Erro de conexão com o serviço de voz. Verifique sua internet e tente novamente.')
-          break
-        case 'aborted':
-          // Usuário cancelou - não mostra erro
-          break
-        case 'service-not-allowed':
-          setErro('Serviço de reconhecimento não disponível. Tente usar Chrome ou Edge.')
-          break
-        default:
-          setErro(`Erro no reconhecimento de voz: ${event.error}. Tente novamente.`)
+      if (event.error !== 'no-speech' && event.error !== 'aborted') {
+        setErro('Erro no microfone. Tente novamente.')
       }
     }
 
-    recognition.onend = () => {
-      setIsListening(false)
-    }
+    recognition.onend = () => setIsListening(false)
 
     recognitionRef.current = recognition
-
     try {
       recognition.start()
-    } catch (error) {
+    } catch {
       setIsListening(false)
-      setErro('Não foi possível iniciar o reconhecimento de voz. Verifique as permissões do navegador.')
     }
   }, [speechSupported, isListening])
 
-  // Limite máximo de lançamentos na lista
-  const MAX_LANCAMENTOS = 50
-
   /**
-   * Processa o texto digitado usando IA
+   * Processa texto com IA
    */
-  const handleSubmitTexto = useCallback(async () => {
+  const handleProcess = useCallback(async () => {
     if (!texto.trim()) return
-
-    // Verifica se já atingiu o limite
-    if (lancamentos.length >= MAX_LANCAMENTOS) {
-      setErro(`Limite de ${MAX_LANCAMENTOS} lançamentos atingido. Confirme os atuais primeiro.`)
-      return
-    }
 
     setIsParsing(true)
     setErro(null)
 
     try {
-      // Extrai mês global do texto (ex: "julho 2025", "tudo de janeiro")
       const mesGlobal = extrairMesGlobal(texto)
       const mesParaUsar = mesGlobal?.mes || mesAtual
-
       const result = await aiApi.parseLancamentos(texto, mesParaUsar)
 
       if (result.erro) {
@@ -705,75 +387,48 @@ export function QuickInputSheet({
       }
 
       if (result.lancamentos.length === 0) {
-        setErro('Não consegui identificar lançamentos no texto. Tente ser mais específico.')
+        setErro('Não consegui entender. Tente algo como: "Netflix 55,90" ou "salário 5000"')
         return
       }
 
-      // Calcula quantos lançamentos ainda cabem
-      const espacoDisponivel = MAX_LANCAMENTOS - lancamentos.length
-      const lancamentosParaAdicionar = result.lancamentos.slice(0, espacoDisponivel)
-
-      if (result.lancamentos.length > espacoDisponivel) {
-        setErro(`Apenas ${espacoDisponivel} dos ${result.lancamentos.length} lançamentos foram adicionados (limite: ${MAX_LANCAMENTOS})`)
-      }
-
-      // Converte resposta da IA para formato ParsedLancamento
       const timestamp = Date.now()
-      const novosLancamentos: ParsedLancamento[] = lancamentosParaAdicionar.map((l, index) => {
-        const id = `ia-${timestamp}-${index}`
+      const novos: ParsedLancamento[] = result.lancamentos.map((l, i) => ({
+        id: `ia-${timestamp}-${i}`,
+        tipo: l.tipo,
+        nome: l.nome,
+        valor: l.valor,
+        mes: mesParaUsar,
+        diaPrevisto: l.diaPrevisto,
+        categoriaId: l.categoriaId,
+        status: 'completo' as const,
+        camposFaltantes: [],
+        groupId: `ia-${timestamp}-${i}`,
+      }))
 
-        return {
-          id,
-          tipo: l.tipo,
-          nome: l.nome,
-          valor: l.valor,
-          mes: mesParaUsar, // Usa o mês extraído do texto ou o mês atual
-          diaPrevisto: l.diaPrevisto,
-          categoriaId: l.categoriaId, // Categoria identificada pela IA
-          status: 'completo' as const,
-          camposFaltantes: [],
-          groupId: id,
-        }
-      })
-
-      // ADICIONA aos existentes ao invés de substituir
-      setLancamentos(prev => [...prev, ...novosLancamentos])
-
-      // Limpa o texto após adicionar com sucesso
+      setLancamentos(prev => [...prev, ...novos])
       setTexto('')
     } catch {
-      setErro('Erro ao processar com IA. Tente novamente.')
+      setErro('Erro ao processar. Tente novamente.')
     } finally {
       setIsParsing(false)
     }
-  }, [texto, mesAtual, lancamentos.length])
+  }, [texto, mesAtual])
 
-  /**
-   * Atualiza campo de um lançamento
-   */
+  // Handlers para atualizar lançamentos
   const handleUpdateLancamento = useCallback(
     (id: string, campo: 'valor' | 'nome' | 'mes', valor: string) => {
-      setLancamentos((prev) =>
-        prev.map((l) => {
+      setLancamentos(prev =>
+        prev.map(l => {
           if (l.id !== id) return l
-
           const updated = { ...l }
           if (campo === 'valor') {
-            const valorNumerico = parseFloat(valor.replace(/[^\d.,]/g, '').replace(',', '.'))
-            updated.valor = isNaN(valorNumerico) ? null : valorNumerico
+            const num = parseFloat(valor.replace(/[^\d.,]/g, '').replace(',', '.'))
+            updated.valor = isNaN(num) ? null : num
           } else if (campo === 'mes') {
             updated.mes = valor
           } else {
             updated.nome = valor
           }
-
-          // Recalcula status
-          const camposFaltantes: ('valor' | 'nome')[] = []
-          if (updated.valor === null) camposFaltantes.push('valor')
-          if (!updated.nome) camposFaltantes.push('nome')
-          updated.camposFaltantes = camposFaltantes
-          updated.status = camposFaltantes.length > 0 ? 'incompleto' : 'completo'
-
           return updated
         })
       )
@@ -781,96 +436,44 @@ export function QuickInputSheet({
     []
   )
 
-  /**
-   * Alterna tipo do lançamento
-   */
   const handleToggleTipo = useCallback((id: string) => {
-    setLancamentos((prev) =>
-      prev.map((l) => {
-        if (l.id !== id) return l
-        return { ...l, tipo: l.tipo === 'entrada' ? 'saida' : 'entrada' }
-      })
+    setLancamentos(prev =>
+      prev.map(l => l.id === id ? { ...l, tipo: l.tipo === 'entrada' ? 'saida' : 'entrada' } : l)
     )
   }, [])
 
-  /**
-   * Remove lançamento da lista
-   */
-  const handleRemoveLancamento = useCallback((id: string) => {
-    setLancamentos((prev) => prev.filter((l) => l.id !== id))
+  const handleRemove = useCallback((id: string) => {
+    setLancamentos(prev => prev.filter(l => l.id !== id))
   }, [])
 
-  /**
-   * Atualiza recorrência de um lançamento
-   */
   const handleUpdateRecorrencia = useCallback(
     (id: string, recorrencia: ParsedLancamento['recorrencia']) => {
-      setLancamentos((prev) =>
-        prev.map((l) => {
-          if (l.id !== id) return l
-          return { ...l, recorrencia }
-        })
-      )
+      setLancamentos(prev => prev.map(l => l.id === id ? { ...l, recorrencia } : l))
     },
     []
   )
 
-  /**
-   * Atualiza categoria de um lançamento
-   */
   const handleUpdateCategoria = useCallback(
     (id: string, categoriaId: string | null) => {
-      setLancamentos((prev) =>
-        prev.map((l) => {
-          if (l.id !== id) return l
-          return { ...l, categoriaId }
-        })
-      )
+      setLancamentos(prev => prev.map(l => l.id === id ? { ...l, categoriaId } : l))
     },
     []
   )
 
-  /**
-   * Expande/colapsa grupo de recorrência
-   */
-  const toggleGroup = useCallback((key: string) => {
-    setExpandedGroups((prev) => {
-      const next = new Set(prev)
-      if (next.has(key)) {
-        next.delete(key)
-      } else {
-        next.add(key)
-      }
-      return next
-    })
+  const handleClearAll = useCallback(() => {
+    setLancamentos([])
+    setErro(null)
   }, [])
 
   /**
-   * Salva no histórico
-   */
-  const salvarHistorico = useCallback((input: string) => {
-    setHistorico((prev) => {
-      // Remove duplicatas e adiciona no início
-      const filtered = prev.filter((h) => h !== input)
-      const next = [input, ...filtered].slice(0, MAX_HISTORICO)
-      localStorage.setItem(HISTORICO_KEY, JSON.stringify(next))
-      return next
-    })
-  }, [])
-
-  /**
-   * Confirma e cria os lançamentos
+   * Confirma lançamentos
    */
   const handleConfirm = async () => {
-    // Verifica se todos estão completos
-    const incompletos = lancamentos.filter((l) => l.status === 'incompleto')
-    if (incompletos.length > 0) {
-      setErro('Preencha todos os campos obrigatórios')
-      return
-    }
+    if (lancamentos.length === 0) return
 
-    if (lancamentos.length === 0) {
-      setErro('Nenhum lançamento para criar')
+    const incompletos = lancamentos.filter(l => !l.nome || !l.valor)
+    if (incompletos.length > 0) {
+      setErro('Preencha nome e valor de todos os itens')
       return
     }
 
@@ -879,293 +482,216 @@ export function QuickInputSheet({
 
     try {
       await onConfirm(lancamentos)
-      salvarHistorico(texto)
       onOpenChange(false)
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao criar lançamentos')
+      setErro(e instanceof Error ? e.message : 'Erro ao salvar')
     } finally {
       setIsLoading(false)
     }
   }
 
-  /**
-   * Usa sugestão do histórico
-   */
-  const handleUseSugestao = useCallback((sugestao: string) => {
-    setTexto(sugestao)
-    textareaRef.current?.focus()
-  }, [])
-
-  /**
-   * Limpa todos os lançamentos
-   */
-  const handleClearAll = useCallback(() => {
-    setLancamentos([])
-    setExpandedGroups(new Set())
-    setErro(null)
-  }, [])
-
-  // Agrupa lançamentos para exibição (memoizado para evitar re-renders)
-  const grupos = useMemo(() => agruparRecorrencias(lancamentos), [lancamentos])
-
-  // Lista de meses disponíveis para seleção (memoizado)
+  // Lista de meses disponíveis
   const mesesDisponiveis = useMemo(() => gerarListaMeses(), [])
 
-  // Conta total de lançamentos
-  const totalLancamentos = lancamentos.length
-
-  // Calcula totais de entradas e saídas
+  // Totais
   const totais = useMemo(() => {
-    const entradas = lancamentos
-      .filter(l => l.tipo === 'entrada' && l.valor)
-      .reduce((sum, l) => sum + (l.valor || 0), 0)
-    const saidas = lancamentos
-      .filter(l => l.tipo === 'saida' && l.valor)
-      .reduce((sum, l) => sum + (l.valor || 0), 0)
-    return { entradas, saidas, saldo: entradas - saidas }
+    const entradas = lancamentos.filter(l => l.tipo === 'entrada' && l.valor).reduce((s, l) => s + (l.valor || 0), 0)
+    const saidas = lancamentos.filter(l => l.tipo === 'saida' && l.valor).reduce((s, l) => s + (l.valor || 0), 0)
+    return { entradas, saidas }
   }, [lancamentos])
 
-  // Verifica se pode confirmar
-  const temIncompletos = lancamentos.some((l) => l.status === 'incompleto')
-  const podeConfirmar = lancamentos.length > 0 && !temIncompletos && !isLoading
+  const podeConfirmar = lancamentos.length > 0 && !isLoading
 
-  // Conteúdo compartilhado entre drawer e bottomsheet
-  const sharedContent = (
-    <div className={cn(
-      'flex flex-col h-full',
-      isDesktop ? 'p-6' : 'p-4'
-    )}>
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className={cn(
-          'flex items-center justify-center w-10 h-10 rounded-xl',
-          'bg-gradient-to-br from-rosa to-rosa/80 text-white shadow-sm'
-        )}>
-          <Sparkles className="w-5 h-5" />
-        </div>
-        <div className="flex-1">
-          <DrawerPrimitive.Title className="text-titulo-card text-foreground">
-            Lançamento Rápido
-          </DrawerPrimitive.Title>
-          <p className="text-micro text-muted-foreground">
-            Digite de forma natural, ex: "salário 5000 dia 5"
-          </p>
+  // Conteúdo do drawer
+  const content = (
+    <div className={cn('flex flex-col h-full', isDesktop ? 'p-6' : 'p-4')}>
+      {/* Header minimalista */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rosa via-rosa to-vermelho/80 flex items-center justify-center shadow-lg shadow-rosa/20">
+            <Wand2 className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <DrawerPrimitive.Title className="text-titulo-card text-foreground font-medium">
+              Lançamento Inteligente
+            </DrawerPrimitive.Title>
+            <p className="text-micro text-muted-foreground flex items-center gap-1">
+              <Sparkles className="w-3 h-3" />
+              Escreva naturalmente, a IA entende
+            </p>
+          </div>
         </div>
         <DrawerPrimitive.Close className="p-2 -mr-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
           <X className="w-5 h-5" />
         </DrawerPrimitive.Close>
       </div>
 
-      {/* Campo de Input */}
+      {/* Input principal - clean e moderno */}
       <div className="relative mb-4">
-        <textarea
-          ref={textareaRef}
-          value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              handleSubmitTexto()
-            }
-          }}
-          placeholder={isListening ? 'Ouvindo... fale agora' : 'Ex: Salário 5000 dia 5\nLuz 150, água 80\nNetflix 55.90'}
-          className={cn(
-            'w-full resize-none rounded-xl border-2 bg-secondary p-4 pr-28',
-            'text-corpo text-foreground placeholder:text-muted-foreground',
-            'focus:outline-none focus:ring-2 focus:ring-rosa/20 focus:border-rosa focus:bg-card',
-            'transition-all',
-            isDesktop ? 'min-h-[100px]' : 'min-h-[80px]',
-            'max-h-[160px]',
-            isListening ? 'border-rosa bg-rosa/5' : 'border-border'
-          )}
-          rows={3}
-        />
-
-        {/* Botões de ação */}
-        <div className="absolute right-3 bottom-3 flex items-center gap-2">
-          {/* Botão de microfone */}
-          {speechSupported && (
-            <button
-              type="button"
-              onClick={toggleVoiceRecognition}
-              disabled={isParsing}
-              className={cn(
-                'p-2.5 rounded-xl transition-all',
-                isListening
-                  ? 'bg-rosa text-white animate-pulse shadow-sm'
-                  : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'
-              )}
-              title={isListening ? 'Parar de ouvir' : 'Falar'}
-            >
-              {isListening ? (
-                <MicOff className="w-5 h-5" />
-              ) : (
-                <Mic className="w-5 h-5" />
-              )}
-            </button>
-          )}
-
-          {/* Botão de enviar */}
-          <button
-            type="button"
-            onClick={handleSubmitTexto}
-            disabled={!texto.trim() || isParsing}
+        <div className={cn(
+          'flex items-center gap-3 rounded-2xl border-2 bg-card p-4',
+          'transition-all duration-200',
+          isListening
+            ? 'border-rosa bg-rosa/5 shadow-lg shadow-rosa/10'
+            : isParsing
+              ? 'border-rosa/50'
+              : 'border-border focus-within:border-rosa focus-within:shadow-lg focus-within:shadow-rosa/10'
+        )}>
+          {/* Input */}
+          <input
+            ref={inputRef}
+            type="text"
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                handleProcess()
+              }
+            }}
+            placeholder={isListening ? 'Ouvindo...' : 'Netflix 55,90, salário 5000...'}
+            disabled={isParsing}
             className={cn(
-              'p-2.5 rounded-xl transition-all',
-              texto.trim() && !isParsing
-                ? 'bg-rosa text-white hover:bg-rosa/90 shadow-sm hover:shadow active:scale-95'
-                : 'bg-muted text-muted-foreground cursor-not-allowed'
+              'flex-1 bg-transparent text-corpo text-foreground',
+              'placeholder:text-muted-foreground/50',
+              'focus:outline-none',
             )}
-            title="Processar com IA"
-          >
-            {isParsing ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <Send className="w-5 h-5" />
-            )}
-          </button>
-        </div>
-      </div>
+          />
 
-      {/* Sugestões do histórico */}
-      {historico.length > 0 && lancamentos.length === 0 && !texto && (
-        <div className="mb-4">
-          <p className="text-micro text-muted-foreground mb-2">Recentes:</p>
-          <div className="flex flex-wrap gap-2">
-            {historico.map((h, i) => (
+          {/* Botões de ação */}
+          <div className="flex items-center gap-2">
+            {/* Microfone */}
+            {speechSupported && (
               <button
-                key={i}
                 type="button"
-                onClick={() => handleUseSugestao(h)}
+                onClick={toggleVoiceRecognition}
+                disabled={isParsing}
                 className={cn(
-                  'px-3 py-1.5 rounded-lg text-micro font-medium',
-                  'bg-secondary text-muted-foreground hover:bg-accent',
-                  'truncate max-w-[200px] transition-colors'
+                  'p-2.5 rounded-xl transition-all',
+                  isListening
+                    ? 'bg-rosa text-white animate-pulse'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-accent'
                 )}
               >
-                {h.split('\n')[0]}
-                {h.includes('\n') && '...'}
+                {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
               </button>
-            ))}
-          </div>
-        </div>
-      )}
+            )}
 
-      {/* Dica de IA */}
-      {lancamentos.length === 0 && !texto && !isParsing && (
-        <div className="mb-4 p-3 rounded-xl bg-secondary border border-border">
-          <div className="flex items-center gap-2 mb-2">
-            <Sparkles className="w-4 h-4 text-rosa" />
-            <p className="text-micro text-muted-foreground">Powered by AI - escreva naturalmente</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-verde/10 text-verde text-micro">
-              <TrendingUp className="w-3 h-3" />
-              salário, freelance, venda...
-            </span>
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-vermelho/10 text-vermelho text-micro">
-              <TrendingDown className="w-3 h-3" />
-              conta, parcela, aluguel...
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Loading da IA */}
-      {isParsing && (
-        <div className="mb-4 p-4 rounded-xl bg-rosa/5 border border-rosa/20">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Sparkles className="w-5 h-5 text-rosa animate-pulse" />
-            </div>
-            <div>
-              <p className="text-corpo font-medium text-foreground">Processando com IA...</p>
-              <p className="text-micro text-muted-foreground">Identificando lançamentos</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Lista de lançamentos */}
-      <div className={cn(
-        'flex-1 overflow-y-auto -mx-4 px-4',
-        isDesktop && '-mx-6 px-6'
-      )}>
-        {/* Header da lista com ações rápidas */}
-        {lancamentos.length > 0 && (
-          <div className="flex items-center justify-between mb-3 pb-2 border-b border-border">
-            {/* Resumo compacto */}
-            <div className="flex items-center gap-3 text-micro">
-              <span className="text-muted-foreground">{totalLancamentos} {totalLancamentos === 1 ? 'item' : 'itens'}</span>
-              {totais.entradas > 0 && (
-                <span className="text-verde font-medium">
-                  +{formatarValor(totais.entradas)}
-                </span>
-              )}
-              {totais.saidas > 0 && (
-                <span className="text-vermelho font-medium">
-                  -{formatarValor(totais.saidas)}
-                </span>
-              )}
-            </div>
-
-            {/* Ações rápidas */}
+            {/* Processar */}
             <button
               type="button"
-              onClick={handleClearAll}
+              onClick={handleProcess}
+              disabled={!texto.trim() || isParsing}
               className={cn(
-                'inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-micro',
-                'text-muted-foreground hover:text-vermelho hover:bg-vermelho/10',
-                'transition-colors'
+                'p-2.5 rounded-xl transition-all',
+                texto.trim() && !isParsing
+                  ? 'bg-rosa text-white hover:bg-rosa/90 shadow-md shadow-rosa/20 active:scale-95'
+                  : 'bg-muted text-muted-foreground cursor-not-allowed'
               )}
-              title="Limpar todos"
             >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Limpar</span>
+              {isParsing ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Sparkles className="w-5 h-5" />
+              )}
             </button>
           </div>
-        )}
+        </div>
 
-        {/* Cards dos lançamentos */}
-        <AnimatePresence mode="sync">
-          {Array.from(grupos.entries()).map(([key, items]) => (
-            <LancamentoCard
-              key={key}
-              items={items}
-              groupKey={key}
-              isExpanded={expandedGroups.has(key)}
-              onToggleGroup={toggleGroup}
-              onToggleTipo={handleToggleTipo}
-              onUpdateLancamento={handleUpdateLancamento}
-              onUpdateRecorrencia={handleUpdateRecorrencia}
-              onUpdateCategoria={handleUpdateCategoria}
-              onRemoveLancamento={handleRemoveLancamento}
-              mesesDisponiveis={mesesDisponiveis}
-            />
-          ))}
-        </AnimatePresence>
-
-        {/* Mensagem de erro */}
-        {erro && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={cn(
-              'flex items-center gap-2 p-3 rounded-xl mb-3',
-              'bg-vermelho/5 border border-vermelho/20 text-vermelho text-micro'
-            )}
-          >
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{erro}</span>
-          </motion.div>
+        {/* Hint de IA */}
+        {lancamentos.length === 0 && !texto && !isParsing && (
+          <p className="text-micro text-muted-foreground/60 mt-2 px-1">
+            Dica: você pode escrever vários de uma vez separados por vírgula
+          </p>
         )}
       </div>
 
-      {/* Botões de ação */}
-      <div className={cn(
-        'flex gap-3 pt-4 mt-auto border-t border-border',
-        !isDesktop && 'pb-safe'
-      )}>
+      {/* Estado de processamento */}
+      <AnimatePresence>
+        {isParsing && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-4"
+          >
+            <div className="flex items-center gap-3 p-4 rounded-xl bg-rosa/5 border border-rosa/20">
+              <div className="relative">
+                <Sparkles className="w-5 h-5 text-rosa animate-pulse" />
+              </div>
+              <div>
+                <p className="text-corpo font-medium text-foreground">Analisando...</p>
+                <p className="text-micro text-muted-foreground">A IA está identificando seus lançamentos</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Erro */}
+      <AnimatePresence>
+        {erro && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="mb-4 p-3 rounded-xl bg-vermelho/10 border border-vermelho/20 text-vermelho text-micro"
+          >
+            {erro}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Lista de lançamentos */}
+      <div className={cn('flex-1 overflow-y-auto -mx-4 px-4', isDesktop && '-mx-6 px-6')}>
+        {lancamentos.length > 0 && (
+          <>
+            {/* Header da lista */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3 text-micro">
+                <span className="text-muted-foreground font-medium">
+                  {lancamentos.length} {lancamentos.length === 1 ? 'item' : 'itens'}
+                </span>
+                {totais.entradas > 0 && (
+                  <span className="text-verde">+{formatarValor(totais.entradas)}</span>
+                )}
+                {totais.saidas > 0 && (
+                  <span className="text-vermelho">-{formatarValor(totais.saidas)}</span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={handleClearAll}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-micro text-muted-foreground hover:text-vermelho hover:bg-vermelho/10 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Limpar
+              </button>
+            </div>
+
+            {/* Cards */}
+            <div className="space-y-2">
+              <AnimatePresence mode="sync">
+                {lancamentos.map((item) => (
+                  <LancamentoItem
+                    key={item.id}
+                    item={item}
+                    onToggleTipo={handleToggleTipo}
+                    onUpdateLancamento={handleUpdateLancamento}
+                    onUpdateRecorrencia={handleUpdateRecorrencia}
+                    onUpdateCategoria={handleUpdateCategoria}
+                    onRemoveLancamento={handleRemove}
+                    mesesDisponiveis={mesesDisponiveis}
+                  />
+                ))}
+              </AnimatePresence>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Footer com ações */}
+      <div className={cn('flex gap-3 pt-4 mt-auto border-t border-border', !isDesktop && 'pb-safe')}>
         <Button
           variant="secondary"
           className="flex-1"
@@ -1186,7 +712,10 @@ export function QuickInputSheet({
               Salvando...
             </>
           ) : (
-            `Lançar ${totalLancamentos} ${totalLancamentos === 1 ? 'item' : 'itens'}`
+            <>
+              <Check className="w-4 h-4 mr-2" />
+              Confirmar
+            </>
           )}
         </Button>
       </div>
@@ -1206,19 +735,15 @@ export function QuickInputSheet({
           className={cn(
             'fixed z-50 flex flex-col bg-card',
             isDesktop
-              ? // Drawer lateral (desktop/tablets grandes)
-                'inset-y-0 right-0 h-full w-full max-w-lg border-l border-border rounded-l-2xl shadow-xl'
-              : // Bottomsheet (mobile/tablets pequenos)
-                'inset-x-0 bottom-0 rounded-t-2xl border-t border-border shadow-xl'
+              ? 'inset-y-0 right-0 h-full w-full max-w-md border-l border-border rounded-l-2xl shadow-xl'
+              : 'inset-x-0 bottom-0 rounded-t-2xl border-t border-border shadow-xl'
           )}
-          style={!isDesktop ? { maxHeight: '90vh' } : undefined}
+          style={!isDesktop ? { maxHeight: '85vh' } : undefined}
         >
-          {/* Handle de arraste apenas no mobile */}
           {!isDesktop && (
             <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-muted" />
           )}
-
-          {sharedContent}
+          {content}
         </DrawerPrimitive.Content>
       </DrawerPrimitive.Portal>
     </DrawerPrimitive.Root>

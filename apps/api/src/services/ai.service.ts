@@ -241,6 +241,11 @@ Extrair lançamentos financeiros do texto do usuário, identificando:
 - Extraia O QUE é, não a ação: "gastei 50 em pizza" → nome: "Pizza"
 - Primeira letra maiúscula
 
+## IGNORAR (NÃO são lançamentos)
+- Linhas que são apenas indicadores de mês/período: "tudo de julho", "julho de 2025", "mês de janeiro", "referente a março"
+- Linhas que são apenas cabeçalhos: "Cartões", "Despesas fixas", "Entradas"
+- Linhas vazias ou só com espaços
+
 ## EXEMPLOS
 
 - "salário 5000" → tipo: "entrada", categoriaId: "default-salario", nome: "Salário"
@@ -342,6 +347,44 @@ export class AIService {
     })
 
     return result
+  }
+
+  /**
+   * Verifica se o texto é um indicador de mês/período e NÃO um lançamento
+   * Ex: "tudo de julho", "julho de 2025", "referente a março"
+   */
+  private isIndicadorMes(nome: string): boolean {
+    const meses = 'janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez'
+
+    // Padrões que indicam que é um indicador de mês, não um lançamento
+    const padroes = [
+      // "tudo de julho", "tudo de março 2025"
+      new RegExp(`^tudo\\s+de\\s+(${meses})`, 'i'),
+      // "julho de 2025", "março 2025"
+      new RegExp(`^(${meses})\\s+(de\\s+)?\\d{2,4}$`, 'i'),
+      // apenas o nome do mês
+      new RegExp(`^(${meses})$`, 'i'),
+      // "referente a julho", "ref março"
+      new RegExp(`^(?:referente|ref\\.?)\\s+(?:a\\s+)?(${meses})`, 'i'),
+      // "mês de julho", "mês: julho"
+      new RegExp(`^m[êe]s\\s*[:de]+\\s*(${meses})`, 'i'),
+      // "para julho", "pra março"
+      new RegExp(`^(?:para|pra)\\s+(${meses})`, 'i'),
+      // Cabeçalhos comuns
+      /^cart[õo]es$/i,
+      /^despesas?\s*(fixas?)?$/i,
+      /^entradas?$/i,
+      /^sa[íi]das?$/i,
+      /^receitas?$/i,
+    ]
+
+    for (const padrao of padroes) {
+      if (padrao.test(nome)) {
+        return true
+      }
+    }
+
+    return false
   }
 
   /**
@@ -490,6 +533,12 @@ export class AIService {
           let nome = String(l.nome).trim()
           if (nome.length > 50) {
             nome = nome.substring(0, 50)
+          }
+
+          // Filtra indicadores de mês/período que não são lançamentos
+          const nomeL = nome.toLowerCase()
+          if (this.isIndicadorMes(nomeL)) {
+            continue
           }
 
           // Corrige o nome se a IA retornou apenas o verbo
