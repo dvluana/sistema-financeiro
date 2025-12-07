@@ -22,6 +22,8 @@ import {
   Sparkles,
   Mic,
   MicOff,
+  Trash2,
+  Calendar,
 } from 'lucide-react'
 import { Drawer as DrawerPrimitive } from 'vaul'
 import { cn } from '@/lib/utils'
@@ -52,7 +54,7 @@ interface LancamentoCardProps {
   mesesDisponiveis: Array<{ value: string; label: string }>
 }
 
-// Componente do card de lançamento (memoizado para evitar re-renders)
+// Componente do card de lançamento - design moderno e minimalista
 const LancamentoCard = React.memo(function LancamentoCard({
   items,
   groupKey,
@@ -66,194 +68,210 @@ const LancamentoCard = React.memo(function LancamentoCard({
   const isRecorrencia = items.length > 1
   const primeiro = items[0]
   const isEntrada = primeiro.tipo === 'entrada'
+  const temErro = primeiro.status === 'incompleto'
 
   return (
     <motion.div
       layout="position"
-      initial={{ opacity: 0, y: 10, height: 'auto' }}
-      animate={{ opacity: 1, y: 0, height: 'auto' }}
-      exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-      transition={{ duration: 0.2 }}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95, height: 0, marginBottom: 0 }}
+      transition={{ duration: 0.15, ease: 'easeOut' }}
       className={cn(
-        'rounded-xl border-2 mb-3 overflow-hidden',
-        primeiro.status === 'incompleto'
-          ? 'border-vermelho/50 bg-vermelho/5'
-          : isEntrada
-          ? 'border-verde/30 bg-verde/5'
-          : 'border-vermelho/30 bg-vermelho/5'
+        'group relative bg-card rounded-2xl mb-2 overflow-hidden',
+        'border transition-all duration-200',
+        temErro
+          ? 'border-vermelho/40 shadow-sm shadow-vermelho/10'
+          : 'border-border hover:border-muted-foreground/30 hover:shadow-sm'
       )}
     >
-      {/* Header do grupo */}
-      <div className="flex items-center gap-3 p-3">
-        {/* Badge de tipo (clicável para alternar) */}
-        <button
-          type="button"
-          onClick={() => {
-            items.forEach((item) => onToggleTipo(item.id))
-          }}
-          className={cn(
-            'shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-micro font-medium transition-all',
-            'hover:scale-105 active:scale-95',
-            isEntrada
-              ? 'bg-verde text-white'
-              : 'bg-vermelho text-white'
-          )}
-          title={`Clique para mudar para ${isEntrada ? 'saída' : 'entrada'}`}
-        >
-          {isEntrada ? (
-            <>
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Entrada</span>
-            </>
-          ) : (
-            <>
-              <TrendingDown className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Saída</span>
-            </>
-          )}
-        </button>
+      {/* Indicador lateral de tipo */}
+      <div
+        className={cn(
+          'absolute left-0 top-0 bottom-0 w-1 transition-colors',
+          isEntrada ? 'bg-verde' : 'bg-vermelho'
+        )}
+      />
 
-        {/* Nome */}
-        <div className="flex-1 min-w-0">
-          {primeiro.camposFaltantes.includes('nome') ? (
-            <input
-              type="text"
-              value={primeiro.nome}
-              onChange={(e) =>
-                items.forEach((item) =>
-                  onUpdateLancamento(item.id, 'nome', e.target.value)
-                )
-              }
-              placeholder="Nome do lançamento"
-              className={cn(
-                'w-full text-corpo text-foreground bg-card/50 rounded-lg px-3 py-1.5',
-                'border border-vermelho/50 focus:outline-none focus:ring-2 focus:ring-rosa focus:border-transparent'
-              )}
-            />
-          ) : (
-            <span className="text-corpo font-medium text-foreground truncate block">
-              {primeiro.nome}
-            </span>
-          )}
-        </div>
-
-        {/* Valor */}
-        <div className="shrink-0">
-          {primeiro.camposFaltantes.includes('valor') ? (
-            <input
-              type="text"
-              inputMode="decimal"
-              value={primeiro.valor !== null ? String(primeiro.valor) : ''}
-              onChange={(e) =>
-                items.forEach((item) =>
-                  onUpdateLancamento(item.id, 'valor', e.target.value)
-                )
-              }
-              placeholder="R$ 0,00"
-              className={cn(
-                'w-28 text-right text-corpo-medium text-foreground bg-card/50 rounded-lg px-3 py-1.5',
-                'border border-vermelho/50 focus:outline-none focus:ring-2 focus:ring-rosa focus:border-transparent'
-              )}
-            />
-          ) : (
-            <span className={cn(
-              'text-corpo-medium font-semibold',
-              isEntrada ? 'text-verde' : 'text-vermelho'
-            )}>
-              {formatarValor(primeiro.valor)}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Linha de info secundária */}
-      <div className="flex items-center gap-2 px-3 pb-3 -mt-1">
-        {/* Badge de meses ou mês único (editável) */}
-        {isRecorrencia ? (
+      {/* Conteúdo principal */}
+      <div className="pl-4 pr-3 py-3">
+        {/* Linha principal: Nome + Valor */}
+        <div className="flex items-start gap-3">
+          {/* Botão de tipo - minimalista */}
           <button
             type="button"
-            onClick={() => onToggleGroup(groupKey)}
+            onClick={() => items.forEach((item) => onToggleTipo(item.id))}
             className={cn(
-              'flex items-center gap-1 px-2 py-1 rounded-md text-micro font-medium transition-colors',
-              'bg-card/60 text-muted-foreground hover:bg-card'
+              'shrink-0 mt-0.5 p-1.5 rounded-lg transition-all',
+              'hover:scale-110 active:scale-95',
+              isEntrada
+                ? 'text-verde hover:bg-verde/10'
+                : 'text-vermelho hover:bg-vermelho/10'
             )}
+            title={`Clique para mudar para ${isEntrada ? 'saída' : 'entrada'}`}
           >
-            {items.length} meses
-            {isExpanded ? (
-              <ChevronUp className="w-3 h-3" />
+            {isEntrada ? (
+              <TrendingUp className="w-4 h-4" />
             ) : (
-              <ChevronDown className="w-3 h-3" />
+              <TrendingDown className="w-4 h-4" />
             )}
           </button>
-        ) : (
-          <select
-            value={primeiro.mes}
-            onChange={(e) => {
-              items.forEach((item) =>
-                onUpdateLancamento(item.id, 'mes', e.target.value)
-              )
-            }}
-            className={cn(
-              'px-2 py-1 rounded-md bg-card/60 text-micro text-muted-foreground',
-              'border-none cursor-pointer hover:bg-card focus:outline-none focus:ring-2 focus:ring-rosa/20',
-              'appearance-none pr-6 bg-no-repeat bg-right',
-              '[background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236B7280%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E")]'
+
+          {/* Nome e metadados */}
+          <div className="flex-1 min-w-0 space-y-1">
+            {primeiro.camposFaltantes.includes('nome') ? (
+              <input
+                type="text"
+                value={primeiro.nome}
+                onChange={(e) =>
+                  items.forEach((item) =>
+                    onUpdateLancamento(item.id, 'nome', e.target.value)
+                  )
+                }
+                placeholder="Nome do lançamento"
+                className={cn(
+                  'w-full text-corpo font-medium text-foreground bg-transparent',
+                  'border-b-2 border-vermelho/50 focus:border-rosa',
+                  'focus:outline-none py-0.5 placeholder:text-muted-foreground/50'
+                )}
+                autoFocus
+              />
+            ) : (
+              <p className="text-corpo font-medium text-foreground truncate leading-tight">
+                {primeiro.nome}
+              </p>
             )}
-            title="Clique para alterar o mês"
+
+            {/* Metadados: mês e dia */}
+            <div className="flex items-center gap-2 text-micro text-muted-foreground">
+              {isRecorrencia ? (
+                <button
+                  type="button"
+                  onClick={() => onToggleGroup(groupKey)}
+                  className={cn(
+                    'inline-flex items-center gap-1 px-1.5 py-0.5 -ml-1.5 rounded-md',
+                    'hover:bg-accent transition-colors'
+                  )}
+                >
+                  <Calendar className="w-3 h-3" />
+                  <span>{items.length}x</span>
+                  {isExpanded ? (
+                    <ChevronUp className="w-3 h-3" />
+                  ) : (
+                    <ChevronDown className="w-3 h-3" />
+                  )}
+                </button>
+              ) : (
+                <div className="inline-flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  <select
+                    value={primeiro.mes}
+                    onChange={(e) =>
+                      items.forEach((item) =>
+                        onUpdateLancamento(item.id, 'mes', e.target.value)
+                      )
+                    }
+                    className={cn(
+                      'bg-transparent border-none cursor-pointer text-micro',
+                      'focus:outline-none hover:text-foreground transition-colors',
+                      'appearance-none pr-3',
+                      '[background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%228%22%20height%3D%228%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%239CA3AF%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E")]',
+                      'bg-no-repeat bg-right'
+                    )}
+                  >
+                    {mesesDisponiveis.map((mes) => (
+                      <option key={mes.value} value={mes.value}>
+                        {formatarMesExibicao(mes.value)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {primeiro.diaPrevisto && (
+                <>
+                  <span className="text-muted-foreground/40">·</span>
+                  <span>dia {primeiro.diaPrevisto}</span>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Valor */}
+          <div className="shrink-0 text-right">
+            {primeiro.camposFaltantes.includes('valor') ? (
+              <input
+                type="text"
+                inputMode="decimal"
+                value={primeiro.valor !== null ? String(primeiro.valor) : ''}
+                onChange={(e) =>
+                  items.forEach((item) =>
+                    onUpdateLancamento(item.id, 'valor', e.target.value)
+                  )
+                }
+                placeholder="0,00"
+                className={cn(
+                  'w-24 text-right text-corpo font-semibold bg-transparent',
+                  'border-b-2 border-vermelho/50 focus:border-rosa',
+                  'focus:outline-none py-0.5 placeholder:text-muted-foreground/50',
+                  isEntrada ? 'text-verde' : 'text-vermelho'
+                )}
+              />
+            ) : (
+              <p className={cn(
+                'text-corpo font-semibold tabular-nums',
+                isEntrada ? 'text-verde' : 'text-vermelho'
+              )}>
+                {isEntrada ? '+' : '-'}{formatarValor(primeiro.valor).replace('R$', '').trim()}
+              </p>
+            )}
+          </div>
+
+          {/* Botão remover - aparece no hover */}
+          <button
+            type="button"
+            onClick={() => items.forEach((item) => onRemoveLancamento(item.id))}
+            className={cn(
+              'shrink-0 p-1.5 rounded-lg transition-all',
+              'text-muted-foreground/50 hover:text-vermelho hover:bg-vermelho/10',
+              'opacity-0 group-hover:opacity-100 focus:opacity-100'
+            )}
+            title="Remover"
           >
-            {mesesDisponiveis.map((mes) => (
-              <option key={mes.value} value={mes.value}>
-                {formatarMesExibicao(mes.value)}
-              </option>
-            ))}
-          </select>
-        )}
-
-        {/* Dia previsto */}
-        {primeiro.diaPrevisto && (
-          <span className="px-2 py-1 rounded-md bg-card/60 text-micro text-muted-foreground">
-            Dia {primeiro.diaPrevisto}
-          </span>
-        )}
-
-        {/* Spacer */}
-        <div className="flex-1" />
-
-        {/* Botão remover */}
-        <button
-          type="button"
-          onClick={() => items.forEach((item) => onRemoveLancamento(item.id))}
-          className="p-1.5 rounded-md text-muted-foreground hover:text-vermelho hover:bg-card/60 transition-colors"
-          title="Remover"
-        >
-          <X className="w-4 h-4" />
-        </button>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
-      {/* Meses expandidos */}
+      {/* Meses expandidos - para recorrências */}
       <AnimatePresence>
         {isRecorrencia && isExpanded && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.15 }}
             className="overflow-hidden"
           >
-            <div className="border-t bg-muted bg-card/30 p-3">
-              <div className="flex flex-wrap gap-2">
+            <div className="px-4 pb-3 pt-1 border-t border-border/50">
+              <div className="flex flex-wrap gap-1.5">
                 {items.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-card text-micro shadow-sm"
+                    className={cn(
+                      'inline-flex items-center gap-1 px-2 py-1 rounded-lg',
+                      'bg-secondary text-micro text-muted-foreground',
+                      'hover:bg-accent transition-colors group/item'
+                    )}
                   >
                     <select
                       value={item.mes}
                       onChange={(e) => onUpdateLancamento(item.id, 'mes', e.target.value)}
                       className={cn(
-                        'text-foreground font-medium bg-transparent border-none cursor-pointer',
-                        'focus:outline-none focus:ring-1 focus:ring-rosa/20 rounded',
-                        'appearance-none pr-4 bg-no-repeat bg-right',
-                        '[background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236B7280%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E")]'
+                        'bg-transparent border-none cursor-pointer text-micro font-medium',
+                        'focus:outline-none text-foreground',
+                        'appearance-none pr-3',
+                        '[background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%228%22%20height%3D%228%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%239CA3AF%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E")]',
+                        'bg-no-repeat bg-right'
                       )}
                     >
                       {mesesDisponiveis.map((mes) => (
@@ -265,7 +283,11 @@ const LancamentoCard = React.memo(function LancamentoCard({
                     <button
                       type="button"
                       onClick={() => onRemoveLancamento(item.id)}
-                      className="text-muted-foreground hover:text-vermelho transition-colors"
+                      className={cn(
+                        'p-0.5 rounded transition-colors',
+                        'text-muted-foreground/50 hover:text-vermelho',
+                        'opacity-0 group-hover/item:opacity-100'
+                      )}
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -635,6 +657,15 @@ export function QuickInputSheet({
     textareaRef.current?.focus()
   }, [])
 
+  /**
+   * Limpa todos os lançamentos
+   */
+  const handleClearAll = useCallback(() => {
+    setLancamentos([])
+    setExpandedGroups(new Set())
+    setErro(null)
+  }, [])
+
   // Agrupa lançamentos para exibição (memoizado para evitar re-renders)
   const grupos = useMemo(() => agruparRecorrencias(lancamentos), [lancamentos])
 
@@ -643,6 +674,17 @@ export function QuickInputSheet({
 
   // Conta total de lançamentos
   const totalLancamentos = lancamentos.length
+
+  // Calcula totais de entradas e saídas
+  const totais = useMemo(() => {
+    const entradas = lancamentos
+      .filter(l => l.tipo === 'entrada' && l.valor)
+      .reduce((sum, l) => sum + (l.valor || 0), 0)
+    const saidas = lancamentos
+      .filter(l => l.tipo === 'saida' && l.valor)
+      .reduce((sum, l) => sum + (l.valor || 0), 0)
+    return { entradas, saidas, saldo: entradas - saidas }
+  }, [lancamentos])
 
   // Verifica se pode confirmar
   const temIncompletos = lancamentos.some((l) => l.status === 'incompleto')
@@ -805,11 +847,47 @@ export function QuickInputSheet({
         </div>
       )}
 
-      {/* Lista de lançamentos interpretados */}
+      {/* Lista de lançamentos */}
       <div className={cn(
         'flex-1 overflow-y-auto -mx-4 px-4',
         isDesktop && '-mx-6 px-6'
       )}>
+        {/* Header da lista com ações rápidas */}
+        {lancamentos.length > 0 && (
+          <div className="flex items-center justify-between mb-3 pb-2 border-b border-border">
+            {/* Resumo compacto */}
+            <div className="flex items-center gap-3 text-micro">
+              <span className="text-muted-foreground">{totalLancamentos} {totalLancamentos === 1 ? 'item' : 'itens'}</span>
+              {totais.entradas > 0 && (
+                <span className="text-verde font-medium">
+                  +{formatarValor(totais.entradas)}
+                </span>
+              )}
+              {totais.saidas > 0 && (
+                <span className="text-vermelho font-medium">
+                  -{formatarValor(totais.saidas)}
+                </span>
+              )}
+            </div>
+
+            {/* Ações rápidas */}
+            <button
+              type="button"
+              onClick={handleClearAll}
+              className={cn(
+                'inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-micro',
+                'text-muted-foreground hover:text-vermelho hover:bg-vermelho/10',
+                'transition-colors'
+              )}
+              title="Limpar todos"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Limpar</span>
+            </button>
+          </div>
+        )}
+
+        {/* Cards dos lançamentos */}
         <AnimatePresence mode="sync">
           {Array.from(grupos.entries()).map(([key, items]) => (
             <LancamentoCard
@@ -831,10 +909,13 @@ export function QuickInputSheet({
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-2 p-3 rounded-xl bg-vermelho/10 text-vermelho text-corpo mb-3"
+            className={cn(
+              'flex items-center gap-2 p-3 rounded-xl mb-3',
+              'bg-vermelho/5 border border-vermelho/20 text-vermelho text-micro'
+            )}
           >
-            <AlertCircle className="w-5 h-5 shrink-0" />
-            {erro}
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{erro}</span>
           </motion.div>
         )}
       </div>
