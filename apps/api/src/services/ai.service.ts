@@ -43,9 +43,11 @@ Pergunta-chave: "O dinheiro está SAINDO de mim?"
 - Verbos: paguei, gastei, comprei, perdi
 - Contextos: contas, parcelas, compras, assinaturas, aluguel que eu PAGO
 
-## VALORES ABREVIADOS
-- "5k" = 5000, "2k" = 2000, "1.5k" = 1500
+## VALORES
+- Valores podem vir em formato brasileiro: R$ 3.817,55 (ponto = milhar, vírgula = decimal)
+- Abreviados: "5k" = 5000, "2k" = 2000, "1.5k" = 1500
 - "mil" = 1000, "2mil" = 2000
+- Retorne o valor como número decimal (ex: 3817.55, não "3.817,55")
 
 ## NOME DO LANÇAMENTO
 - Extraia O QUE é, não a ação: "gastei 50 em pizza" → nome: "Pizza"
@@ -111,15 +113,48 @@ export class AIService {
   }
 
   /**
-   * Pré-processa o texto para normalizar valores como "5k"
+   * Pré-processa o texto para normalizar valores
    */
   private preprocessTexto(texto: string): string {
+    let result = texto
+
+    // Normaliza valores em formato brasileiro (R$ 3.817,55 -> 3817.55)
+    // Padrão: R$ seguido de número com separador de milhar (ponto) e decimal (vírgula)
+    result = result.replace(
+      /R\$\s*(\d{1,3}(?:\.\d{3})+),(\d{2})/g,
+      (_, inteiro, decimal) => {
+        const valorSemPonto = inteiro.replace(/\./g, '')
+        return `${valorSemPonto}.${decimal}`
+      }
+    )
+
+    // Normaliza valores brasileiros sem R$ (ex: 3.817,55 -> 3817.55)
+    // Só aplica se tiver ponto como separador de milhar E vírgula como decimal
+    result = result.replace(
+      /\b(\d{1,3}(?:\.\d{3})+),(\d{2})\b/g,
+      (_, inteiro, decimal) => {
+        const valorSemPonto = inteiro.replace(/\./g, '')
+        return `${valorSemPonto}.${decimal}`
+      }
+    )
+
+    // Normaliza valores simples com vírgula decimal (ex: 150,99 -> 150.99)
+    result = result.replace(
+      /\b(\d+),(\d{2})\b/g,
+      '$1.$2'
+    )
+
     // Converte "5k" para "5000", "2k" para "2000", etc.
-    return texto.replace(/(\d+(?:\.\d+)?)\s*k\b/gi, (match, num) => {
+    result = result.replace(/(\d+(?:\.\d+)?)\s*k\b/gi, (_, num) => {
       return String(parseFloat(num) * 1000)
-    }).replace(/(\d+)\s*mil\b/gi, (match, num) => {
+    })
+
+    // Converte "2mil" para "2000"
+    result = result.replace(/(\d+)\s*mil\b/gi, (_, num) => {
       return String(parseInt(num) * 1000)
     })
+
+    return result
   }
 
   /**
@@ -309,9 +344,10 @@ export class AIService {
     const lancamentos: ParsedLancamento[] = []
 
     // Regex para encontrar padrões como "nome 123.45" ou "nome R$ 123,45"
+    // Nota: textoProcessado já tem valores normalizados (3817.55 ao invés de 3.817,55)
     const patterns = [
-      /([a-záàâãéèêíïóôõöúç\s]+)\s*(?:R\$\s*)?(\d+(?:[.,]\d{1,2})?)/gi,
-      /(?:R\$\s*)?(\d+(?:[.,]\d{1,2})?)\s*(?:de\s+)?([a-záàâãéèêíïóôõöúç\s]+)/gi
+      /([a-záàâãéèêíïóôõöúç\s]+)\s*(?:R\$\s*)?(\d+(?:\.\d{1,2})?)/gi,
+      /(?:R\$\s*)?(\d+(?:\.\d{1,2})?)\s*(?:de\s+)?([a-záàâãéèêíïóôõöúç\s]+)/gi
     ]
 
     // Tenta extrair dia do texto
@@ -332,7 +368,8 @@ export class AIService {
         // Pula se parece ser um dia
         if (/^dia$/i.test(nome) || /^\d+$/.test(nome)) continue
 
-        const valor = parseFloat(valorStr.replace(',', '.'))
+        // Valor já está normalizado pelo preprocessTexto
+        const valor = parseFloat(valorStr)
         if (isNaN(valor) || valor <= 0) continue
 
         // Normaliza o nome
