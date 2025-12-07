@@ -578,7 +578,11 @@ export function QuickInputSheet({
     setErro(null)
 
     try {
-      const result = await aiApi.parseLancamentos(texto, mesAtual)
+      // Extrai mês global do texto (ex: "julho 2025", "tudo de janeiro")
+      const mesGlobal = extrairMesGlobal(texto)
+      const mesParaUsar = mesGlobal?.mes || mesAtual
+
+      const result = await aiApi.parseLancamentos(texto, mesParaUsar)
 
       if (result.erro) {
         setErro(result.erro)
@@ -608,7 +612,7 @@ export function QuickInputSheet({
           tipo: l.tipo,
           nome: l.nome,
           valor: l.valor,
-          mes: mesAtual,
+          mes: mesParaUsar, // Usa o mês extraído do texto ou o mês atual
           diaPrevisto: l.diaPrevisto,
           status: 'completo' as const,
           camposFaltantes: [],
