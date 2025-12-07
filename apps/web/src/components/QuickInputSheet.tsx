@@ -175,7 +175,7 @@ const LancamentoCard = React.memo(function LancamentoCard({
               ? 'bg-rosa/15 text-rosa'
               : 'text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent'
           )}
-          title={temRecorrencia ? 'Remover recorrência' : 'Tornar recorrente'}
+          title={temRecorrencia ? 'Lançamento único' : 'Repetir nos próximos meses'}
         >
           <Repeat className="w-3.5 h-3.5" />
         </button>
@@ -271,54 +271,59 @@ const LancamentoCard = React.memo(function LancamentoCard({
             transition={{ duration: 0.12 }}
             className="overflow-hidden"
           >
-            <div className="flex items-center gap-2 pl-10 pr-2 pb-2 pt-1">
-              <button
-                type="button"
-                onClick={() => handleTipoRecorrencia('mensal')}
-                className={cn(
-                  'px-2.5 py-1 rounded-md text-micro transition-colors',
-                  primeiro.recorrencia?.tipo === 'mensal'
-                    ? 'bg-rosa/15 text-rosa font-medium'
-                    : 'text-muted-foreground hover:bg-accent'
+            <div className="flex flex-col gap-2 pl-10 pr-2 pb-2 pt-1">
+              <p className="text-micro text-muted-foreground">
+                Repetir este lançamento:
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleTipoRecorrencia('mensal')}
+                  className={cn(
+                    'px-2.5 py-1 rounded-md text-micro transition-colors',
+                    primeiro.recorrencia?.tipo === 'mensal'
+                      ? 'bg-rosa/15 text-rosa font-medium'
+                      : 'text-muted-foreground hover:bg-accent'
+                  )}
+                >
+                  Todo mês
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleTipoRecorrencia('parcelas')}
+                  className={cn(
+                    'px-2.5 py-1 rounded-md text-micro transition-colors',
+                    primeiro.recorrencia?.tipo === 'parcelas'
+                      ? 'bg-rosa/15 text-rosa font-medium'
+                      : 'text-muted-foreground hover:bg-accent'
+                  )}
+                >
+                  Por tempo limitado
+                </button>
+                {primeiro.recorrencia?.tipo === 'parcelas' && (
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min={2}
+                      max={60}
+                      value={parcelasInput}
+                      onChange={(e) => handleParcelasChange(e.target.value)}
+                      className={cn(
+                        'w-12 text-center bg-secondary rounded-md py-1 text-micro',
+                        'border-none focus:outline-none focus:ring-1 focus:ring-rosa'
+                      )}
+                    />
+                    <span className="text-micro text-muted-foreground">meses</span>
+                  </div>
                 )}
-              >
-                Mensal (12x)
-              </button>
-              <button
-                type="button"
-                onClick={() => handleTipoRecorrencia('parcelas')}
-                className={cn(
-                  'px-2.5 py-1 rounded-md text-micro transition-colors',
-                  primeiro.recorrencia?.tipo === 'parcelas'
-                    ? 'bg-rosa/15 text-rosa font-medium'
-                    : 'text-muted-foreground hover:bg-accent'
-                )}
-              >
-                Parcelas
-              </button>
-              {primeiro.recorrencia?.tipo === 'parcelas' && (
-                <div className="flex items-center gap-1">
-                  <input
-                    type="number"
-                    min={2}
-                    max={60}
-                    value={parcelasInput}
-                    onChange={(e) => handleParcelasChange(e.target.value)}
-                    className={cn(
-                      'w-12 text-center bg-secondary rounded-md py-1 text-micro',
-                      'border-none focus:outline-none focus:ring-1 focus:ring-rosa'
-                    )}
-                  />
-                  <span className="text-micro text-muted-foreground">x</span>
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={() => setShowRecorrenciaOptions(false)}
-                className="ml-auto text-muted-foreground/50 hover:text-muted-foreground"
-              >
-                <ChevronUp className="w-3.5 h-3.5" />
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setShowRecorrenciaOptions(false)}
+                  className="ml-auto text-muted-foreground/50 hover:text-muted-foreground"
+                >
+                  <ChevronUp className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           </motion.div>
         )}
@@ -334,8 +339,8 @@ const LancamentoCard = React.memo(function LancamentoCard({
           <Repeat className="w-3 h-3" />
           <span>
             {primeiro.recorrencia?.tipo === 'mensal'
-              ? '12x mensal'
-              : `${primeiro.recorrencia?.quantidade}x parcelas`
+              ? 'Repete todo mês'
+              : `Repete por ${primeiro.recorrencia?.quantidade} meses`
             }
           </span>
         </button>
