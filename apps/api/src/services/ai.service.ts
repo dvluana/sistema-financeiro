@@ -200,6 +200,14 @@ Extrair lançamentos financeiros do texto do usuário, identificando:
 4. **diaPrevisto**: dia do mês se mencionado (1-31 ou null)
 5. **categoriaId**: categoria do lançamento (use EXATAMENTE um dos IDs abaixo)
 
+## FORMATO DE TABELA (IMPORTANTE)
+O texto pode vir em formato de tabela com colunas separadas por TAB ou espaços:
+- NOME [TAB/espaços] DIA [TAB/espaços] VALOR
+- Exemplo: "Salário  06  R$ 3.817,55" = nome "Salário", dia 6, valor 3817.55
+- Cada LINHA completa é UM único lançamento
+- NÃO separe as colunas em lançamentos diferentes
+- NUNCA use números isolados como nome (06, 3817.55 NÃO são nomes válidos)
+
 ## CATEGORIAS DISPONÍVEIS
 
 ### Para ENTRADAS (tipo="entrada"):
@@ -358,10 +366,10 @@ export class AIService {
 
     // Padrões que indicam que é um indicador de mês, não um lançamento
     const padroes = [
-      // "tudo de julho", "tudo de março 2025"
+      // "tudo de julho", "tudo de março 2025", "tudo de julho de"
       new RegExp(`^tudo\\s+de\\s+(${meses})`, 'i'),
-      // "julho de 2025", "março 2025"
-      new RegExp(`^(${meses})\\s+(de\\s+)?\\d{2,4}$`, 'i'),
+      // "julho de 2025", "março 2025", "julho de" (parcial sem ano)
+      new RegExp(`^(${meses})\\s+(de\\s*)?\\d{0,4}$`, 'i'),
       // apenas o nome do mês
       new RegExp(`^(${meses})$`, 'i'),
       // "referente a julho", "ref março"
@@ -533,6 +541,12 @@ export class AIService {
           let nome = String(l.nome).trim()
           if (nome.length > 50) {
             nome = nome.substring(0, 50)
+          }
+
+          // Filtra nomes que são apenas números (IA errou ao separar colunas)
+          const regexNumero = /^\d+(\.\d+)?$/
+          if (regexNumero.test(nome)) {
+            continue
           }
 
           // Filtra indicadores de mês/período que não são lançamentos
