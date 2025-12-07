@@ -175,7 +175,7 @@ export function Home() {
         data_prevista: l.diaPrevisto
           ? `${l.mes}-${String(l.diaPrevisto).padStart(2, '0')}`
           : null,
-        categoria_id: null,
+        categoria_id: l.categoriaId || null,
       }
 
       promises.push(

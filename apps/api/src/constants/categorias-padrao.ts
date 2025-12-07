@@ -45,7 +45,7 @@ export const CATEGORIAS_PADRAO: CategoriaPadrao[] = [
     ordem: 3,
   },
 
-  // === SAÍDA (6 categorias essenciais) ===
+  // === SAÍDA (7 categorias essenciais) ===
   {
     id: 'default-moradia',
     nome: 'Moradia',
@@ -87,12 +87,20 @@ export const CATEGORIAS_PADRAO: CategoriaPadrao[] = [
     ordem: 5,
   },
   {
+    id: 'default-cartao',
+    nome: 'Cartão de Crédito',
+    tipo: 'saida',
+    icone: 'CreditCard',
+    cor: '#6366F1',
+    ordem: 6,
+  },
+  {
     id: 'default-outros-saida',
     nome: 'Outros',
     tipo: 'saida',
     icone: 'CircleDollarSign',
     cor: '#6B7280',
-    ordem: 6,
+    ordem: 7,
   },
 ]
 

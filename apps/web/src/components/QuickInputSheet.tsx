@@ -29,7 +29,9 @@ import { Drawer as DrawerPrimitive } from 'vaul'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui'
 import { useIsDesktop } from '@/hooks/useMediaQuery'
-import { aiApi } from '@/lib/api'
+import { aiApi, getCategoriaPadraoById, getCategoriasPadraoByTipo } from '@/lib/api'
+import * as LucideIcons from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import {
   formatarValor,
   formatarMesExibicao,
@@ -43,6 +45,22 @@ import {
 const HISTORICO_KEY = 'quick-input-historico'
 const MAX_HISTORICO = 5
 
+// Type-safe icon lookup with proper typing
+type LucideIconModule = typeof LucideIcons
+type IconName = keyof LucideIconModule
+
+// Função para obter o componente de ícone do Lucide dinamicamente
+function getIconComponent(iconName: string | null): LucideIcon | null {
+  if (!iconName) return null
+  if (iconName in LucideIcons) {
+    const icon = LucideIcons[iconName as IconName]
+    if (typeof icon === 'function' || (typeof icon === 'object' && icon !== null)) {
+      return icon as LucideIcon
+    }
+  }
+  return null
+}
+
 // Props do card de lançamento
 interface LancamentoCardProps {
   items: ParsedLancamento[]
@@ -52,6 +70,7 @@ interface LancamentoCardProps {
   onToggleTipo: (id: string) => void
   onUpdateLancamento: (id: string, campo: 'valor' | 'nome' | 'mes', valor: string) => void
   onUpdateRecorrencia: (id: string, recorrencia: ParsedLancamento['recorrencia']) => void
+  onUpdateCategoria: (id: string, categoriaId: string | null) => void
   onRemoveLancamento: (id: string) => void
   mesesDisponiveis: Array<{ value: string; label: string }>
 }
@@ -65,6 +84,7 @@ const LancamentoCard = React.memo(function LancamentoCard({
   onToggleTipo,
   onUpdateLancamento,
   onUpdateRecorrencia,
+  onUpdateCategoria,
   onRemoveLancamento,
   mesesDisponiveis,
 }: LancamentoCardProps) {
@@ -79,6 +99,13 @@ const LancamentoCard = React.memo(function LancamentoCard({
   const [parcelasInput, setParcelasInput] = useState(
     primeiro.recorrencia?.tipo === 'parcelas' ? String(primeiro.recorrencia.quantidade) : '12'
   )
+
+  // Estado para mostrar/ocultar seletor de categoria
+  const [showCategoriaSelect, setShowCategoriaSelect] = useState(false)
+
+  // Obtém categoria atual
+  const categoriaPadrao = primeiro.categoriaId ? getCategoriaPadraoById(primeiro.categoriaId) : null
+  const categoriasDoTipo = getCategoriasPadraoByTipo(primeiro.tipo)
 
   // Formata valor para exibição no input
   const valorFormatado = primeiro.valor !== null
@@ -144,6 +171,28 @@ const LancamentoCard = React.memo(function LancamentoCard({
             <TrendingUp className="w-3.5 h-3.5" />
           ) : (
             <TrendingDown className="w-3.5 h-3.5" />
+          )}
+        </button>
+
+        {/* Indicador de categoria - compacto */}
+        <button
+          type="button"
+          onClick={() => setShowCategoriaSelect(!showCategoriaSelect)}
+          className={cn(
+            'shrink-0 w-5 h-5 rounded flex items-center justify-center',
+            'transition-all hover:scale-110 active:scale-95',
+            !categoriaPadrao && 'bg-muted text-muted-foreground'
+          )}
+          style={categoriaPadrao ? { backgroundColor: categoriaPadrao.cor || '#6B7280' } : undefined}
+          title={categoriaPadrao ? `Categoria: ${categoriaPadrao.nome} - clique para mudar` : 'Sem categoria - clique para adicionar'}
+        >
+          {categoriaPadrao && categoriaPadrao.icone ? (
+            (() => {
+              const Icon = getIconComponent(categoriaPadrao.icone)
+              return Icon ? <Icon className="w-3 h-3 text-white" /> : null
+            })()
+          ) : (
+            <LucideIcons.Tag className="w-3 h-3" />
           )}
         </button>
 
@@ -346,6 +395,72 @@ const LancamentoCard = React.memo(function LancamentoCard({
           </span>
         </button>
       )}
+
+      {/* Seletor de categoria */}
+      <AnimatePresence>
+        {showCategoriaSelect && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.12 }}
+            className="overflow-hidden"
+          >
+            <div className="flex flex-wrap gap-1.5 pl-10 pr-2 pb-2 pt-1">
+              {/* Opção sem categoria */}
+              <button
+                type="button"
+                onClick={() => {
+                  items.forEach((item) => onUpdateCategoria(item.id, null))
+                  setShowCategoriaSelect(false)
+                }}
+                className={cn(
+                  'inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-micro transition-all',
+                  !primeiro.categoriaId
+                    ? 'bg-muted ring-1 ring-foreground/20 font-medium'
+                    : 'bg-secondary/70 hover:bg-secondary'
+                )}
+              >
+                <span className="w-4 h-4 rounded flex items-center justify-center bg-muted-foreground/20">
+                  <X className="w-2.5 h-2.5 text-muted-foreground" />
+                </span>
+                <span className="text-muted-foreground">Nenhuma</span>
+              </button>
+
+              {/* Categorias do tipo */}
+              {categoriasDoTipo.map((cat) => {
+                const Icon = getIconComponent(cat.icone)
+                const isSelected = primeiro.categoriaId === cat.id
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => {
+                      items.forEach((item) => onUpdateCategoria(item.id, cat.id))
+                      setShowCategoriaSelect(false)
+                    }}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-micro transition-all',
+                      isSelected
+                        ? 'ring-1 ring-foreground/20 font-medium'
+                        : 'bg-secondary/70 hover:bg-secondary'
+                    )}
+                    style={isSelected ? { backgroundColor: `${cat.cor}20` } : undefined}
+                  >
+                    <span
+                      className="w-4 h-4 rounded flex items-center justify-center"
+                      style={{ backgroundColor: cat.cor || '#6B7280' }}
+                    >
+                      {Icon && <Icon className="w-2.5 h-2.5 text-white" />}
+                    </span>
+                    <span>{cat.nome}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Meses expandidos */}
       <AnimatePresence>
@@ -614,6 +729,7 @@ export function QuickInputSheet({
           valor: l.valor,
           mes: mesParaUsar, // Usa o mês extraído do texto ou o mês atual
           diaPrevisto: l.diaPrevisto,
+          categoriaId: l.categoriaId, // Categoria identificada pela IA
           status: 'completo' as const,
           camposFaltantes: [],
           groupId: id,
@@ -693,6 +809,21 @@ export function QuickInputSheet({
         prev.map((l) => {
           if (l.id !== id) return l
           return { ...l, recorrencia }
+        })
+      )
+    },
+    []
+  )
+
+  /**
+   * Atualiza categoria de um lançamento
+   */
+  const handleUpdateCategoria = useCallback(
+    (id: string, categoriaId: string | null) => {
+      setLancamentos((prev) =>
+        prev.map((l) => {
+          if (l.id !== id) return l
+          return { ...l, categoriaId }
         })
       )
     },
@@ -1007,6 +1138,7 @@ export function QuickInputSheet({
               onToggleTipo={handleToggleTipo}
               onUpdateLancamento={handleUpdateLancamento}
               onUpdateRecorrencia={handleUpdateRecorrencia}
+              onUpdateCategoria={handleUpdateCategoria}
               onRemoveLancamento={handleRemoveLancamento}
               mesesDisponiveis={mesesDisponiveis}
             />

@@ -43,6 +43,38 @@ export function isCategoriaPadrao(id: string): boolean {
   return id.startsWith('default-')
 }
 
+/**
+ * Categorias padrão do sistema
+ * Definidas aqui para uso no frontend sem precisar de chamada à API
+ */
+export const CATEGORIAS_PADRAO: Categoria[] = [
+  // Entradas
+  { id: 'default-salario', nome: 'Salário', tipo: 'entrada', icone: 'Wallet', cor: '#22C55E', ordem: 1, is_default: true },
+  { id: 'default-investimentos', nome: 'Investimentos', tipo: 'entrada', icone: 'TrendingUp', cor: '#8B5CF6', ordem: 2, is_default: true },
+  { id: 'default-outros-entrada', nome: 'Outros', tipo: 'entrada', icone: 'CircleDollarSign', cor: '#6B7280', ordem: 3, is_default: true },
+  // Saídas
+  { id: 'default-moradia', nome: 'Moradia', tipo: 'saida', icone: 'Home', cor: '#EF4444', ordem: 1, is_default: true },
+  { id: 'default-alimentacao', nome: 'Alimentação', tipo: 'saida', icone: 'Utensils', cor: '#F97316', ordem: 2, is_default: true },
+  { id: 'default-transporte', nome: 'Transporte', tipo: 'saida', icone: 'Car', cor: '#EAB308', ordem: 3, is_default: true },
+  { id: 'default-saude', nome: 'Saúde', tipo: 'saida', icone: 'Heart', cor: '#EC4899', ordem: 4, is_default: true },
+  { id: 'default-lazer', nome: 'Lazer', tipo: 'saida', icone: 'Gamepad2', cor: '#06B6D4', ordem: 5, is_default: true },
+  { id: 'default-outros-saida', nome: 'Outros', tipo: 'saida', icone: 'CircleDollarSign', cor: '#6B7280', ordem: 6, is_default: true },
+]
+
+/**
+ * Obtém categorias padrão por tipo
+ */
+export function getCategoriasPadraoByTipo(tipo: 'entrada' | 'saida'): Categoria[] {
+  return CATEGORIAS_PADRAO.filter(c => c.tipo === tipo)
+}
+
+/**
+ * Obtém uma categoria padrão por ID
+ */
+export function getCategoriaPadraoById(id: string): Categoria | undefined {
+  return CATEGORIAS_PADRAO.find(c => c.id === id)
+}
+
 export interface Lancamento {
   id: string
   tipo: 'entrada' | 'saida'
@@ -388,6 +420,7 @@ export interface ParsedLancamentoIA {
   nome: string
   valor: number
   diaPrevisto: number | null
+  categoriaId: string | null
 }
 
 export interface ParseLancamentosResponse {

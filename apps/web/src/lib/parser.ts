@@ -26,6 +26,8 @@ export interface ParsedLancamento {
   avisos?: string[]
   erros?: string[]
   textoOriginal?: string
+  // Categoria (opcional, ID da categoria padrão)
+  categoriaId?: string | null
   // Recorrência (opcional)
   recorrencia?: {
     tipo: 'mensal' | 'parcelas'
@@ -551,14 +553,17 @@ export function extrairMesGlobal(texto: string): ExtraidoMes | null {
     // "referente a NOME_MES [ANO]" ou "ref NOME_MES"
     new RegExp(`\\b(?:referente|ref\\.?)\\s+(?:a\\s+)?(${mesesRegex})(?:\\s+(?:de\\s+)?(\\d{2,4}))?\\b`, 'gi'),
 
-    // "NOME_MES [de] ANO" no final do texto (ex: "...valores julho 2025" ou "...julho de 2025")
-    new RegExp(`(${mesesRegex})(?:\\s+de)?\\s+(\\d{4})\\s*$`, 'gi'),
+    // "NOME_MES [de] ANO" no final do texto com qualquer whitespace (tabs, newlines, espaços)
+    new RegExp(`(${mesesRegex})(?:\\s+de)?\\s+(\\d{4})[\\s\\n\\r\\t]*$`, 'gi'),
 
-    // "NOME_MES ANO" ou "NOME_MES/ANO" em qualquer posição com ano
-    new RegExp(`\\b(${mesesRegex})[\\s\\/]+(\\d{4})\\b`, 'gi'),
+    // "NOME_MES ANO" ou "NOME_MES/ANO" em qualquer posição com ano de 4 dígitos (alta prioridade)
+    new RegExp(`\\b(${mesesRegex})\\s+(?:de\\s+)?(\\d{4})\\b`, 'gi'),
 
-    // "NOME_MES [de] 25" (ano com 2 dígitos) no final
-    new RegExp(`(${mesesRegex})(?:\\s+de)?\\s+(\\d{2})\\s*$`, 'gi'),
+    // "NOME_MES/ANO" formato com barra
+    new RegExp(`\\b(${mesesRegex})\\/(\\d{4})\\b`, 'gi'),
+
+    // "NOME_MES [de] 25" (ano com 2 dígitos) no final com qualquer whitespace
+    new RegExp(`(${mesesRegex})(?:\\s+de)?\\s+(\\d{2})[\\s\\n\\r\\t]*$`, 'gi'),
 
     // "para/pra NOME_MES [ANO]" (em qualquer posição, não só início)
     new RegExp(`\\b(?:para|pra)\\s+(${mesesRegex})(?:\\s+(?:de\\s+)?(\\d{2,4}))?\\b`, 'gi'),
