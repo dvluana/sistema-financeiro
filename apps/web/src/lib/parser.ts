@@ -469,7 +469,7 @@ function extrairDataRobusta(texto: string): ExtraidaData | null {
 // EXTRAÇÃO DE MÊS/PERÍODO
 // ============================================================================
 
-interface ExtraidoMes {
+export interface ExtraidoMes {
   mes: string // YYYY-MM
   match: string
 }
@@ -523,29 +523,55 @@ function extrairMesRobusto(texto: string): ExtraidoMes | null {
 }
 
 /**
- * Extrai mês global do contexto (ex: "tudo de janeiro", "mês de fevereiro", "para março")
+ * Extrai mês global do contexto
+ * Detecta frases como:
+ * - "tudo de janeiro", "tudo para julho 2025"
+ * - "mês de fevereiro", "mês: março"
+ * - "referente a janeiro", "ref julho"
+ * - "julho 2025" (no início ou final do texto)
+ * - "janeiro", "julho" (quando claramente indica contexto global)
+ *
  * Retorna o mês que deve ser aplicado a todos os lançamentos
  */
-function extrairMesGlobal(texto: string): ExtraidoMes | null {
+export function extrairMesGlobal(texto: string): ExtraidoMes | null {
   const anoAtual = getAnoAtual()
   const mesAtualNum = new Date().getMonth() + 1
 
-  // Padrões que indicam mês global:
-  // "tudo de janeiro", "tudo pra janeiro", "tudo para janeiro"
-  // "mês de janeiro", "mês janeiro"
-  // "para janeiro", "pra janeiro", "de janeiro"
-  // "referente a janeiro", "ref janeiro"
+  // Lista de meses para regex (incluindo abreviações)
+  const mesesRegex = 'janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez'
+
+  // Padrões ordenados por prioridade (mais específicos primeiro)
   const padroesMesGlobal = [
-    // "tudo de/para/pra NOME_MES [ANO]"
-    /\b(?:tudo|todos?)\s+(?:de|para|pra)\s+(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)(?:\s+(?:de\s+)?(\d{2,4}))?\b/gi,
-    // "mês de NOME_MES [ANO]" ou "mês NOME_MES"
-    /\b(?:mês|mes)\s+(?:de\s+)?(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)(?:\s+(?:de\s+)?(\d{2,4}))?\b/gi,
+    // "tudo de/para/pra NOME_MES [de] [ANO]"
+    new RegExp(`\\b(?:tudo|todos?)\\s+(?:de|para|pra)\\s+(${mesesRegex})(?:\\s+(?:de\\s+)?(\\d{2,4}))?\\b`, 'gi'),
+
+    // "mês de NOME_MES [ANO]" ou "mês: NOME_MES" ou "mês NOME_MES"
+    new RegExp(`\\b(?:mês|mes)[:\\s]+(?:de\\s+)?(${mesesRegex})(?:\\s+(?:de\\s+)?(\\d{2,4}))?\\b`, 'gi'),
+
     // "referente a NOME_MES [ANO]" ou "ref NOME_MES"
-    /\b(?:referente|ref\.?)\s+(?:a\s+)?(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)(?:\s+(?:de\s+)?(\d{2,4}))?\b/gi,
-    // "para NOME_MES [ANO]" ou "pra NOME_MES" (no início do texto)
-    /^(?:para|pra)\s+(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)(?:\s+(?:de\s+)?(\d{2,4}))?[:\s]/gi,
-    // "tudo de MM/YYYY" ou "mês MM/YYYY"
-    /\b(?:tudo|todos?|mês|mes)\s+(?:de\s+)?(\d{1,2})[\/\-](\d{2,4})\b/gi,
+    new RegExp(`\\b(?:referente|ref\\.?)\\s+(?:a\\s+)?(${mesesRegex})(?:\\s+(?:de\\s+)?(\\d{2,4}))?\\b`, 'gi'),
+
+    // "NOME_MES [de] ANO" no final do texto (ex: "...valores julho 2025" ou "...julho de 2025")
+    new RegExp(`(${mesesRegex})(?:\\s+de)?\\s+(\\d{4})\\s*$`, 'gi'),
+
+    // "NOME_MES ANO" ou "NOME_MES/ANO" em qualquer posição com ano
+    new RegExp(`\\b(${mesesRegex})[\\s\\/]+(\\d{4})\\b`, 'gi'),
+
+    // "NOME_MES [de] 25" (ano com 2 dígitos) no final
+    new RegExp(`(${mesesRegex})(?:\\s+de)?\\s+(\\d{2})\\s*$`, 'gi'),
+
+    // "para/pra NOME_MES [ANO]" (em qualquer posição, não só início)
+    new RegExp(`\\b(?:para|pra)\\s+(${mesesRegex})(?:\\s+(?:de\\s+)?(\\d{2,4}))?\\b`, 'gi'),
+
+    // "de NOME_MES [ANO]" no início do texto
+    new RegExp(`^\\s*(?:de\\s+)?(${mesesRegex})(?:\\s+(?:de\\s+)?(\\d{2,4}))?[:\\s]`, 'gi'),
+
+    // "MM/YYYY" ou "MM-YYYY" com prefixo indicando contexto global
+    /\b(?:tudo|todos?|mês|mes|referente|ref\.?)\s+(?:de\s+|a\s+)?(\d{1,2})[\/\-](\d{2,4})\b/gi,
+
+    // "NOME_MES" sozinho no início ou final do texto (menos prioritário)
+    new RegExp(`^\\s*(${mesesRegex})\\s*[:\\-]`, 'gi'),
+    new RegExp(`[:\\-]\\s*(${mesesRegex})\\s*$`, 'gi'),
   ]
 
   for (const regex of padroesMesGlobal) {

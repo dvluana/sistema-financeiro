@@ -127,6 +127,15 @@ export interface Vencimento {
   data_prevista: string
 }
 
+export interface GastoCategoria {
+  categoria_id: string | null
+  categoria_nome: string
+  categoria_icone: string | null
+  categoria_cor: string | null
+  total: number
+  percentual: number
+}
+
 export interface DashboardResponse {
   mesAtual: string
   totais: Totais
@@ -135,6 +144,7 @@ export interface DashboardResponse {
   pendentesEntrada: number
   pendentesSaida: number
   proximosVencimentos: Vencimento[]
+  gastosPorCategoria: GastoCategoria[]
 }
 
 /**

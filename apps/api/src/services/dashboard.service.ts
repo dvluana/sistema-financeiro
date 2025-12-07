@@ -59,7 +59,7 @@ export const dashboardService = {
     const isCurrentMonth = mesSelecionado === mesAtual
 
     // Busca dados em paralelo para melhor performance
-    const [lancamentosMesSelecionado, recentLancamentos, totaisPorMes, proximosVencimentos] = await Promise.all([
+    const [lancamentosMesSelecionado, recentLancamentos, totaisPorMes, proximosVencimentos, gastosPorCategoria] = await Promise.all([
       lancamentoRepository.findByMes(mesSelecionado, userId),
       dashboardRepository.findRecentByMes(userId, mesSelecionado, 5),
       dashboardRepository.getTotaisPorMes(ultimosMeses, userId),
@@ -67,6 +67,7 @@ export const dashboardService = {
       isCurrentMonth
         ? dashboardRepository.findProximosVencimentos(userId, 5)
         : dashboardRepository.findVencimentosByMes(userId, mesSelecionado, 5),
+      dashboardRepository.getGastosPorCategoria(ultimosMeses, userId),
     ])
 
     // Calcula totais do mês selecionado
@@ -111,6 +112,15 @@ export const dashboardService = {
       saidas: historicoMap[mes].saidas,
     }))
 
+    // Calcula total de gastos para percentuais
+    const totalGastos = gastosPorCategoria.reduce((sum, c) => sum + c.total, 0)
+
+    // Adiciona percentual a cada categoria
+    const gastosPorCategoriaComPercentual = gastosPorCategoria.map(cat => ({
+      ...cat,
+      percentual: totalGastos > 0 ? (cat.total / totalGastos) * 100 : 0,
+    }))
+
     return {
       mesAtual: mesSelecionado,
       totais: {
@@ -127,6 +137,7 @@ export const dashboardService = {
       pendentesEntrada,
       pendentesSaida,
       proximosVencimentos,
+      gastosPorCategoria: gastosPorCategoriaComPercentual,
     }
   },
 }

@@ -8,7 +8,7 @@
  */
 
 import { create } from 'zustand'
-import { dashboardApi, lancamentosApi, type Lancamento, type Totais } from '@/lib/api'
+import { dashboardApi, lancamentosApi, type Lancamento, type Totais, type GastoCategoria } from '@/lib/api'
 import { getMesAtual } from '@/lib/utils'
 
 interface MesHistorico {
@@ -33,6 +33,7 @@ interface DashboardState {
   pendentesEntrada: number
   pendentesSaida: number
   proximosVencimentos: Vencimento[]
+  gastosPorCategoria: GastoCategoria[]
   isLoading: boolean
   error: string | null
 
@@ -70,6 +71,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   pendentesEntrada: 0,
   pendentesSaida: 0,
   proximosVencimentos: [],
+  gastosPorCategoria: [],
   isLoading: false,
   error: null,
 
@@ -86,6 +88,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         pendentesEntrada: data.pendentesEntrada,
         pendentesSaida: data.pendentesSaida,
         proximosVencimentos: data.proximosVencimentos || [],
+        gastosPorCategoria: data.gastosPorCategoria || [],
         isLoading: false,
       })
     } catch (error) {

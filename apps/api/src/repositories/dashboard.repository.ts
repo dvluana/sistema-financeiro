@@ -7,6 +7,7 @@
 
 import { supabase } from '../lib/supabase.js'
 import type { Lancamento } from '../schemas/lancamento.js'
+import { getCategoriaPadraoById, isCategoriaPadrao } from '../constants/categorias-padrao.js'
 
 export const dashboardRepository = {
   /**
@@ -147,5 +148,82 @@ export const dashboardRepository = {
       valor: number
       data_prevista: string
     }>
+  },
+
+  /**
+   * Busca gastos agrupados por categoria nos últimos N meses
+   */
+  async getGastosPorCategoria(meses: string[], userId: string): Promise<Array<{
+    categoria_id: string | null
+    categoria_nome: string
+    categoria_icone: string | null
+    categoria_cor: string | null
+    total: number
+  }>> {
+    const { data, error } = await supabase
+      .from('lancamentos')
+      .select(`
+        valor,
+        categoria_id,
+        categoria:categorias(id, nome, icone, cor)
+      `)
+      .in('mes', meses)
+      .eq('user_id', userId)
+      .eq('tipo', 'saida')
+
+    if (error) throw error
+
+    // Agrupa por categoria
+    const porCategoria: Record<string, {
+      categoria_id: string | null
+      categoria_nome: string
+      categoria_icone: string | null
+      categoria_cor: string | null
+      total: number
+    }> = {}
+
+    for (const item of data || []) {
+      const catId = item.categoria_id || 'sem-categoria'
+
+      // Tenta buscar categoria do banco ou das padrão (do código)
+      let catNome = 'Sem categoria'
+      let catIcone: string | null = null
+      let catCor: string | null = '#6B7280'
+
+      if (item.categoria_id) {
+        // Verifica se é categoria padrão (do código)
+        if (isCategoriaPadrao(item.categoria_id)) {
+          const catPadrao = getCategoriaPadraoById(item.categoria_id)
+          if (catPadrao) {
+            catNome = catPadrao.nome
+            catIcone = catPadrao.icone
+            catCor = catPadrao.cor
+          }
+        } else {
+          // Categoria do banco (pode vir como array ou objeto dependendo do Supabase)
+          const catData = item.categoria
+          const cat = Array.isArray(catData) ? catData[0] : catData
+          if (cat && typeof cat === 'object' && 'nome' in cat) {
+            catNome = cat.nome as string
+            catIcone = cat.icone as string | null
+            catCor = cat.cor as string | null
+          }
+        }
+      }
+
+      if (!porCategoria[catId]) {
+        porCategoria[catId] = {
+          categoria_id: item.categoria_id,
+          categoria_nome: catNome,
+          categoria_icone: catIcone,
+          categoria_cor: catCor,
+          total: 0,
+        }
+      }
+      porCategoria[catId].total += Number(item.valor)
+    }
+
+    // Converte para array e ordena por valor (maior primeiro)
+    return Object.values(porCategoria).sort((a, b) => b.total - a.total)
   },
 }

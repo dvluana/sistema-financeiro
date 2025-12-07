@@ -8,6 +8,7 @@ import { useEffect } from 'react'
 import { Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MiniChart } from '@/components/MiniChart'
+import { GastosPorCategoriaChart } from '@/components/GastosPorCategoriaChart'
 import { useDashboardStore } from '@/stores/useDashboardStore'
 import { useAuthStore } from '@/stores/useAuthStore'
 
@@ -19,6 +20,7 @@ export function Insights({ onOpenConfig }: InsightsProps) {
   const { usuario } = useAuthStore()
   const {
     historico,
+    gastosPorCategoria,
     isLoading,
     carregarDashboard,
   } = useDashboardStore()
@@ -103,18 +105,36 @@ export function Insights({ onOpenConfig }: InsightsProps) {
           </div>
         </div>
 
-        {/* Placeholder para futuras análises */}
+        {/* Gastos por Categoria */}
         <div className="space-y-3">
           <div className="px-1">
             <h2 className="text-corpo-medium text-foreground">
-              Mais insights em breve
+              Maiores gastos dos últimos 6 meses
             </h2>
           </div>
-          <div className="bg-card border border-border rounded-xl p-6 text-center">
-            <p className="text-muted-foreground text-corpo">
-              Novas análises e gráficos serão adicionados aqui.
-            </p>
-          </div>
+          {isLoading ? (
+            <div className="bg-card border border-border rounded-xl p-4">
+              <div className="flex flex-col sm:flex-row gap-6">
+                {/* Skeleton lista */}
+                <div className="flex-1 space-y-3 order-2 sm:order-1">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-muted animate-pulse" />
+                      <div className="flex-1 h-4 bg-muted rounded animate-pulse" />
+                      <div className="w-12 h-4 bg-muted rounded animate-pulse" />
+                    </div>
+                  ))}
+                </div>
+                {/* Skeleton pizza */}
+                <div className="flex flex-col items-center justify-center order-1 sm:order-2">
+                  <div className="w-32 h-32 rounded-full bg-muted animate-pulse" />
+                  <div className="w-24 h-4 bg-muted rounded mt-3 animate-pulse" />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <GastosPorCategoriaChart dados={gastosPorCategoria} />
+          )}
         </div>
       </main>
     </div>

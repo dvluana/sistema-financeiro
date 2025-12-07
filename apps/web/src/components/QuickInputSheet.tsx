@@ -35,6 +35,7 @@ import {
   formatarMesExibicao,
   agruparRecorrencias,
   gerarListaMeses,
+  extrairMesGlobal,
   type ParsedLancamento,
 } from '@/lib/parser'
 
