@@ -21,6 +21,7 @@ import { AddFAB } from '@/components/AddFAB'
 import { lancamentosApi, type Lancamento, type CriarLancamentoInput } from '@/lib/api'
 import type { ParsedLancamento } from '@/lib/parser'
 import type { LancamentoFormData } from '@/components/LancamentoSheet'
+import type { FilhoFormData } from '@/components/FilhoSheet'
 
 // Lazy load de componentes pesados (sheets/modais)
 const LancamentoSheet = lazy(() =>
@@ -31,6 +32,9 @@ const ConfiguracaoDrawer = lazy(() =>
 )
 const QuickInputSheet = lazy(() =>
   import('@/components/QuickInputSheet').then(m => ({ default: m.QuickInputSheet }))
+)
+const FilhoSheet = lazy(() =>
+  import('@/components/FilhoSheet').then(m => ({ default: m.FilhoSheet }))
 )
 
 export function Home() {
@@ -47,6 +51,8 @@ export function Home() {
     criarLancamentoRecorrente,
     atualizarLancamento,
     excluirLancamento,
+    criarFilho,
+    toggleConcluido,
     atualizarConfiguracao,
     limparErro,
   } = useFinanceiroStore()
@@ -59,10 +65,15 @@ export function Home() {
   const [configDrawerOpen, setConfigDrawerOpen] = useState(false)
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
   const [quickInputOpen, setQuickInputOpen] = useState(false)
+  const [filhoSheetOpen, setFilhoSheetOpen] = useState(false)
 
   // Estado do formulário
   const [lancamentoSelecionado, setLancamentoSelecionado] = useState<Lancamento | null>(null)
   const [tipoInicial, setTipoInicial] = useState<'entrada' | 'saida'>('saida')
+
+  // Estado para filhos de agrupadores
+  const [agrupadorSelecionado, setAgrupadorSelecionado] = useState<Lancamento | null>(null)
+  const [filhoSelecionado, setFilhoSelecionado] = useState<Lancamento | null>(null)
 
   /**
    * Abre drawer de lançamento manual (do FAB)
@@ -102,9 +113,75 @@ export function Home() {
   }, [])
 
   /**
+   * Abre formulário para adicionar filho a um agrupador
+   */
+  const handleAddFilho = useCallback((agrupador: Lancamento) => {
+    setAgrupadorSelecionado(agrupador)
+    setFilhoSelecionado(null)
+    setFilhoSheetOpen(true)
+  }, [])
+
+  /**
+   * Abre formulário para editar filho de um agrupador
+   */
+  const handleEditFilho = useCallback((filho: Lancamento, agrupador: Lancamento) => {
+    setAgrupadorSelecionado(agrupador)
+    setFilhoSelecionado(filho)
+    setFilhoSheetOpen(true)
+  }, [])
+
+  /**
+   * Toggle concluído de um filho
+   */
+  const handleToggleFilho = useCallback((filho: Lancamento) => {
+    toggleConcluido(filho.id)
+  }, [toggleConcluido])
+
+  /**
+   * Submete formulário de filho (criar ou atualizar)
+   */
+  const handleFilhoSubmit = async (data: FilhoFormData) => {
+    if (!agrupadorSelecionado) return
+
+    try {
+      if (filhoSelecionado) {
+        // Editar filho existente
+        await atualizarLancamento(filhoSelecionado.id, {
+          nome: data.nome,
+          valor: data.valor,
+          data_prevista: data.data_prevista,
+          concluido: data.concluido,
+          categoria_id: data.categoria_id,
+        })
+      } else {
+        // Criar novo filho
+        await criarFilho(agrupadorSelecionado.id, {
+          tipo: 'saida',
+          nome: data.nome,
+          valor: data.valor,
+          concluido: data.concluido,
+          data_prevista: data.data_prevista,
+          categoria_id: data.categoria_id,
+        })
+      }
+      setFilhoSheetOpen(false)
+      carregarDashboard(mesSelecionado)
+    } catch {
+      // Erro já tratado na store
+    }
+  }
+
+  /**
+   * Abre dialog de confirmação para excluir filho
+   */
+  const handleDeleteFilhoClick = useCallback(() => {
+    setConfirmDialogOpen(true)
+  }, [])
+
+  /**
    * Submete o formulário (criar ou atualizar)
    */
-  const handleFormSubmit = async (tipo: 'entrada' | 'saida', data: LancamentoFormData) => {
+  const handleFormSubmit = async (tipo: 'entrada' | 'saida' | 'agrupador', data: LancamentoFormData) => {
     try {
       if (lancamentoSelecionado) {
         await atualizarLancamento(lancamentoSelecionado.id, {
@@ -114,12 +191,13 @@ export function Home() {
           concluido: data.concluido,
           categoria_id: data.categoria_id,
         })
-      } else if (data.recorrencia) {
+      } else if (data.recorrencia && tipo !== 'agrupador') {
+        // Recorrência só para entrada/saida
         const diaPrevisto = data.data_prevista
           ? parseInt(data.data_prevista.split('-')[2], 10)
           : null
         await criarLancamentoRecorrente({
-          tipo,
+          tipo: tipo as 'entrada' | 'saida',
           nome: data.nome,
           valor: data.valor,
           mes_inicial: mesSelecionado,
@@ -155,19 +233,26 @@ export function Home() {
   }, [])
 
   /**
-   * Confirma exclusão do lançamento
+   * Confirma exclusão do lançamento ou filho
    */
   const handleConfirmDelete = async () => {
-    if (lancamentoSelecionado) {
-      try {
+    try {
+      if (filhoSelecionado) {
+        // Excluir filho
+        await excluirLancamento(filhoSelecionado.id)
+        setConfirmDialogOpen(false)
+        setFilhoSheetOpen(false)
+        setFilhoSelecionado(null)
+      } else if (lancamentoSelecionado) {
+        // Excluir lançamento principal
         await excluirLancamento(lancamentoSelecionado.id)
         setConfirmDialogOpen(false)
         setLancamentoSheetOpen(false)
-        // Recarrega dashboard
-        carregarDashboard(mesSelecionado)
-      } catch {
-        // Erro já tratado na store
       }
+      // Recarrega dashboard
+      carregarDashboard(mesSelecionado)
+    } catch {
+      // Erro já tratado na store
     }
   }
 
@@ -220,6 +305,9 @@ export function Home() {
               onEditLancamento={handleEditLancamento}
               onAddEntrada={handleAddEntrada}
               onAddSaida={handleAddSaida}
+              onAddFilho={handleAddFilho}
+              onEditFilho={handleEditFilho}
+              onToggleFilho={handleToggleFilho}
             />
           </motion.div>
         )}
@@ -263,6 +351,7 @@ export function Home() {
             onSubmit={handleFormSubmit}
             onDelete={lancamentoSelecionado ? handleDeleteClick : undefined}
             isLoading={isLoading}
+            showAgrupadorOption={!lancamentoSelecionado}
           />
         )}
       </Suspense>
@@ -284,7 +373,7 @@ export function Home() {
         open={confirmDialogOpen}
         onOpenChange={setConfirmDialogOpen}
         title="Excluir este item?"
-        description={lancamentoSelecionado?.nome ?? ''}
+        description={filhoSelecionado?.nome ?? lancamentoSelecionado?.nome ?? ''}
         onConfirm={handleConfirmDelete}
       />
 
@@ -310,6 +399,21 @@ export function Home() {
             onOpenChange={setQuickInputOpen}
             mesAtual={mesSelecionado}
             onConfirm={handleQuickInputConfirm}
+          />
+        )}
+      </Suspense>
+
+      {/* Sheet para adicionar/editar filhos de agrupadores - lazy loaded */}
+      <Suspense fallback={null}>
+        {filhoSheetOpen && agrupadorSelecionado && (
+          <FilhoSheet
+            open={filhoSheetOpen}
+            onOpenChange={setFilhoSheetOpen}
+            agrupador={agrupadorSelecionado}
+            filho={filhoSelecionado}
+            onSubmit={handleFilhoSubmit}
+            onDelete={filhoSelecionado ? handleDeleteFilhoClick : undefined}
+            isLoading={isLoading}
           />
         )}
       </Suspense>

@@ -6,11 +6,13 @@
 
 import bcrypt from 'bcrypt'
 import { authRepository } from '../repositories/auth.repository.js'
+import { perfilRepository } from '../repositories/perfil.repository.js'
 import type {
   RegistrarUsuarioInput,
   LoginInput,
   AuthResponse,
   Usuario,
+  PerfilBasico,
 } from '../schemas/auth.js'
 
 const SALT_ROUNDS = 10
@@ -18,6 +20,7 @@ const SALT_ROUNDS = 10
 export const authService = {
   /**
    * Registra um novo usuário
+   * O trigger no banco cria automaticamente o perfil padrão
    */
   async registrar(input: RegistrarUsuarioInput): Promise<AuthResponse> {
     // Verifica se email já existe
@@ -29,15 +32,18 @@ export const authService = {
     // Hash da senha
     const senhaHash = await bcrypt.hash(input.senha, SALT_ROUNDS)
 
-    // Cria usuário
+    // Cria usuário (trigger cria perfil padrão automaticamente)
     const usuario = await authRepository.createUsuario(
       input.nome,
       input.email,
       senhaHash
     )
 
-    // Cria configurações padrão
-    await authRepository.createDefaultConfigs(usuario.id)
+    // Busca o perfil padrão criado pelo trigger
+    const perfilPadrao = await perfilRepository.findPerfilPadrao(usuario.id)
+    if (!perfilPadrao) {
+      throw new Error('Erro ao criar perfil padrão')
+    }
 
     // Cria sessão
     const sessao = await authRepository.createSessao(usuario.id)
@@ -45,6 +51,13 @@ export const authService = {
     return {
       usuario,
       token: sessao.token,
+      perfil_padrao: {
+        id: perfilPadrao.id,
+        nome: perfilPadrao.nome,
+        cor: perfilPadrao.cor,
+        icone: perfilPadrao.icone,
+        is_perfil_padrao: perfilPadrao.is_perfil_padrao,
+      },
     }
   },
 
@@ -64,6 +77,12 @@ export const authService = {
       throw new Error('Email ou senha incorretos')
     }
 
+    // Busca o perfil padrão
+    const perfilPadrao = await perfilRepository.findPerfilPadrao(usuario.id)
+    if (!perfilPadrao) {
+      throw new Error('Perfil padrão não encontrado')
+    }
+
     // Cria sessão
     const sessao = await authRepository.createSessao(usuario.id)
 
@@ -73,6 +92,13 @@ export const authService = {
     return {
       usuario: usuarioSemSenha,
       token: sessao.token,
+      perfil_padrao: {
+        id: perfilPadrao.id,
+        nome: perfilPadrao.nome,
+        cor: perfilPadrao.cor,
+        icone: perfilPadrao.icone,
+        is_perfil_padrao: perfilPadrao.is_perfil_padrao,
+      },
     }
   },
 

@@ -26,6 +26,9 @@ interface DashboardProps {
   onEditLancamento: (lancamento: Lancamento) => void
   onAddEntrada: () => void
   onAddSaida: () => void
+  onAddFilho?: (agrupador: Lancamento) => void
+  onEditFilho?: (filho: Lancamento, agrupador: Lancamento) => void
+  onToggleFilho?: (filho: Lancamento) => void
 }
 
 export function Dashboard({
@@ -33,6 +36,9 @@ export function Dashboard({
   onEditLancamento,
   onAddEntrada,
   onAddSaida,
+  onAddFilho,
+  onEditFilho,
+  onToggleFilho,
 }: DashboardProps) {
   // Filtro de visualização de lançamentos
   const [lancamentoFilter, setLancamentoFilter] = useState<LancamentoFilter>('todos')
@@ -275,6 +281,9 @@ export function Dashboard({
                   onToggle={toggleConcluido}
                   onEdit={onEditLancamento}
                   onAdd={onAddSaida}
+                  onAddFilho={onAddFilho}
+                  onEditFilho={onEditFilho}
+                  onToggleFilho={onToggleFilho}
                 />
               )}
             </div>

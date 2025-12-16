@@ -2,76 +2,85 @@
  * Repository de Lançamentos
  *
  * Acesso a dados de lançamentos financeiros.
- * Todas as queries são filtradas por user_id para isolamento de dados.
+ * Todas as queries são filtradas por perfil_id para isolamento de dados.
+ * O user_id é mantido para referência, mas o isolamento é por perfil.
  */
 
 import { supabase } from '../lib/supabase.js'
 import type { Lancamento, CriarLancamentoInput, AtualizarLancamentoInput, CriarFilhoInput } from '../schemas/lancamento.js'
 
+// Tipo para parâmetros de contexto do usuário/perfil
+interface ContextoUsuario {
+  userId: string
+  perfilId: string
+}
+
 export const lancamentoRepository = {
   /**
-   * Lista lançamentos de um mês para um usuário
+   * Lista lançamentos de um mês para um perfil
    * Inclui dados da categoria relacionada
    * Retorna apenas lançamentos raiz (parent_id IS NULL)
    * Para agrupadores, inclui os filhos aninhados
+   *
+   * IMPORTANTE: Usa query única para evitar race condition.
+   * Busca pais e filhos atomicamente em vez de 2 queries separadas.
+   *
+   * @param mes - Mês no formato YYYY-MM
+   * @param ctx - Contexto com userId e perfilId
    */
-  async findByMes(mes: string, userId: string): Promise<Lancamento[]> {
-    // Busca lançamentos raiz (sem parent_id)
-    const { data, error } = await supabase
+  async findByMes(mes: string, ctx: ContextoUsuario | string): Promise<Lancamento[]> {
+    // Compatibilidade: aceita string (userId antigo) ou ContextoUsuario
+    const filterColumn = typeof ctx === 'string' ? 'user_id' : 'perfil_id'
+    const filterValue = typeof ctx === 'string' ? ctx : ctx.perfilId
+
+    // Query atômica: busca pais (parent_id IS NULL) e filhos (parent_id IS NOT NULL)
+    // em uma única query, garantindo snapshot consistente
+    const { data: allRecords, error } = await supabase
       .from('lancamentos')
       .select(`
         *,
         categoria:categorias(id, nome, tipo, icone, cor, ordem, is_default)
       `)
       .eq('mes', mes)
-      .eq('user_id', userId)
-      .is('parent_id', null)
+      .eq(filterColumn, filterValue)
       .order('created_at', { ascending: true })
 
     if (error) throw error
-    if (!data) return []
+    if (!allRecords) return []
 
-    // Busca filhos dos agrupadores
-    const agrupadores = data.filter(l => l.tipo === 'agrupador')
-    if (agrupadores.length > 0) {
-      const agrupadorIds = agrupadores.map(a => a.id)
-      const { data: filhos, error: filhosError } = await supabase
-        .from('lancamentos')
-        .select(`
-          *,
-          categoria:categorias(id, nome, tipo, icone, cor, ordem, is_default)
-        `)
-        .in('parent_id', agrupadorIds)
-        .eq('user_id', userId)
-        .order('created_at', { ascending: true })
+    // Separa pais (raiz) e filhos
+    const pais = allRecords.filter(l => l.parent_id === null)
+    const filhos = allRecords.filter(l => l.parent_id !== null)
 
-      if (filhosError) throw filhosError
+    // Agrupa filhos por parent_id
+    const filhosPorPai = filhos.reduce((acc, filho) => {
+      if (!acc[filho.parent_id!]) acc[filho.parent_id!] = []
+      acc[filho.parent_id!].push(filho)
+      return acc
+    }, {} as Record<string, Lancamento[]>)
 
-      // Agrupa filhos por parent_id
-      const filhosPorPai = (filhos || []).reduce((acc, filho) => {
-        if (!acc[filho.parent_id]) acc[filho.parent_id] = []
-        acc[filho.parent_id].push(filho)
-        return acc
-      }, {} as Record<string, Lancamento[]>)
+    // Anexa filhos aos agrupadores
+    pais.forEach(l => {
+      if (l.tipo === 'agrupador') {
+        l.filhos = filhosPorPai[l.id] || []
+      }
+    })
 
-      // Anexa filhos aos agrupadores
-      data.forEach(l => {
-        if (l.tipo === 'agrupador') {
-          l.filhos = filhosPorPai[l.id] || []
-        }
-      })
-    }
-
-    return data
+    return pais
   },
 
   /**
-   * Cria novo lançamento para um usuário
+   * Cria novo lançamento para um perfil
    */
-  async create(input: CriarLancamentoInput, userId: string): Promise<Lancamento> {
+  async create(input: CriarLancamentoInput, ctx: ContextoUsuario | string): Promise<Lancamento> {
+    // Compatibilidade: aceita string (userId antigo) ou ContextoUsuario
+    const insertData = typeof ctx === 'string'
+      ? { ...input, user_id: ctx }
+      : { ...input, user_id: ctx.userId, perfil_id: ctx.perfilId }
+
     const { data, error } = await supabase
       .from('lancamentos')
-      .insert({ ...input, user_id: userId })
+      .insert(insertData)
       .select(`
         *,
         categoria:categorias(id, nome, tipo, icone, cor, ordem, is_default)
@@ -83,14 +92,17 @@ export const lancamentoRepository = {
   },
 
   /**
-   * Atualiza lançamento (verifica se pertence ao usuário)
+   * Atualiza lançamento (verifica se pertence ao perfil)
    */
-  async update(id: string, input: AtualizarLancamentoInput, userId: string): Promise<Lancamento> {
+  async update(id: string, input: AtualizarLancamentoInput, ctx: ContextoUsuario | string): Promise<Lancamento> {
+    const filterColumn = typeof ctx === 'string' ? 'user_id' : 'perfil_id'
+    const filterValue = typeof ctx === 'string' ? ctx : ctx.perfilId
+
     const { data, error } = await supabase
       .from('lancamentos')
       .update(input)
       .eq('id', id)
-      .eq('user_id', userId)
+      .eq(filterColumn, filterValue)
       .select(`
         *,
         categoria:categorias(id, nome, tipo, icone, cor, ordem, is_default)
@@ -102,15 +114,18 @@ export const lancamentoRepository = {
   },
 
   /**
-   * Alterna status de conclusão (verifica se pertence ao usuário)
+   * Alterna status de conclusão (verifica se pertence ao perfil)
    */
-  async toggleConcluido(id: string, userId: string): Promise<Lancamento> {
+  async toggleConcluido(id: string, ctx: ContextoUsuario | string): Promise<Lancamento> {
+    const filterColumn = typeof ctx === 'string' ? 'user_id' : 'perfil_id'
+    const filterValue = typeof ctx === 'string' ? ctx : ctx.perfilId
+
     // Busca estado atual
     const { data: current, error: fetchError } = await supabase
       .from('lancamentos')
       .select('concluido')
       .eq('id', id)
-      .eq('user_id', userId)
+      .eq(filterColumn, filterValue)
       .single()
 
     if (fetchError) throw fetchError
@@ -120,7 +135,7 @@ export const lancamentoRepository = {
       .from('lancamentos')
       .update({ concluido: !current.concluido })
       .eq('id', id)
-      .eq('user_id', userId)
+      .eq(filterColumn, filterValue)
       .select(`
         *,
         categoria:categorias(id, nome, tipo, icone, cor, ordem, is_default)
@@ -132,22 +147,28 @@ export const lancamentoRepository = {
   },
 
   /**
-   * Remove lançamento (verifica se pertence ao usuário)
+   * Remove lançamento (verifica se pertence ao perfil)
    */
-  async delete(id: string, userId: string): Promise<void> {
+  async delete(id: string, ctx: ContextoUsuario | string): Promise<void> {
+    const filterColumn = typeof ctx === 'string' ? 'user_id' : 'perfil_id'
+    const filterValue = typeof ctx === 'string' ? ctx : ctx.perfilId
+
     const { error } = await supabase
       .from('lancamentos')
       .delete()
       .eq('id', id)
-      .eq('user_id', userId)
+      .eq(filterColumn, filterValue)
 
     if (error) throw error
   },
 
   /**
-   * Busca lançamento por ID (verifica se pertence ao usuário)
+   * Busca lançamento por ID (verifica se pertence ao perfil)
    */
-  async findById(id: string, userId: string): Promise<Lancamento | null> {
+  async findById(id: string, ctx: ContextoUsuario | string): Promise<Lancamento | null> {
+    const filterColumn = typeof ctx === 'string' ? 'user_id' : 'perfil_id'
+    const filterValue = typeof ctx === 'string' ? ctx : ctx.perfilId
+
     const { data, error } = await supabase
       .from('lancamentos')
       .select(`
@@ -155,7 +176,7 @@ export const lancamentoRepository = {
         categoria:categorias(id, nome, tipo, icone, cor, ordem, is_default)
       `)
       .eq('id', id)
-      .eq('user_id', userId)
+      .eq(filterColumn, filterValue)
       .single()
 
     if (error) {
@@ -168,11 +189,13 @@ export const lancamentoRepository = {
   /**
    * Cria múltiplos lançamentos de uma vez (batch insert)
    */
-  async createMany(inputs: CriarLancamentoInput[], userId: string): Promise<{ criados: number }> {
-    const records = inputs.map(input => ({
-      ...input,
-      user_id: userId,
-    }))
+  async createMany(inputs: CriarLancamentoInput[], ctx: ContextoUsuario | string): Promise<{ criados: number }> {
+    const records = inputs.map(input => {
+      if (typeof ctx === 'string') {
+        return { ...input, user_id: ctx }
+      }
+      return { ...input, user_id: ctx.userId, perfil_id: ctx.perfilId }
+    })
 
     const { error } = await supabase
       .from('lancamentos')
@@ -185,7 +208,10 @@ export const lancamentoRepository = {
   /**
    * Busca filhos de um agrupador
    */
-  async findFilhos(parentId: string, userId: string): Promise<Lancamento[]> {
+  async findFilhos(parentId: string, ctx: ContextoUsuario | string): Promise<Lancamento[]> {
+    const filterColumn = typeof ctx === 'string' ? 'user_id' : 'perfil_id'
+    const filterValue = typeof ctx === 'string' ? ctx : ctx.perfilId
+
     const { data, error } = await supabase
       .from('lancamentos')
       .select(`
@@ -193,7 +219,7 @@ export const lancamentoRepository = {
         categoria:categorias(id, nome, tipo, icone, cor, ordem, is_default)
       `)
       .eq('parent_id', parentId)
-      .eq('user_id', userId)
+      .eq(filterColumn, filterValue)
       .order('created_at', { ascending: true })
 
     if (error) throw error
@@ -202,16 +228,41 @@ export const lancamentoRepository = {
 
   /**
    * Cria um filho para um agrupador
+   *
+   * DEFENSIVE VALIDATIONS (além dos triggers do banco):
+   * 1. Valida que parent existe e pertence ao perfil
+   * 2. Valida que parent é tipo 'agrupador'
+   * 3. Valida que mes do filho = mes do parent
+   *
+   * Triggers do banco fornecem última linha de defesa,
+   * mas validação aqui dá feedback melhor ao usuário.
    */
-  async createFilho(parentId: string, input: CriarFilhoInput, mes: string, userId: string): Promise<Lancamento> {
+  async createFilho(parentId: string, input: CriarFilhoInput, mes: string, ctx: ContextoUsuario | string): Promise<Lancamento> {
+    // VALIDAÇÃO 1: Busca parent para validar ownership, tipo e mes
+    const parent = await this.findById(parentId, ctx)
+
+    if (!parent) {
+      throw new Error(`Parent lancamento ${parentId} not found or does not belong to user/perfil`)
+    }
+
+    // VALIDAÇÃO 2: Parent deve ser agrupador
+    if (parent.tipo !== 'agrupador') {
+      throw new Error(`Parent lancamento ${parentId} is not an agrupador (tipo=${parent.tipo})`)
+    }
+
+    // VALIDAÇÃO 3: Mes do filho deve ser igual ao mes do parent
+    if (parent.mes !== mes) {
+      throw new Error(`Child mes (${mes}) must match parent mes (${parent.mes})`)
+    }
+
+    // Todas validações OK, cria o filho
+    const insertData = typeof ctx === 'string'
+      ? { ...input, mes, parent_id: parentId, user_id: ctx }
+      : { ...input, mes, parent_id: parentId, user_id: ctx.userId, perfil_id: ctx.perfilId }
+
     const { data, error } = await supabase
       .from('lancamentos')
-      .insert({
-        ...input,
-        mes,
-        parent_id: parentId,
-        user_id: userId,
-      })
+      .insert(insertData)
       .select(`
         *,
         categoria:categorias(id, nome, tipo, icone, cor, ordem, is_default)
@@ -225,13 +276,16 @@ export const lancamentoRepository = {
   /**
    * Busca agrupador por ID com seus filhos
    */
-  async findAgrupadorComFilhos(id: string, userId: string): Promise<Lancamento | null> {
-    const agrupador = await this.findById(id, userId)
+  async findAgrupadorComFilhos(id: string, ctx: ContextoUsuario | string): Promise<Lancamento | null> {
+    const agrupador = await this.findById(id, ctx)
     if (!agrupador || agrupador.tipo !== 'agrupador') return null
 
-    const filhos = await this.findFilhos(id, userId)
+    const filhos = await this.findFilhos(id, ctx)
     agrupador.filhos = filhos
 
     return agrupador
   },
 }
+
+// Exportar o tipo para uso em outros módulos
+export type { ContextoUsuario }

@@ -13,6 +13,7 @@ import { categoriaRoutes } from './routes/categoria.routes.js'
 import { dashboardRoutes } from './routes/dashboard.routes.js'
 import { aiRoutes } from './routes/ai.routes.js'
 import { googleCalendarRoutes } from './routes/google-calendar.routes.js'
+import { perfilRoutes } from './routes/perfil.routes.js'
 import { validateEnv } from './lib/env.js'
 import { supabase } from './lib/supabase.js'
 
@@ -76,6 +77,7 @@ await app.register(rateLimit, {
 
 // Register routes
 await app.register(authRoutes)
+await app.register(perfilRoutes)
 await app.register(lancamentoRoutes)
 await app.register(configuracaoRoutes)
 await app.register(categoriaRoutes, { prefix: '/api/categorias' })

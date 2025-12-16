@@ -14,3 +14,10 @@ export type {
 } from '../schemas/lancamento.js'
 
 export type { Configuracao } from '../schemas/configuracao.js'
+
+export type {
+  Perfil,
+  PerfisResponse,
+  CriarPerfilInput,
+  AtualizarPerfilInput,
+} from '../schemas/perfil.js'

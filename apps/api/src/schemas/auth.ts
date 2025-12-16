@@ -36,7 +36,16 @@ export interface Sessao {
   created_at: string
 }
 
+export interface PerfilBasico {
+  id: string
+  nome: string
+  cor: string
+  icone: string
+  is_perfil_padrao: boolean
+}
+
 export interface AuthResponse {
   usuario: Usuario
   token: string
+  perfil_padrao: PerfilBasico
 }
