@@ -55,6 +55,7 @@ export function Dashboard({
   const {
     entradas,
     saidas,
+    agrupadores,
     totais: financeiroTotais,
     configuracoes,
     isLoading: isFinanceiroLoading,
@@ -267,6 +268,7 @@ export function Dashboard({
               {lancamentoFilter === 'saidas' && (
                 <CardSaidas
                   saidas={saidas}
+                  agrupadores={agrupadores}
                   jaPaguei={financeiroTotais?.jaPaguei ?? 0}
                   faltaPagar={financeiroTotais?.faltaPagar ?? 0}
                   mostrarConcluidosDiscretos={mostrarConcluidosDiscretos}

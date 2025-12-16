@@ -3,35 +3,46 @@
  *
  * Card que exibe a lista de saídas (despesas) do mês.
  * Header com totalizadores sempre visíveis para melhor UX.
+ * Suporta agrupadores (cartões, grupos de gastos) com filhos.
  */
 
 import { Plus, TrendingDown } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ItemLista } from '@/components/ItemLista'
+import { ItemListaAgrupado } from '@/components/ItemListaAgrupado'
 import { formatarMoeda } from '@/lib/utils'
 import type { Lancamento } from '@/lib/api'
 
 interface CardSaidasProps {
   saidas: Lancamento[]
+  agrupadores?: Lancamento[]
   jaPaguei: number
   faltaPagar: number
   mostrarConcluidosDiscretos: boolean
   onToggle: (id: string) => void
   onEdit: (lancamento: Lancamento) => void
   onAdd: () => void
+  onAddFilho?: (agrupador: Lancamento) => void
+  onEditFilho?: (filho: Lancamento, agrupador: Lancamento) => void
+  onToggleFilho?: (filho: Lancamento) => void
 }
 
 export function CardSaidas({
   saidas,
+  agrupadores = [],
   jaPaguei,
   faltaPagar,
   mostrarConcluidosDiscretos,
   onToggle,
   onEdit,
   onAdd,
+  onAddFilho,
+  onEditFilho,
+  onToggleFilho,
 }: CardSaidasProps) {
-  const isEmpty = saidas.length === 0
+  const totalItens = saidas.length + agrupadores.length
+  const isEmpty = totalItens === 0
   const total = jaPaguei + faltaPagar
 
   return (
@@ -44,7 +55,7 @@ export function CardSaidas({
           </div>
           <div>
             <h3 className="text-titulo-card text-rosa leading-tight">Saídas</h3>
-            <p className="text-micro text-muted-foreground">{saidas.length} {saidas.length === 1 ? 'item' : 'itens'}</p>
+            <p className="text-micro text-muted-foreground">{totalItens} {totalItens === 1 ? 'item' : 'itens'}</p>
           </div>
         </div>
 
@@ -82,6 +93,7 @@ export function CardSaidas({
           </p>
         ) : (
           <div className="space-y-0">
+            {/* Saídas normais */}
             {saidas.map((saida) => (
               <ItemLista
                 key={saida.id}
@@ -94,6 +106,20 @@ export function CardSaidas({
                 mostrarConcluidosDiscretos={mostrarConcluidosDiscretos}
                 onToggle={() => onToggle(saida.id)}
                 onEdit={() => onEdit(saida)}
+              />
+            ))}
+
+            {/* Agrupadores (cartões, grupos de gastos) */}
+            {agrupadores.map((agrupador) => (
+              <ItemListaAgrupado
+                key={agrupador.id}
+                agrupador={agrupador}
+                mostrarConcluidosDiscretos={mostrarConcluidosDiscretos}
+                onToggle={() => onToggle(agrupador.id)}
+                onEdit={() => onEdit(agrupador)}
+                onAddFilho={() => onAddFilho?.(agrupador)}
+                onEditFilho={(filho) => onEditFilho?.(filho, agrupador)}
+                onToggleFilho={(filho) => onToggleFilho?.(filho)}
               />
             ))}
           </div>

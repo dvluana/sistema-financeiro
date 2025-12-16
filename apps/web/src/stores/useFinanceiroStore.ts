@@ -302,6 +302,7 @@ export const useFinanceiroStore = create<FinanceiroState>((set, get) => ({
       set({
         entradas: response.entradas,
         saidas: response.saidas,
+        agrupadores: response.agrupadores || [],
         totais: response.totais,
         isLoading: false,
       })
