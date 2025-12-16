@@ -90,7 +90,8 @@ export function LancamentoSheet({
   // Inicializa campos quando abre ou quando lançamento muda
   useEffect(() => {
     if (lancamento) {
-      setTipo(lancamento.tipo)
+      // Agrupadores são tratados como saída no formulário de edição
+      setTipo(lancamento.tipo === 'agrupador' ? 'saida' : lancamento.tipo)
       setNome(lancamento.nome)
       setValor(String(lancamento.valor))
       setConcluido(lancamento.concluido)

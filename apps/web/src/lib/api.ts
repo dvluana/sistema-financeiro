@@ -79,14 +79,16 @@ export function getCategoriaPadraoById(id: string): Categoria | undefined {
 
 export interface Lancamento {
   id: string
-  tipo: 'entrada' | 'saida'
+  tipo: 'entrada' | 'saida' | 'agrupador'
   nome: string
   valor: number
   concluido: boolean
   data_prevista: string | null
   mes: string
   categoria_id: string | null
+  parent_id: string | null
   categoria?: Categoria | null
+  filhos?: Lancamento[]
   created_at: string
   updated_at: string
 }
@@ -105,14 +107,25 @@ export interface LancamentoResponse {
   mes: string
   entradas: Lancamento[]
   saidas: Lancamento[]
+  agrupadores: Lancamento[]
   totais: Totais
 }
 
 export interface CriarLancamentoInput {
-  tipo: 'entrada' | 'saida'
+  tipo: 'entrada' | 'saida' | 'agrupador'
   nome: string
   valor: number
   mes: string
+  concluido?: boolean
+  data_prevista?: string | null
+  categoria_id?: string | null
+  parent_id?: string | null
+}
+
+export interface CriarFilhoInput {
+  tipo: 'entrada' | 'saida'
+  nome: string
+  valor: number
   concluido?: boolean
   data_prevista?: string | null
   categoria_id?: string | null
@@ -314,6 +327,16 @@ export const lancamentosApi = {
     }),
 
   /**
+   * Cria múltiplos lançamentos em lote (batch)
+   * Mais eficiente que criar um por um
+   */
+  criarLote: (lancamentos: CriarLancamentoInput[]): Promise<{ criados: number }> =>
+    request('/api/lancamentos/batch', {
+      method: 'POST',
+      body: JSON.stringify({ lancamentos }),
+    }),
+
+  /**
    * Atualiza um lançamento existente
    */
   atualizar: (id: string, data: AtualizarLancamentoInput): Promise<LancamentoResponse> =>
@@ -337,6 +360,27 @@ export const lancamentosApi = {
     request(`/api/lancamentos/${id}`, {
       method: 'DELETE',
     }),
+
+  /**
+   * Lista filhos de um agrupador
+   */
+  listarFilhos: (agrupadorId: string): Promise<Lancamento[]> =>
+    request(`/api/lancamentos/${agrupadorId}/filhos`),
+
+  /**
+   * Cria filho para um agrupador
+   */
+  criarFilho: (agrupadorId: string, data: CriarFilhoInput): Promise<LancamentoResponse> =>
+    request(`/api/lancamentos/${agrupadorId}/filhos`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  /**
+   * Busca agrupador com todos os filhos
+   */
+  buscarAgrupador: (id: string): Promise<Lancamento> =>
+    request(`/api/lancamentos/${id}/agrupador`),
 }
 
 /**
@@ -444,4 +488,56 @@ export const aiApi = {
       method: 'POST',
       body: JSON.stringify({ texto, mes }),
     }),
+}
+
+/**
+ * Tipos para Google Calendar (Lembretes)
+ */
+export interface CalendarEvent {
+  id: string
+  title: string
+  startTime: string
+  endTime: string
+  timeUntil: string
+  location?: string
+  description?: string
+  isAllDay: boolean
+}
+
+export interface GoogleCalendarStatus {
+  configured: boolean
+  connected: boolean
+}
+
+/**
+ * API de Google Calendar (Lembretes)
+ */
+export const googleCalendarApi = {
+  /**
+   * Verifica status da conexão com Google Calendar
+   */
+  getStatus: (): Promise<GoogleCalendarStatus> =>
+    request('/api/google-calendar/status'),
+
+  /**
+   * Obtém URL para iniciar fluxo OAuth
+   */
+  getAuthUrl: (): Promise<{ authUrl: string }> =>
+    request('/api/google-calendar/auth-url'),
+
+  /**
+   * Desconecta do Google Calendar
+   */
+  disconnect: (): Promise<{ success: boolean }> =>
+    request('/api/google-calendar/disconnect', {
+      method: 'DELETE',
+    }),
+
+  /**
+   * Busca eventos próximos do calendário
+   * @param maxResults - Número máximo de eventos (default: 10)
+   * @param daysAhead - Dias à frente para buscar (default: 7)
+   */
+  getEvents: (maxResults = 10, daysAhead = 7): Promise<{ events: CalendarEvent[] }> =>
+    request(`/api/google-calendar/events?maxResults=${maxResults}&daysAhead=${daysAhead}`),
 }

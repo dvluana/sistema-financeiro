@@ -3,13 +3,11 @@
  *
  * Componente para seleção de categoria de lançamentos.
  * Permite criar novas categorias diretamente do select.
- * Usa Select e Dialog do shadcn/ui com ícones dinâmicos do Lucide.
+ * Usa Select e Dialog do shadcn/ui com ícones do mapeamento centralizado.
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import * as LucideIcons from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
-import { Plus, Loader2, Check } from 'lucide-react'
+import { Plus, Loader2, Check, X } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -30,6 +28,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { categoriasApi, type Categoria } from '@/lib/api'
+import { getIconComponent } from '@/lib/icons'
 
 interface CategoriaSelectProps {
   tipo: 'entrada' | 'saida'
@@ -38,13 +37,14 @@ interface CategoriaSelectProps {
   label?: string
 }
 
-// Ícones disponíveis para categorias
+// Ícones disponíveis para seleção (subset do ICON_MAP)
 const ICONES_DISPONIVEIS = [
   'Wallet', 'CreditCard', 'Banknote', 'PiggyBank', 'Receipt',
-  'ShoppingCart', 'ShoppingBag', 'Car', 'Home', 'Utensils',
-  'Coffee', 'Heart', 'Pill', 'GraduationCap', 'Briefcase',
-  'Plane', 'Gift', 'Music', 'Gamepad2', 'Dumbbell',
-  'Smartphone', 'Wifi', 'Zap', 'Droplet', 'Flame',
+  'ShoppingBag', 'Car', 'Home', 'Utensils',
+  'Heart', 'GraduationCap', 'Briefcase',
+  'Plane', 'Gift', 'Gamepad2',
+  'Smartphone', 'Wifi', 'Zap', 'Droplets',
+  'TrendingUp', 'CircleDollarSign', 'HandCoins', 'Coins',
 ]
 
 // Cores disponíveis para categorias
@@ -60,24 +60,6 @@ const CORES_DISPONIVEIS = [
   '#F97316', // laranja
   '#84CC16', // lime
 ]
-
-// Type-safe icon lookup with proper typing
-type LucideIconModule = typeof LucideIcons
-type IconName = keyof LucideIconModule
-
-// Função para obter o componente de ícone do Lucide dinamicamente
-function getIconComponent(iconName: string | null): LucideIcon | null {
-  if (!iconName) return null
-  // Check if the icon name exists in the module
-  if (iconName in LucideIcons) {
-    const icon = LucideIcons[iconName as IconName]
-    // Verify it's a valid component (not a utility or type)
-    if (typeof icon === 'function' || (typeof icon === 'object' && icon !== null)) {
-      return icon as LucideIcon
-    }
-  }
-  return null
-}
 
 export function CategoriaSelect({
   tipo,
@@ -210,7 +192,7 @@ export function CategoriaSelect({
             <SelectItem value="sem-categoria" className="min-h-touch">
               <div className="flex items-center gap-2">
                 <span className="flex items-center justify-center w-5 h-5 rounded bg-muted">
-                  <LucideIcons.X className="w-3 h-3 text-muted-foreground" />
+                  <X className="w-3 h-3 text-muted-foreground" />
                 </span>
                 <span>Sem categoria</span>
               </div>

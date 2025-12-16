@@ -3,6 +3,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
+import compress from '@fastify/compress'
 import rateLimit from '@fastify/rate-limit'
 import fastifyStatic from '@fastify/static'
 import { authRoutes } from './routes/auth.routes.js'
@@ -11,6 +12,7 @@ import { configuracaoRoutes } from './routes/configuracao.routes.js'
 import { categoriaRoutes } from './routes/categoria.routes.js'
 import { dashboardRoutes } from './routes/dashboard.routes.js'
 import { aiRoutes } from './routes/ai.routes.js'
+import { googleCalendarRoutes } from './routes/google-calendar.routes.js'
 import { validateEnv } from './lib/env.js'
 import { supabase } from './lib/supabase.js'
 
@@ -56,7 +58,13 @@ await app.register(cors, {
   credentials: true,
 })
 
-// Rate limiting - protect against abuse
+// Compressão HTTP, reduz tamanho das respostas em ~10x
+await app.register(compress, {
+  threshold: 1024, // Comprimir respostas > 1KB
+  encodings: ['gzip', 'deflate'],
+})
+
+// Rate limiting, protect against abuse
 await app.register(rateLimit, {
   max: 100, // Max 100 requests per window
   timeWindow: '1 minute',
@@ -73,6 +81,7 @@ await app.register(configuracaoRoutes)
 await app.register(categoriaRoutes, { prefix: '/api/categorias' })
 await app.register(dashboardRoutes)
 await app.register(aiRoutes)
+await app.register(googleCalendarRoutes)
 
 // Health check with service status
 app.get('/health', async () => {

@@ -1,15 +1,38 @@
-import * as LucideIcons from 'lucide-react'
+import React, { useMemo } from 'react'
 import type { LucideIcon } from 'lucide-react'
+import {
+  Wallet,
+  TrendingUp,
+  CircleDollarSign,
+  Home,
+  Utensils,
+  Car,
+  Heart,
+  Gamepad2,
+  CreditCard,
+} from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { StatusCircle } from "./StatusCircle"
 import { formatarMoeda, cn } from "@/lib/utils"
 import type { Categoria } from "@/lib/api"
 
-// Função para obter o componente de ícone do Lucide dinamicamente
+// Map estático de ícones - evita importar todos os ícones do Lucide
+const ICON_MAP: Record<string, LucideIcon> = {
+  Wallet,
+  TrendingUp,
+  CircleDollarSign,
+  Home,
+  Utensils,
+  Car,
+  Heart,
+  Gamepad2,
+  CreditCard,
+}
+
+// Função para obter o componente de ícone - O(1) lookup
 function getIconComponent(iconName: string | null): LucideIcon | null {
   if (!iconName) return null
-  const icons = LucideIcons as unknown as Record<string, LucideIcon>
-  return icons[iconName] || null
+  return ICON_MAP[iconName] || null
 }
 
 interface ItemListaProps {
@@ -24,7 +47,8 @@ interface ItemListaProps {
   onEdit: () => void
 }
 
-export function ItemLista({
+// Memoizado para evitar re-renders quando props não mudam
+export const ItemLista = React.memo(function ItemLista({
   tipo,
   nome,
   valor,
@@ -35,14 +59,19 @@ export function ItemLista({
   onToggle,
   onEdit,
 }: ItemListaProps) {
-  // Obter ícone da categoria
-  const CategoriaIcon = categoria?.icone ? getIconComponent(categoria.icone) : null
+  // Memoiza ícone da categoria para evitar recálculo
+  const CategoriaIcon = useMemo(
+    () => (categoria?.icone ? getIconComponent(categoria.icone) : null),
+    [categoria?.icone]
+  )
 
-  // Label da tag baseado no tipo
-  const tagLabel = tipo === 'entrada' ? 'Recebido' : 'Pago'
-  const tagColor = tipo === 'entrada'
-    ? 'bg-verde/10 text-verde border-verde/20'
-    : 'bg-vermelho/10 text-vermelho border-vermelho/20'
+  // Memoiza labels e cores para evitar recálculo
+  const { tagLabel, tagColor } = useMemo(() => ({
+    tagLabel: tipo === 'entrada' ? 'Recebido' : 'Pago',
+    tagColor: tipo === 'entrada'
+      ? 'bg-verde/10 text-verde border-verde/20'
+      : 'bg-vermelho/10 text-vermelho border-vermelho/20'
+  }), [tipo])
 
   return (
     <div className="flex items-center gap-2 min-h-[64px] border-b border-border last:border-0">
@@ -112,4 +141,4 @@ export function ItemLista({
       </button>
     </div>
   )
-}
+})

@@ -7,7 +7,7 @@
 import { FastifyInstance } from 'fastify'
 import { authService } from '../services/auth.service.js'
 import { registrarUsuarioSchema, loginSchema } from '../schemas/auth.js'
-import { requireAuth } from '../middleware/auth.middleware.js'
+import { requireAuth, invalidateTokenCache } from '../middleware/auth.middleware.js'
 
 export async function authRoutes(app: FastifyInstance) {
   /**
@@ -61,6 +61,8 @@ export async function authRoutes(app: FastifyInstance) {
       try {
         const token = request.headers.authorization?.split(' ')[1]
         if (token) {
+          // Invalida cache do token antes de logout no banco
+          invalidateTokenCache(token)
           await authService.logout(token)
         }
         return { message: 'Logout realizado com sucesso' }

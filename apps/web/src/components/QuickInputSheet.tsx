@@ -23,6 +23,7 @@ import {
   Wand2,
 } from 'lucide-react'
 import { Drawer as DrawerPrimitive } from 'vaul'
+import { useDebouncedCallback } from 'use-debounce'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui'
 import { useIsDesktop } from '@/hooks/useMediaQuery'
@@ -60,8 +61,11 @@ const LancamentoItem = React.memo(function LancamentoItem({
   const temRecorrencia = !!item.recorrencia
   const [showOptions, setShowOptions] = useState(false)
 
-  // Obtém categoria atual
-  const categoriasDoTipo = getCategoriasPadraoByTipo(item.tipo)
+  // Memoiza categorias por tipo para evitar recálculo
+  const categoriasDoTipo = useMemo(
+    () => getCategoriasPadraoByTipo(item.tipo),
+    [item.tipo]
+  )
 
   // Formata valor para exibição
   const valorFormatado = item.valor !== null
@@ -252,12 +256,26 @@ export function QuickInputSheet({
 }: QuickInputSheetProps) {
   const isDesktop = useIsDesktop()
 
-  // Estado do input
+  // Estado do input - texto local para feedback imediato
+  const [textoLocal, setTextoLocal] = useState('')
   const [texto, setTexto] = useState('')
   const [lancamentos, setLancamentos] = useState<ParsedLancamento[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isParsing, setIsParsing] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+
+  // Debounce para atualização do texto (reduz re-renders)
+  const debouncedSetTexto = useDebouncedCallback(
+    (value: string) => setTexto(value),
+    150
+  )
+
+  // Handler otimizado para input
+  const handleTextoChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setTextoLocal(value) // Atualiza imediatamente para feedback visual
+    debouncedSetTexto(value) // Propaga com debounce
+  }, [debouncedSetTexto])
 
   // Estado do reconhecimento de voz
   const [isListening, setIsListening] = useState(false)
@@ -283,6 +301,7 @@ export function QuickInputSheet({
   // Limpa estado quando fecha
   useEffect(() => {
     if (!open) {
+      setTextoLocal('')
       setTexto('')
       setLancamentos([])
       setErro(null)
@@ -329,7 +348,9 @@ export function QuickInputSheet({
         }
       }
       if (finalTranscript) {
-        setTexto(prev => prev ? `${prev} ${finalTranscript}` : finalTranscript)
+        const newValue = textoLocal ? `${textoLocal} ${finalTranscript}` : finalTranscript
+        setTextoLocal(newValue)
+        setTexto(newValue)
       }
     }
 
@@ -348,7 +369,7 @@ export function QuickInputSheet({
     } catch {
       setIsListening(false)
     }
-  }, [speechSupported, isListening])
+  }, [speechSupported, isListening, textoLocal])
 
   /**
    * Processa texto com IA
@@ -389,6 +410,7 @@ export function QuickInputSheet({
       }))
 
       setLancamentos(prev => [...prev, ...novos])
+      setTextoLocal('')
       setTexto('')
     } catch {
       setErro('Erro ao processar. Tente novamente.')
@@ -524,8 +546,8 @@ export function QuickInputSheet({
           <input
             ref={inputRef}
             type="text"
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
+            value={textoLocal}
+            onChange={handleTextoChange}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault()
@@ -564,10 +586,10 @@ export function QuickInputSheet({
             <button
               type="button"
               onClick={handleProcess}
-              disabled={!texto.trim() || isParsing}
+              disabled={!textoLocal.trim() || isParsing}
               className={cn(
                 'p-2.5 rounded-xl transition-all',
-                texto.trim() && !isParsing
+                textoLocal.trim() && !isParsing
                   ? 'bg-rosa text-white hover:bg-rosa/90 shadow-md shadow-rosa/20 active:scale-95'
                   : 'bg-muted text-muted-foreground cursor-not-allowed'
               )}
@@ -582,7 +604,7 @@ export function QuickInputSheet({
         </div>
 
         {/* Hint de IA */}
-        {lancamentos.length === 0 && !texto && !isParsing && (
+        {lancamentos.length === 0 && !textoLocal && !isParsing && (
           <p className="text-micro text-muted-foreground/60 mt-2 px-1">
             Dica: você pode escrever vários de uma vez separados por vírgula
           </p>

@@ -29,6 +29,7 @@ interface FinanceiroState {
   mesAtual: string
   entradas: Lancamento[]
   saidas: Lancamento[]
+  agrupadores: Lancamento[]
   totais: LancamentoResponse['totais'] | null
   configuracoes: Record<string, boolean | string | number>
 
@@ -52,6 +53,9 @@ interface FinanceiroState {
   toggleConcluido: (id: string) => Promise<void>
   excluirLancamento: (id: string) => Promise<void>
 
+  // Ações de agrupadores
+  criarFilho: (agrupadorId: string, data: { tipo: 'entrada' | 'saida'; nome: string; valor: number; concluido?: boolean; data_prevista?: string | null; categoria_id?: string | null }) => Promise<void>
+
   // Ações de configurações
   atualizarConfiguracao: (chave: string, valor: boolean) => Promise<void>
 
@@ -67,6 +71,7 @@ export const useFinanceiroStore = create<FinanceiroState>((set, get) => ({
   mesAtual: getMesAtual(),
   entradas: [],
   saidas: [],
+  agrupadores: [],
   totais: null,
   configuracoes: {
     entradas_auto_recebido: false,
@@ -111,6 +116,7 @@ export const useFinanceiroStore = create<FinanceiroState>((set, get) => ({
       set({
         entradas: response.entradas,
         saidas: response.saidas,
+        agrupadores: response.agrupadores || [],
         totais: response.totais,
         isLoading: false,
       })
@@ -152,6 +158,7 @@ export const useFinanceiroStore = create<FinanceiroState>((set, get) => ({
       set({
         entradas: response.entradas,
         saidas: response.saidas,
+        agrupadores: response.agrupadores || [],
         totais: response.totais,
         isLoading: false,
       })
@@ -196,6 +203,7 @@ export const useFinanceiroStore = create<FinanceiroState>((set, get) => ({
       set({
         entradas: response.entradas,
         saidas: response.saidas,
+        agrupadores: response.agrupadores || [],
         totais: response.totais,
         isLoading: false,
       })
@@ -213,12 +221,13 @@ export const useFinanceiroStore = create<FinanceiroState>((set, get) => ({
    * Usa optimistic update para feedback imediato
    */
   toggleConcluido: async (id: string) => {
-    const { entradas, saidas, totais } = get()
+    const { entradas, saidas, agrupadores, totais } = get()
 
     // Encontra o lançamento e determina o novo estado
     const lancamentoEntrada = entradas.find(l => l.id === id)
     const lancamentoSaida = saidas.find(l => l.id === id)
-    const lancamento = lancamentoEntrada || lancamentoSaida
+    const lancamentoAgrupador = agrupadores.find(l => l.id === id)
+    const lancamento = lancamentoEntrada || lancamentoSaida || lancamentoAgrupador
 
     if (!lancamento || !totais) return
 
@@ -236,6 +245,20 @@ export const useFinanceiroStore = create<FinanceiroState>((set, get) => ({
           ...totais,
           jaEntrou: totais.jaEntrou + diffValor,
           faltaEntrar: totais.faltaEntrar - diffValor,
+        },
+      })
+    } else if (lancamentoAgrupador) {
+      // Agrupadores contam como saídas
+      const novosAgrupadores = agrupadores.map(l =>
+        l.id === id ? { ...l, concluido: novoStatus } : l
+      )
+      const diffValor = novoStatus ? lancamento.valor : -lancamento.valor
+      set({
+        agrupadores: novosAgrupadores,
+        totais: {
+          ...totais,
+          jaPaguei: totais.jaPaguei + diffValor,
+          faltaPagar: totais.faltaPagar - diffValor,
         },
       })
     } else {
@@ -261,6 +284,7 @@ export const useFinanceiroStore = create<FinanceiroState>((set, get) => ({
       set({
         entradas,
         saidas,
+        agrupadores,
         totais,
         error: error instanceof Error ? error.message : 'Erro ao atualizar status',
       })
@@ -285,6 +309,30 @@ export const useFinanceiroStore = create<FinanceiroState>((set, get) => ({
       set({
         isLoading: false,
         error: error instanceof Error ? error.message : 'Erro ao excluir lançamento',
+      })
+      throw error
+    }
+  },
+
+  /**
+   * Cria um filho para um agrupador
+   */
+  criarFilho: async (agrupadorId: string, data: { tipo: 'entrada' | 'saida'; nome: string; valor: number; concluido?: boolean; data_prevista?: string | null; categoria_id?: string | null }) => {
+    set({ isLoading: true, error: null })
+
+    try {
+      const response = await lancamentosApi.criarFilho(agrupadorId, data)
+      set({
+        entradas: response.entradas,
+        saidas: response.saidas,
+        agrupadores: response.agrupadores || [],
+        totais: response.totais,
+        isLoading: false,
+      })
+    } catch (error) {
+      set({
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Erro ao criar item',
       })
       throw error
     }

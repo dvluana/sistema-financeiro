@@ -1,14 +1,14 @@
 /**
  * BottomTabBar Component
  *
- * Barra de navegação fixa inferior com dois tabs: Início e Insights.
+ * Barra de navegação fixa inferior com três tabs: Início, Lembrit e Insights.
  * Mobile-first com área de toque generosa.
  */
 
-import { Home, BarChart3 } from 'lucide-react'
+import { Home, Bell, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export type TabType = 'inicio' | 'insights'
+export type TabType = 'inicio' | 'lembretes' | 'insights'
 
 interface BottomTabBarProps {
   activeTab: TabType
@@ -30,6 +30,19 @@ export function BottomTabBar({ activeTab, onTabChange }: BottomTabBarProps) {
         >
           <Home className="w-6 h-6" />
           <span className="text-[12px] font-medium">Início</span>
+        </button>
+
+        {/* Tab Lembretes */}
+        <button
+          type="button"
+          onClick={() => onTabChange('lembretes')}
+          className={cn(
+            'flex-1 flex flex-col items-center justify-center gap-1 transition-colors',
+            activeTab === 'lembretes' ? 'text-rosa' : 'text-muted-foreground'
+          )}
+        >
+          <Bell className="w-6 h-6" />
+          <span className="text-[12px] font-medium">Lembretes</span>
         </button>
 
         {/* Tab Insights */}

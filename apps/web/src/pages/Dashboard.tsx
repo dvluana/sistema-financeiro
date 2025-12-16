@@ -76,17 +76,21 @@ export function Dashboard({
   // Configuração para mostrar concluídos discretos
   const mostrarConcluidosDiscretos = Boolean(configuracoes.mostrar_concluidos_discretos)
 
+  // Carrega dados iniciais
   useEffect(() => {
-    carregarDashboard()
     carregarConfiguracoes()
-  }, [carregarDashboard, carregarConfiguracoes])
+  }, [carregarConfiguracoes])
 
-  // Carrega lançamentos quando mês muda
+  // Carrega dashboard e lançamentos quando mês muda
+  // Combina as duas chamadas para evitar duplicação
   useEffect(() => {
     if (mesSelecionado) {
+      // Dashboard já retorna totais do mês selecionado
+      carregarDashboard(mesSelecionado)
+      // Lançamentos detalhados para as listas
       carregarMes(mesSelecionado)
     }
-  }, [mesSelecionado, carregarMes])
+  }, [mesSelecionado, carregarDashboard, carregarMes])
 
   const handleLogout = useCallback(async () => {
     await logout()

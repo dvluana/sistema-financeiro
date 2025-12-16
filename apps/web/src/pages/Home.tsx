@@ -3,23 +3,35 @@
  *
  * Container principal da aplicação com navegação entre Dashboard e Insights.
  * Gerencia estado de lançamentos e modais.
+ *
+ * Performance: Usa lazy loading para componentes pesados (modais/sheets)
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, lazy, Suspense } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useFinanceiroStore } from '@/stores/useFinanceiroStore'
 import { useDashboardStore } from '@/stores/useDashboardStore'
 import { BottomTabBar, type TabType } from '@/components/BottomTabBar'
 import { Dashboard } from './Dashboard'
 import { Insights } from './Insights'
-import { LancamentoSheet, type LancamentoFormData } from '@/components/LancamentoSheet'
-import { ConfiguracaoDrawer } from '@/components/ConfiguracaoDrawer'
+import { Lembretes } from './Lembretes'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Toast } from '@/components/Toast'
-import { QuickInputSheet } from '@/components/QuickInputSheet'
 import { AddFAB } from '@/components/AddFAB'
-import type { Lancamento, CriarLancamentoInput } from '@/lib/api'
+import { lancamentosApi, type Lancamento, type CriarLancamentoInput } from '@/lib/api'
 import type { ParsedLancamento } from '@/lib/parser'
+import type { LancamentoFormData } from '@/components/LancamentoSheet'
+
+// Lazy load de componentes pesados (sheets/modais)
+const LancamentoSheet = lazy(() =>
+  import('@/components/LancamentoSheet').then(m => ({ default: m.LancamentoSheet }))
+)
+const ConfiguracaoDrawer = lazy(() =>
+  import('@/components/ConfiguracaoDrawer').then(m => ({ default: m.ConfiguracaoDrawer }))
+)
+const QuickInputSheet = lazy(() =>
+  import('@/components/QuickInputSheet').then(m => ({ default: m.QuickInputSheet }))
+)
 
 export function Home() {
   // Tab ativo
@@ -84,7 +96,8 @@ export function Home() {
    */
   const handleEditLancamento = useCallback((lancamento: Lancamento) => {
     setLancamentoSelecionado(lancamento)
-    setTipoInicial(lancamento.tipo)
+    // Agrupadores são tratados como saída no formulário de edição
+    setTipoInicial(lancamento.tipo === 'agrupador' ? 'saida' : lancamento.tipo)
     setLancamentoSheetOpen(true)
   }, [])
 
@@ -160,32 +173,24 @@ export function Home() {
 
   /**
    * Confirma lançamentos do Quick Input
+   * Usa endpoint batch para criar todos de uma vez (melhor performance)
    */
   const handleQuickInputConfirm = async (lancamentos: ParsedLancamento[]) => {
-    // Cria todos os lançamentos em paralelo
-    const promises: Promise<void>[] = []
+    // Prepara dados para o batch
+    const lancamentosData: CriarLancamentoInput[] = lancamentos.map(l => ({
+      tipo: l.tipo,
+      nome: l.nome,
+      valor: l.valor!,
+      mes: l.mes,
+      concluido: false,
+      data_prevista: l.diaPrevisto
+        ? `${l.mes}-${String(l.diaPrevisto).padStart(2, '0')}`
+        : null,
+      categoria_id: l.categoriaId || null,
+    }))
 
-    for (const l of lancamentos) {
-      const data: CriarLancamentoInput = {
-        tipo: l.tipo,
-        nome: l.nome,
-        valor: l.valor!,
-        mes: l.mes,
-        concluido: false,
-        data_prevista: l.diaPrevisto
-          ? `${l.mes}-${String(l.diaPrevisto).padStart(2, '0')}`
-          : null,
-        categoria_id: l.categoriaId || null,
-      }
-
-      promises.push(
-        criarLancamento(data).then(() => {
-          // Lançamento criado
-        })
-      )
-    }
-
-    await Promise.all(promises)
+    // Cria todos os lançamentos em uma única requisição
+    await lancamentosApi.criarLote(lancamentosData)
 
     // Recarrega dados
     await carregarMes(mesSelecionado)
@@ -202,7 +207,7 @@ export function Home() {
     <div className="min-h-screen">
       {/* Conteúdo das telas com crossfade */}
       <AnimatePresence mode="wait">
-        {activeTab === 'inicio' ? (
+        {activeTab === 'inicio' && (
           <motion.div
             key="dashboard"
             initial={{ opacity: 0 }}
@@ -217,7 +222,19 @@ export function Home() {
               onAddSaida={handleAddSaida}
             />
           </motion.div>
-        ) : (
+        )}
+        {activeTab === 'lembretes' && (
+          <motion.div
+            key="lembretes"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <Lembretes onOpenConfig={() => setConfigDrawerOpen(true)} />
+          </motion.div>
+        )}
+        {activeTab === 'insights' && (
           <motion.div
             key="insights"
             initial={{ opacity: 0 }}
@@ -233,26 +250,34 @@ export function Home() {
       {/* Bottom Tab Bar */}
       <BottomTabBar activeTab={activeTab} onTabChange={setActiveTab} />
 
-      {/* Drawer de lançamento manual */}
-      <LancamentoSheet
-        open={lancamentoSheetOpen}
-        onOpenChange={setLancamentoSheetOpen}
-        mesAtual={mesSelecionado}
-        lancamento={lancamentoSelecionado}
-        tipoInicial={tipoInicial}
-        autoMarcarConcluido={autoMarcarConcluido}
-        onSubmit={handleFormSubmit}
-        onDelete={lancamentoSelecionado ? handleDeleteClick : undefined}
-        isLoading={isLoading}
-      />
+      {/* Drawer de lançamento manual - lazy loaded */}
+      <Suspense fallback={null}>
+        {lancamentoSheetOpen && (
+          <LancamentoSheet
+            open={lancamentoSheetOpen}
+            onOpenChange={setLancamentoSheetOpen}
+            mesAtual={mesSelecionado}
+            lancamento={lancamentoSelecionado}
+            tipoInicial={tipoInicial}
+            autoMarcarConcluido={autoMarcarConcluido}
+            onSubmit={handleFormSubmit}
+            onDelete={lancamentoSelecionado ? handleDeleteClick : undefined}
+            isLoading={isLoading}
+          />
+        )}
+      </Suspense>
 
-      {/* Drawer de configurações */}
-      <ConfiguracaoDrawer
-        open={configDrawerOpen}
-        onOpenChange={setConfigDrawerOpen}
-        configuracoes={configuracoes}
-        onUpdateConfig={atualizarConfiguracao}
-      />
+      {/* Drawer de configurações - lazy loaded */}
+      <Suspense fallback={null}>
+        {configDrawerOpen && (
+          <ConfiguracaoDrawer
+            open={configDrawerOpen}
+            onOpenChange={setConfigDrawerOpen}
+            configuracoes={configuracoes}
+            onUpdateConfig={atualizarConfiguracao}
+          />
+        )}
+      </Suspense>
 
       {/* Dialog de confirmação de exclusão */}
       <ConfirmDialog
@@ -277,13 +302,17 @@ export function Home() {
         className="bottom-24 right-4"
       />
 
-      {/* Sheet de lançamento rápido */}
-      <QuickInputSheet
-        open={quickInputOpen}
-        onOpenChange={setQuickInputOpen}
-        mesAtual={mesSelecionado}
-        onConfirm={handleQuickInputConfirm}
-      />
+      {/* Sheet de lançamento rápido - lazy loaded */}
+      <Suspense fallback={null}>
+        {quickInputOpen && (
+          <QuickInputSheet
+            open={quickInputOpen}
+            onOpenChange={setQuickInputOpen}
+            mesAtual={mesSelecionado}
+            onConfirm={handleQuickInputConfirm}
+          />
+        )}
+      </Suspense>
     </div>
   )
 }

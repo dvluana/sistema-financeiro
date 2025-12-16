@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const tipoLancamento = z.enum(['entrada', 'saida'])
+export const tipoLancamento = z.enum(['entrada', 'saida', 'agrupador'])
 
 export const criarLancamentoSchema = z.object({
   tipo: tipoLancamento,
@@ -10,6 +10,7 @@ export const criarLancamentoSchema = z.object({
   concluido: z.boolean().optional().default(false),
   data_prevista: z.string().nullable().optional(),
   categoria_id: z.string().uuid().nullable().optional(),
+  parent_id: z.string().uuid().nullable().optional(),
 })
 
 export const atualizarLancamentoSchema = z.object({
@@ -21,7 +22,7 @@ export const atualizarLancamentoSchema = z.object({
 })
 
 export const criarLancamentoRecorrenteSchema = z.object({
-  tipo: tipoLancamento,
+  tipo: z.enum(['entrada', 'saida']), // Recorrente não suporta agrupador
   nome: z.string().min(1, 'Nome é obrigatório').max(100, 'Nome muito longo'),
   valor: z.number().positive('Valor deve ser maior que zero'),
   mes_inicial: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Formato de mês inválido (YYYY-MM)'),
@@ -38,7 +39,22 @@ export const mesQuerySchema = z.object({
   mes: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Formato de mês inválido'),
 })
 
+export const criarLancamentosBatchSchema = z.object({
+  lancamentos: z.array(criarLancamentoSchema).min(1).max(50),
+})
+
+// Schema para criar filho de um agrupador (não permite tipo agrupador)
+export const criarFilhoSchema = z.object({
+  tipo: z.enum(['entrada', 'saida']),
+  nome: z.string().min(1, 'Nome é obrigatório').max(100, 'Nome muito longo'),
+  valor: z.number().positive('Valor deve ser maior que zero'),
+  concluido: z.boolean().optional().default(false),
+  data_prevista: z.string().nullable().optional(),
+  categoria_id: z.string().uuid().nullable().optional(),
+})
+
 export type TipoLancamento = z.infer<typeof tipoLancamento>
+export type CriarFilhoInput = z.infer<typeof criarFilhoSchema>
 export type CriarLancamentoInput = z.infer<typeof criarLancamentoSchema>
 export type AtualizarLancamentoInput = z.infer<typeof atualizarLancamentoSchema>
 
@@ -61,7 +77,9 @@ export interface Lancamento {
   data_prevista: string | null
   mes: string
   categoria_id: string | null
+  parent_id: string | null
   categoria?: Categoria | null
+  filhos?: Lancamento[]
   created_at: string
   updated_at: string
 }
@@ -70,6 +88,7 @@ export interface LancamentoResponse {
   mes: string
   entradas: Lancamento[]
   saidas: Lancamento[]
+  agrupadores: Lancamento[]
   totais: {
     entradas: number
     jaEntrou: number

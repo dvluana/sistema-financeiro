@@ -3,11 +3,24 @@
  *
  * Exibe gráfico de pizza com lista de gastos por categoria.
  * Similar ao design do Mobills com percentuais e cores.
+ *
+ * Performance: Importa apenas os ícones usados ao invés de todo o pacote Lucide
  */
 
 import { useMemo } from 'react'
-import * as LucideIcons from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import {
+  Wallet,
+  TrendingUp,
+  CircleDollarSign,
+  Home,
+  Utensils,
+  Car,
+  Heart,
+  Gamepad2,
+  CreditCard,
+  MoreHorizontal,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { GastoCategoria } from '@/lib/api'
 
@@ -16,16 +29,23 @@ interface GastosPorCategoriaChartProps {
   className?: string
 }
 
-// Função para obter o componente de ícone do Lucide dinamicamente
+// Map estático de ícones - evita importar ~100KB do pacote Lucide
+const ICON_MAP: Record<string, LucideIcon> = {
+  Wallet,
+  TrendingUp,
+  CircleDollarSign,
+  Home,
+  Utensils,
+  Car,
+  Heart,
+  Gamepad2,
+  CreditCard,
+}
+
+// Função para obter o componente de ícone - O(1) lookup
 function getIconComponent(iconName: string | null): LucideIcon | null {
   if (!iconName) return null
-  if (iconName in LucideIcons) {
-    const icon = LucideIcons[iconName as keyof typeof LucideIcons]
-    if (typeof icon === 'function' || (typeof icon === 'object' && icon !== null)) {
-      return icon as LucideIcon
-    }
-  }
-  return null
+  return ICON_MAP[iconName] || null
 }
 
 // Formata valor em BRL
@@ -110,7 +130,7 @@ export function GastosPorCategoriaChart({ dados, className }: GastosPorCategoria
                   {Icon ? (
                     <Icon className="w-4.5 h-4.5 text-white" />
                   ) : (
-                    <LucideIcons.CircleDollarSign className="w-4.5 h-4.5 text-white" />
+                    <CircleDollarSign className="w-4.5 h-4.5 text-white" />
                   )}
                 </div>
 
@@ -133,7 +153,7 @@ export function GastosPorCategoriaChart({ dados, className }: GastosPorCategoria
           {dadosProcessados.length > 5 && (
             <div className="flex items-center gap-3 py-1">
               <div className="flex items-center justify-center w-9 h-9 rounded-lg shrink-0 bg-muted">
-                <LucideIcons.MoreHorizontal className="w-4.5 h-4.5 text-muted-foreground" />
+                <MoreHorizontal className="w-4.5 h-4.5 text-muted-foreground" />
               </div>
               <div className="flex-1 min-w-0">
                 <span className="text-corpo text-foreground">

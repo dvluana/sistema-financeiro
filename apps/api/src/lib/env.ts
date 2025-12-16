@@ -17,6 +17,12 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).optional().default('development'),
   GEMINI_API_KEY: z.string().optional(),
   FRONTEND_URL: z.string().url().optional(),
+
+  // Google Calendar OAuth (optional)
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_REDIRECT_URI: z.string().url().optional(),
+  TOKEN_ENCRYPTION_KEY: z.string().length(32).optional(),
 })
 
 export type Env = z.infer<typeof envSchema>

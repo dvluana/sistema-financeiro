@@ -596,59 +596,95 @@ export class AIService {
 
   /**
    * Parser básico como fallback (sem IA)
+   * Usa parsing linha por linha para formato de tabela
    */
   private parseBasico(textoProcessado: string, textoOriginal: string): ParseResult {
     const lancamentos: ParsedLancamento[] = []
 
-    // Regex para encontrar padrões como "nome 123.45" ou "nome R$ 123,45"
-    // Nota: textoProcessado já tem valores normalizados (3817.55 ao invés de 3.817,55)
-    const patterns = [
-      /([a-záàâãéèêíïóôõöúç\s]+)\s*(?:R\$\s*)?(\d+(?:\.\d{1,2})?)/gi,
-      /(?:R\$\s*)?(\d+(?:\.\d{1,2})?)\s*(?:de\s+)?([a-záàâãéèêíïóôõöúç\s]+)/gi
-    ]
+    // Processa linha por linha para pegar formato de tabela
+    const linhas = textoProcessado.split('\n')
 
-    // Tenta extrair dia do texto
-    const diaMatch = textoProcessado.match(/dia\s*(\d{1,2})/i)
-    const diaPrevisto = diaMatch ? parseInt(diaMatch[1]) : null
-
-    for (const pattern of patterns) {
-      let match
-      while ((match = pattern.exec(textoProcessado)) !== null) {
-        // Limite de segurança
-        if (lancamentos.length >= MAX_LANCAMENTOS_POR_REQUEST) {
-          break
-        }
-
-        let nome = match[1]?.trim() || match[2]?.trim()
-        const valorStr = match[2] || match[1]
-
-        // Pula se parece ser um dia
-        if (/^dia$/i.test(nome) || /^\d+$/.test(nome)) continue
-
-        // Valor já está normalizado pelo preprocessTexto
-        const valor = parseFloat(valorStr)
-        if (isNaN(valor) || valor <= 0) continue
-
-        // Normaliza o nome
-        nome = nome.charAt(0).toUpperCase() + nome.slice(1).toLowerCase()
-
-        // Corrige o nome se for apenas um verbo
-        nome = this.corrigirNome(nome, textoOriginal)
-
-        // Determina o tipo baseado no texto (fallback sem IA)
-        const tipo = this.determinarTipoSemIA(textoOriginal)
-
-        // Categoriza por keywords
-        const categoriaId = categorizarPorKeywords(nome, tipo)
-
-        lancamentos.push({
-          tipo,
-          nome,
-          valor: Math.round(valor * 100) / 100,
-          diaPrevisto: diaPrevisto && diaPrevisto >= 1 && diaPrevisto <= 31 ? diaPrevisto : null,
-          categoriaId
-        })
+    for (const linha of linhas) {
+      // Limite de segurança
+      if (lancamentos.length >= MAX_LANCAMENTOS_POR_REQUEST) {
+        break
       }
+
+      const linhaTrim = linha.trim()
+      if (!linhaTrim) continue
+
+      // Extrai valor monetário da linha (último número com formato de valor)
+      const valorMatch = linhaTrim.match(/(\d+(?:\.\d{1,2})?)\s*$/)
+      if (!valorMatch) continue
+
+      const valor = parseFloat(valorMatch[1])
+      if (isNaN(valor) || valor <= 0) continue
+
+      // Extrai dia da linha ANTES de modificar (número de 1-2 dígitos entre nome e valor)
+      // Padrão: nome [espaços/tabs] DIA [espaços/tabs] valor
+      const diaMatch = linhaTrim.match(/\s(\d{1,2})[\s\t]+\d+(?:\.\d{1,2})?\s*$/)
+      let diaPrevisto: number | null = null
+      if (diaMatch) {
+        const dia = parseInt(diaMatch[1])
+        if (dia >= 1 && dia <= 31) {
+          diaPrevisto = dia
+        }
+      }
+
+      // Remove o valor e o dia (se existir) do final
+      let resto = linhaTrim
+        .replace(/\s*(\d{1,2})?\s*(\d+(?:\.\d{1,2})?)\s*$/, '') // Remove dia + valor
+        .trim()
+
+      // Remove tabs extras e espaços múltiplos
+      resto = resto.replace(/\t+/g, ' ').replace(/\s+/g, ' ').trim()
+
+      // Remove possível "R$" que sobrou
+      resto = resto.replace(/R\$\s*$/i, '').trim()
+
+      // Remove número de dia que possa ter ficado no final do nome
+      // Ex: "Vale alimentacao 10" -> "Vale alimentacao"
+      resto = resto.replace(/\s+\d{1,2}$/, '').trim()
+
+      if (!resto) continue
+
+      let nome = resto
+
+      // Filtra nomes que são apenas números (IA errou ao separar colunas)
+      const regexNumero = /^\d+(\.\d+)?$/
+      if (regexNumero.test(nome)) {
+        continue
+      }
+
+      // Filtra indicadores de mês/período
+      const nomeL = nome.toLowerCase()
+      if (this.isIndicadorMes(nomeL)) {
+        continue
+      }
+
+      // Normaliza o nome (primeira letra maiúscula)
+      nome = nome.charAt(0).toUpperCase() + nome.slice(1)
+
+      // Corrige o nome se for apenas um verbo
+      nome = this.corrigirNome(nome, textoOriginal)
+
+      // Determina o tipo baseado no texto (fallback sem IA)
+      const tipo = this.determinarTipoSemIA(textoOriginal)
+
+      // Categoriza por keywords
+      const categoriaId = categorizarPorKeywords(nome, tipo)
+
+      // Evita duplicatas pelo nome
+      const jaExiste = lancamentos.some(l => l.nome.toLowerCase() === nome.toLowerCase())
+      if (jaExiste) continue
+
+      lancamentos.push({
+        tipo,
+        nome,
+        valor: Math.round(valor * 100) / 100,
+        diaPrevisto,
+        categoriaId
+      })
     }
 
     return { lancamentos }
