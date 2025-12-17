@@ -5,7 +5,7 @@
  * Design atualizado com melhor UX, animações fluidas e feedback visual aprimorado.
  */
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, forwardRef } from 'react'
 import {
   Mic,
   MicOff,
@@ -61,16 +61,8 @@ interface QuickInputSheetProps {
   onConfirm: (lancamentos: ParsedLancamento[]) => Promise<void>
 }
 
-// Componente para cada item de lançamento
-const LancamentoItem = ({
-  lancamento,
-  index,
-  mesAtual,
-  categorias,
-  onEdit,
-  onRemove,
-  onSetRecorrencia,
-}: {
+// Props do LancamentoItem
+interface LancamentoItemProps {
   lancamento: ParsedLancamento
   index: number
   mesAtual: string
@@ -78,7 +70,18 @@ const LancamentoItem = ({
   onEdit: (index: number, campo: keyof ParsedLancamento, valor: any) => void
   onRemove: (index: number) => void
   onSetRecorrencia: (index: number, rec: ParsedLancamento['recorrencia']) => void
-}) => {
+}
+
+// Componente para cada item de lançamento
+const LancamentoItem = forwardRef<HTMLDivElement, LancamentoItemProps>(({
+  lancamento,
+  index,
+  mesAtual,
+  categorias,
+  onEdit,
+  onRemove,
+  onSetRecorrencia,
+}, ref) => {
   const [expanded, setExpanded] = useState(false)
   const temRecorrencia = !!lancamento.recorrencia
   const isAgrupador = lancamento.isAgrupador || false
@@ -102,6 +105,7 @@ const LancamentoItem = ({
 
   return (
     <motion.div
+      ref={ref}
       layout
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
@@ -487,7 +491,10 @@ const LancamentoItem = ({
       </AnimatePresence>
     </motion.div>
   )
-}
+})
+
+// Display name for debugging
+LancamentoItem.displayName = 'LancamentoItem'
 
 export function QuickInputSheet({
   open,

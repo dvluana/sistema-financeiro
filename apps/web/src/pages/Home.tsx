@@ -274,7 +274,7 @@ export function Home() {
       return {
         tipo: l.tipo,
         nome: l.nome,
-        valor: isAgrupador && valorModo === 'soma' ? 0 : l.valor!, // Grupo com soma começa com valor 0
+        valor: isAgrupador && valorModo === 'soma' ? 0 : (l.valor ?? 0), // Grupo com soma começa com valor 0
         mes: l.mes,
         concluido: l.concluido || false,
         data_prevista: l.diaPrevisto
@@ -282,7 +282,7 @@ export function Home() {
           : null,
         categoria_id: l.categoriaId || undefined,
         is_agrupador: isAgrupador,
-        valor_modo: isAgrupador ? valorModo : undefined,
+        valor_modo: valorModo,
       }
     })
 
