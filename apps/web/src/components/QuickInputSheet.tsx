@@ -11,16 +11,25 @@ import {
   MicOff,
   Sparkles,
   Repeat,
-  Calendar,
   Trash2,
   CheckCircle2,
   Loader2,
-  Zap
+  Zap,
+  TrendingUp,
+  TrendingDown,
+  Layers,
+  Calculator,
+  DollarSign,
+  Check,
+  Hash,
+  Calendar
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useIsDesktop } from '@/hooks/useMediaQuery'
 import { type ParsedLancamento, parseInput } from '@/lib/parser'
+import type { Categoria } from '@/lib/api'
+import { categoriasApi } from '@/lib/api'
 
 // Componentes shadcn/ui
 import {
@@ -43,6 +52,7 @@ import {
 import { Progress } from '@/components/ui/progress'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
+import { CategoriaSelect } from '@/components/CategoriaSelect'
 
 interface QuickInputSheetProps {
   open: boolean
@@ -55,18 +65,40 @@ interface QuickInputSheetProps {
 const LancamentoItem = ({
   lancamento,
   index,
+  mesAtual,
+  categorias,
   onEdit,
   onRemove,
   onSetRecorrencia,
 }: {
   lancamento: ParsedLancamento
   index: number
+  mesAtual: string
+  categorias: Categoria[]
   onEdit: (index: number, campo: keyof ParsedLancamento, valor: any) => void
   onRemove: (index: number) => void
   onSetRecorrencia: (index: number, rec: ParsedLancamento['recorrencia']) => void
 }) => {
   const [expanded, setExpanded] = useState(false)
   const temRecorrencia = !!lancamento.recorrencia
+  const isAgrupador = lancamento.isAgrupador || false
+  const valorModo = lancamento.valorModo || 'soma'
+
+  // Converte diaPrevisto para data completa
+  const getDataPrevista = () => {
+    if (!lancamento.diaPrevisto) return ''
+    return `${mesAtual}-${String(lancamento.diaPrevisto).padStart(2, '0')}`
+  }
+
+  // Extrai dia de uma data completa
+  const setDataPrevista = (dateStr: string) => {
+    if (!dateStr) {
+      onEdit(index, 'diaPrevisto', null)
+      return
+    }
+    const dia = parseInt(dateStr.split('-')[2])
+    onEdit(index, 'diaPrevisto', isNaN(dia) ? null : dia)
+  }
 
   return (
     <motion.div
@@ -104,7 +136,7 @@ const LancamentoItem = ({
         </span>
 
         {/* Indicadores */}
-        {lancamento.isAgrupador && (
+        {isAgrupador && (
           <span className="text-[10px] text-purple-600 bg-purple-500/10 px-1.5 py-0.5 rounded">
             grupo
           </span>
@@ -114,13 +146,22 @@ const LancamentoItem = ({
             {lancamento.recorrencia?.tipo === 'mensal' ? '12x' : `${lancamento.recorrencia?.quantidade}x`}
           </span>
         )}
+        {lancamento.concluido && (
+          <span className="text-[10px] text-verde bg-verde/10 px-1.5 py-0.5 rounded">
+            {lancamento.tipo === 'entrada' ? 'recebido' : 'pago'}
+          </span>
+        )}
 
         {/* Valor */}
         <span className={cn(
           "shrink-0 font-bold text-sm tabular-nums",
           lancamento.tipo === 'entrada' ? "text-verde" : "text-rosa"
         )}>
-          R$ {(lancamento.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          {isAgrupador && valorModo === 'soma' ? (
+            <span className="text-muted-foreground font-normal">soma</span>
+          ) : (
+            `R$ ${(lancamento.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+          )}
         </span>
 
         {/* Botão remover */}
@@ -152,80 +193,207 @@ const LancamentoItem = ({
                   type="button"
                   onClick={() => onEdit(index, 'tipo', 'entrada')}
                   className={cn(
-                    "flex-1 py-1.5 rounded-md text-xs font-medium transition-all",
+                    "flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-all",
                     lancamento.tipo === 'entrada'
                       ? "bg-background text-verde shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
+                  <TrendingUp className="w-3 h-3" />
                   Entrada
                 </button>
                 <button
                   type="button"
                   onClick={() => onEdit(index, 'tipo', 'saida')}
                   className={cn(
-                    "flex-1 py-1.5 rounded-md text-xs font-medium transition-all",
+                    "flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium transition-all",
                     lancamento.tipo === 'saida'
                       ? "bg-background text-rosa shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
+                  <TrendingDown className="w-3 h-3" />
                   Saída
                 </button>
               </div>
 
-              {/* Nome e Valor lado a lado */}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] text-muted-foreground mb-1 block">Nome</label>
-                  <Input
-                    value={lancamento.nome}
-                    onChange={(e) => onEdit(index, 'nome', e.target.value)}
-                    className="h-8 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] text-muted-foreground mb-1 block">Valor</label>
-                  <Input
-                    value={(lancamento.valor || 0).toFixed(2).replace('.', ',')}
-                    onChange={(e) => {
-                      const num = parseFloat(e.target.value.replace(',', '.'))
-                      if (!isNaN(num)) onEdit(index, 'valor', num)
-                    }}
-                    className={cn(
-                      "h-8 text-sm font-bold",
-                      lancamento.tipo === 'entrada' ? "text-verde" : "text-rosa"
-                    )}
-                  />
-                </div>
-              </div>
-
-              {/* Data prevista */}
+              {/* Nome */}
               <div>
-                <label className="text-[10px] text-muted-foreground mb-1 block">
-                  Dia {lancamento.tipo === 'entrada' ? 'recebimento' : 'pagamento'}
-                </label>
+                <label className="text-[10px] text-muted-foreground mb-1 block">Descrição</label>
                 <Input
-                  type="number"
-                  min="1"
-                  max="31"
-                  value={lancamento.diaPrevisto || ''}
-                  onChange={(e) => {
-                    const dia = parseInt(e.target.value)
-                    onEdit(index, 'diaPrevisto', isNaN(dia) ? null : Math.min(31, Math.max(1, dia)))
-                  }}
-                  placeholder="Dia do mês"
+                  value={lancamento.nome}
+                  onChange={(e) => onEdit(index, 'nome', e.target.value)}
                   className="h-8 text-sm"
+                  placeholder={lancamento.tipo === 'entrada' ? "Ex: Salário, Freelance..." : "Ex: Mercado, Netflix..."}
                 />
               </div>
 
-              {/* Repetir com opções */}
+              {/* Valor - só se não for agrupador com soma */}
+              {(!isAgrupador || valorModo === 'fixo') && (
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Valor</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                      R$
+                    </span>
+                    <Input
+                      value={(lancamento.valor || 0).toFixed(2).replace('.', ',')}
+                      onChange={(e) => {
+                        const num = parseFloat(e.target.value.replace(',', '.'))
+                        if (!isNaN(num)) onEdit(index, 'valor', num)
+                      }}
+                      className={cn(
+                        "h-8 text-sm font-bold pl-9",
+                        lancamento.tipo === 'entrada' ? "text-verde" : "text-rosa"
+                      )}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Categoria */}
+              <div>
+                <label className="text-[10px] text-muted-foreground mb-1 block">Categoria</label>
+                <CategoriaSelect
+                  value={lancamento.categoriaId || null}
+                  onChange={(catId) => onEdit(index, 'categoriaId', catId)}
+                  categorias={categorias}
+                  compact
+                />
+              </div>
+
+              {/* Datas - mesma linha */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-1 block">
+                    {lancamento.tipo === 'entrada' ? 'Recebimento' : 'Pagamento'}
+                  </label>
+                  <div className="relative">
+                    <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
+                    <Input
+                      type="date"
+                      value={getDataPrevista()}
+                      onChange={(e) => setDataPrevista(e.target.value)}
+                      className="h-8 text-xs pl-7"
+                    />
+                  </div>
+                </div>
+                {lancamento.tipo === 'saida' && (
+                  <div>
+                    <label className="text-[10px] text-muted-foreground mb-1 block">Vencimento</label>
+                    <Input
+                      type="date"
+                      value={lancamento.dataVencimento || ''}
+                      onChange={(e) => onEdit(index, 'dataVencimento', e.target.value || null)}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Já paguei/recebi */}
+              <div className="flex items-center justify-between py-1 border-t pt-2">
+                <Label htmlFor={`concluido-${index}`} className="text-xs cursor-pointer">
+                  {lancamento.tipo === 'entrada' ? 'Já recebi' : 'Já paguei'}
+                </Label>
+                <Switch
+                  id={`concluido-${index}`}
+                  checked={lancamento.concluido || false}
+                  onCheckedChange={(checked) => onEdit(index, 'concluido', checked)}
+                  className="scale-90 data-[state=checked]:bg-verde"
+                />
+              </div>
+
+              {/* Criar como Grupo */}
               <div className="border-t pt-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor={`repetir-${index}`} className="text-xs cursor-pointer flex items-center gap-1.5">
-                    <Repeat className="w-3 h-3" />
-                    Repetir
-                  </Label>
+                <div className="flex items-center justify-between py-1">
+                  <div className="flex items-center gap-1.5">
+                    <Layers className="w-3 h-3 text-muted-foreground" />
+                    <Label htmlFor={`grupo-${index}`} className="text-xs cursor-pointer">
+                      Criar como grupo
+                    </Label>
+                  </div>
+                  <Switch
+                    id={`grupo-${index}`}
+                    checked={isAgrupador}
+                    onCheckedChange={(checked) => {
+                      onEdit(index, 'isAgrupador', checked)
+                      if (checked) {
+                        onEdit(index, 'valorModo', 'soma')
+                      }
+                    }}
+                    className="scale-90"
+                  />
+                </div>
+
+                {/* Opções do grupo */}
+                <AnimatePresence>
+                  {isAgrupador && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mt-2 pt-2 border-t border-dashed space-y-2">
+                        <p className="text-[10px] text-muted-foreground">
+                          Como calcular o valor total?
+                        </p>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => onEdit(index, 'valorModo', 'soma')}
+                            className={cn(
+                              "flex items-center gap-1.5 p-2 rounded border text-left text-[10px] transition-colors",
+                              valorModo === 'soma'
+                                ? "border-primary bg-primary/5"
+                                : "border-border hover:border-muted-foreground/50"
+                            )}
+                          >
+                            <Calculator className="w-3 h-3 shrink-0" />
+                            <div>
+                              <p className="font-medium">Soma</p>
+                              <p className="text-muted-foreground">Soma os itens</p>
+                            </div>
+                            {valorModo === 'soma' && (
+                              <Check className="w-3 h-3 ml-auto text-primary" />
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onEdit(index, 'valorModo', 'fixo')}
+                            className={cn(
+                              "flex items-center gap-1.5 p-2 rounded border text-left text-[10px] transition-colors",
+                              valorModo === 'fixo'
+                                ? "border-primary bg-primary/5"
+                                : "border-border hover:border-muted-foreground/50"
+                            )}
+                          >
+                            <DollarSign className="w-3 h-3 shrink-0" />
+                            <div>
+                              <p className="font-medium">Fixo</p>
+                              <p className="text-muted-foreground">Valor definido</p>
+                            </div>
+                            {valorModo === 'fixo' && (
+                              <Check className="w-3 h-3 ml-auto text-primary" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Repetir */}
+              <div className="border-t pt-2">
+                <div className="flex items-center justify-between py-1">
+                  <div className="flex items-center gap-1.5">
+                    <Repeat className="w-3 h-3 text-muted-foreground" />
+                    <Label htmlFor={`repetir-${index}`} className="text-xs cursor-pointer">
+                      Repetir lançamento
+                    </Label>
+                  </div>
                   <Switch
                     id={`repetir-${index}`}
                     checked={temRecorrencia}
@@ -235,70 +403,83 @@ const LancamentoItem = ({
                     className="scale-90"
                   />
                 </div>
-                {temRecorrencia && (
-                  <div className="mt-2 flex gap-1">
-                    <button
-                      type="button"
-                      onClick={() => onSetRecorrencia(index, { tipo: 'mensal', quantidade: 12 })}
-                      className={cn(
-                        "flex-1 py-1.5 text-[10px] font-medium rounded border transition-colors",
-                        lancamento.recorrencia?.tipo === 'mensal'
-                          ? "border-primary bg-primary/5 text-primary"
-                          : "border-border hover:border-muted-foreground/50"
-                      )}
-                    >
-                      Mensal (12x)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onSetRecorrencia(index, { tipo: 'parcelas', quantidade: lancamento.recorrencia?.quantidade || 3 })}
-                      className={cn(
-                        "flex-1 py-1.5 text-[10px] font-medium rounded border transition-colors",
-                        lancamento.recorrencia?.tipo === 'parcelas'
-                          ? "border-primary bg-primary/5 text-primary"
-                          : "border-border hover:border-muted-foreground/50"
-                      )}
-                    >
-                      Parcelas
-                    </button>
-                    {lancamento.recorrencia?.tipo === 'parcelas' && (
-                      <Input
-                        type="number"
-                        min="2"
-                        max="60"
-                        value={lancamento.recorrencia.quantidade}
-                        onChange={(e) => {
-                          const qtd = parseInt(e.target.value)
-                          if (!isNaN(qtd) && qtd >= 2 && qtd <= 60) {
-                            onSetRecorrencia(index, { tipo: 'parcelas', quantidade: qtd })
-                          }
-                        }}
-                        className="w-14 h-7 text-[10px] text-center px-1"
-                      />
-                    )}
-                  </div>
-                )}
-              </div>
 
-              {/* Grupo com opções */}
-              <div className="border-t pt-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor={`grupo-${index}`} className="text-xs cursor-pointer flex items-center gap-1.5">
-                    <span className="text-[10px]">📁</span>
-                    Criar como grupo
-                  </Label>
-                  <Switch
-                    id={`grupo-${index}`}
-                    checked={lancamento.isAgrupador || false}
-                    onCheckedChange={(checked) => onEdit(index, 'isAgrupador', checked)}
-                    className="scale-90"
-                  />
-                </div>
-                {lancamento.isAgrupador && (
-                  <p className="mt-1 text-[10px] text-muted-foreground">
-                    Grupos permitem agrupar lançamentos filhos. O valor será a soma dos filhos.
-                  </p>
-                )}
+                {/* Opções de recorrência */}
+                <AnimatePresence>
+                  {temRecorrencia && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mt-2 pt-2 border-t border-dashed space-y-2">
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => onSetRecorrencia(index, { tipo: 'mensal', quantidade: 12 })}
+                            className={cn(
+                              "p-2 rounded border text-[10px] font-medium transition-colors",
+                              lancamento.recorrencia?.tipo === 'mensal'
+                                ? "border-primary bg-primary/5 text-primary"
+                                : "border-border hover:border-muted-foreground/50"
+                            )}
+                          >
+                            Mensal (12x)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onSetRecorrencia(index, { tipo: 'parcelas', quantidade: lancamento.recorrencia?.quantidade || 3 })}
+                            className={cn(
+                              "p-2 rounded border text-[10px] font-medium transition-colors",
+                              lancamento.recorrencia?.tipo === 'parcelas'
+                                ? "border-primary bg-primary/5 text-primary"
+                                : "border-border hover:border-muted-foreground/50"
+                            )}
+                          >
+                            Parcelado
+                          </button>
+                        </div>
+
+                        {lancamento.recorrencia?.tipo === 'parcelas' && (
+                          <div className="flex items-center gap-2">
+                            <Hash className="w-3 h-3 text-muted-foreground" />
+                            <Input
+                              type="number"
+                              min="2"
+                              max="60"
+                              value={lancamento.recorrencia.quantidade}
+                              onChange={(e) => {
+                                const qtd = parseInt(e.target.value)
+                                if (!isNaN(qtd) && qtd >= 2 && qtd <= 60) {
+                                  onSetRecorrencia(index, { tipo: 'parcelas', quantidade: qtd })
+                                }
+                              }}
+                              className="w-16 h-7 text-[10px] text-center"
+                            />
+                            <span className="text-[10px] text-muted-foreground">parcelas</span>
+                          </div>
+                        )}
+
+                        <p className="text-[10px] text-muted-foreground bg-muted/50 p-2 rounded">
+                          {isAgrupador ? (
+                            lancamento.recorrencia?.tipo === 'mensal' ? (
+                              <>Será criado <strong>1 grupo por mês</strong> nos próximos <strong>12 meses</strong></>
+                            ) : (
+                              <>Será criado <strong>1 grupo por mês</strong> em <strong>{lancamento.recorrencia?.quantidade || '0'} meses</strong></>
+                            )
+                          ) : (
+                            lancamento.recorrencia?.tipo === 'mensal' ? (
+                              <>Será criado para os próximos <strong>12 meses</strong></>
+                            ) : (
+                              <>Será criado em <strong>{lancamento.recorrencia?.quantidade || '0'} parcelas</strong></>
+                            )
+                          )}
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           </motion.div>
@@ -321,8 +502,24 @@ export function QuickInputSheet({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isListening, setIsListening] = useState(false)
   const [showTips, setShowTips] = useState(true)
+  const [categorias, setCategorias] = useState<Categoria[]>([])
   const recognitionRef = useRef<any>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  // Carrega categorias
+  useEffect(() => {
+    async function loadCategorias() {
+      try {
+        const data = await categoriasApi.listar()
+        setCategorias(data)
+      } catch (error) {
+        console.error('Erro ao carregar categorias:', error)
+      }
+    }
+    if (open) {
+      loadCategorias()
+    }
+  }, [open])
 
   // Suporte a reconhecimento de voz
   const speechSupported = typeof window !== 'undefined' && 
@@ -743,6 +940,8 @@ export function QuickInputSheet({
                       key={`${lancamento.nome}-${index}`}
                       lancamento={lancamento}
                       index={index}
+                      mesAtual={mesAtual}
+                      categorias={categorias}
                       onEdit={handleEdit}
                       onRemove={handleRemove}
                       onSetRecorrencia={handleSetRecorrencia}

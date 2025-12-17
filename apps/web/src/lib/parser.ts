@@ -35,6 +35,12 @@ export interface ParsedLancamento {
   }
   // Agrupador (grupo de lançamentos)
   isAgrupador?: boolean
+  // Modo de cálculo do valor do agrupador
+  valorModo?: 'soma' | 'fixo'
+  // Já paguei/recebi
+  concluido?: boolean
+  // Data de vencimento (só para saídas)
+  dataVencimento?: string | null
 }
 
 export interface ParseResult {

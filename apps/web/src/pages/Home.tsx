@@ -267,18 +267,24 @@ export function Home() {
    */
   const handleQuickInputConfirm = async (lancamentos: ParsedLancamento[]) => {
     // Prepara dados para o batch
-    const lancamentosData: CriarLancamentoInput[] = lancamentos.map(l => ({
-      tipo: l.tipo,
-      nome: l.nome,
-      valor: l.isAgrupador ? 0 : l.valor!, // Grupo começa com valor 0
-      mes: l.mes,
-      concluido: false,
-      data_prevista: l.diaPrevisto
-        ? `${l.mes}-${String(l.diaPrevisto).padStart(2, '0')}`
-        : null,
-      categoria_id: l.categoriaId || undefined,
-      is_agrupador: l.isAgrupador || false,
-    }))
+    const lancamentosData: CriarLancamentoInput[] = lancamentos.map(l => {
+      const isAgrupador = l.isAgrupador || false
+      const valorModo = l.valorModo || 'soma'
+
+      return {
+        tipo: l.tipo,
+        nome: l.nome,
+        valor: isAgrupador && valorModo === 'soma' ? 0 : l.valor!, // Grupo com soma começa com valor 0
+        mes: l.mes,
+        concluido: l.concluido || false,
+        data_prevista: l.diaPrevisto
+          ? `${l.mes}-${String(l.diaPrevisto).padStart(2, '0')}`
+          : null,
+        categoria_id: l.categoriaId || undefined,
+        is_agrupador: isAgrupador,
+        valor_modo: isAgrupador ? valorModo : undefined,
+      }
+    })
 
     // Cria todos os lançamentos em uma única requisição
     await lancamentosApi.criarLote(lancamentosData)

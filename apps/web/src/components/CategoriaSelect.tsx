@@ -27,6 +27,7 @@ interface CategoriaSelectProps {
   categorias?: Categoria[]
   tipo?: 'entrada' | 'saida'
   className?: string
+  compact?: boolean
 }
 
 // Ícones para categorias
@@ -60,6 +61,7 @@ export function CategoriaSelect({
   categorias: categoriasExternas,
   tipo: _tipo,
   className,
+  compact = false,
 }: CategoriaSelectProps) {
   void _tipo // Reservado - filtragem feita no componente pai
   const [open, setOpen] = useState(false)
@@ -157,7 +159,8 @@ export function CategoriaSelect({
         aria-expanded={open}
         onClick={() => setOpen(!open)}
         className={cn(
-          "w-full min-h-touch justify-between px-4 font-normal rounded-input border-input",
+          "w-full justify-between font-normal rounded-input border-input",
+          compact ? "h-8 px-3 text-xs" : "min-h-touch px-4",
           !value && "text-muted-foreground"
         )}
       >
