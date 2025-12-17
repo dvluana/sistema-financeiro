@@ -40,10 +40,6 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
-  Alert,
-  AlertDescription,
-} from '@/components/ui/alert'
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -73,7 +69,7 @@ const LancamentoItem = ({
   onToggleRecorrencia: (index: number) => void
 }) => {
   const [isEditing, setIsEditing] = useState(false)
-  const temRecorrencia = lancamento.recorrencia !== null
+  const temRecorrencia = !!lancamento.recorrencia
 
   const handleValueEdit = (valor: string) => {
     const numValue = parseFloat(valor.replace(',', '.'))
@@ -202,9 +198,9 @@ const LancamentoItem = ({
                 >
                   <Repeat className="w-3 h-3 mr-1" />
                   {temRecorrencia ? (
-                    lancamento.recorrencia === 'mensal' 
+                    lancamento.recorrencia?.tipo === 'mensal'
                       ? '12 meses'
-                      : `${lancamento.qtdParcelas}x`
+                      : `${lancamento.recorrencia?.quantidade}x`
                   ) : (
                     'Repetir'
                   )}
@@ -354,11 +350,11 @@ export function QuickInputSheet({
   const handleToggleRecorrencia = (index: number) => {
     setLancamentos(prev => prev.map((l, i) => {
       if (i !== index) return l
-      
+
       if (l.recorrencia) {
-        return { ...l, recorrencia: null, qtdParcelas: undefined }
+        return { ...l, recorrencia: undefined }
       } else {
-        return { ...l, recorrencia: 'mensal', qtdParcelas: undefined }
+        return { ...l, recorrencia: { tipo: 'mensal' as const, quantidade: 12 } }
       }
     }))
   }
@@ -376,12 +372,13 @@ export function QuickInputSheet({
   // Calcula totais
   const totais = lancamentos.reduce(
     (acc, l) => {
-      const valor = l.tipo === 'entrada' ? l.valor : -l.valor
+      const valorNum = l.valor ?? 0
+      const valor = l.tipo === 'entrada' ? valorNum : -valorNum
       return {
         ...acc,
         total: acc.total + valor,
-        entradas: l.tipo === 'entrada' ? acc.entradas + l.valor : acc.entradas,
-        saidas: l.tipo === 'saida' ? acc.saidas + l.valor : acc.saidas,
+        entradas: l.tipo === 'entrada' ? acc.entradas + valorNum : acc.entradas,
+        saidas: l.tipo === 'saida' ? acc.saidas + valorNum : acc.saidas,
         quantidade: acc.quantidade + 1,
       }
     },
@@ -464,15 +461,17 @@ export function QuickInputSheet({
                     }
                   }}
                   placeholder={
-                    isListening 
-                      ? "🎤 Ouvindo..." 
+                    isListening
+                      ? "🎤 Ouvindo..."
                       : "Digite: Salário 5000, Netflix 55,90..."
                   }
                   disabled={isParsing || isListening}
                   className={cn(
-                    "flex-1 border-0 bg-transparent text-sm",
+                    "flex-1 border-0 bg-transparent text-sm h-auto py-0",
                     "placeholder:text-muted-foreground/60",
-                    "focus:outline-none focus:ring-0"
+                    "focus:outline-none focus:ring-0",
+                    "focus-visible:ring-0 focus-visible:ring-offset-0",
+                    "shadow-none"
                   )}
                   autoFocus
                 />
@@ -540,22 +539,26 @@ export function QuickInputSheet({
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="mt-3 space-y-2"
+                  className="mt-4 space-y-3"
                 >
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground font-medium">
                     💡 Exemplos de entrada:
                   </p>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-1.5">
                     {exemplos.map((exemplo, i) => (
-                      <Button
+                      <button
                         key={i}
-                        variant="outline"
-                        size="sm"
                         onClick={() => setInput(exemplo)}
-                        className="text-xs h-7 px-2"
+                        className={cn(
+                          "text-xs px-2.5 py-1.5 rounded-lg",
+                          "bg-secondary/80 hover:bg-secondary",
+                          "text-muted-foreground hover:text-foreground",
+                          "border border-transparent hover:border-border",
+                          "transition-all duration-150"
+                        )}
                       >
                         {exemplo}
-                      </Button>
+                      </button>
                     ))}
                   </div>
                 </motion.div>
