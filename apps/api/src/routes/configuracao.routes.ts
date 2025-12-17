@@ -16,11 +16,12 @@ export async function configuracaoRoutes(app: FastifyInstance) {
 
   /**
    * GET /api/configuracoes
-   * Lista configurações do usuário
+   * Lista configurações do usuário/perfil
    */
   app.get('/api/configuracoes', async (request) => {
-    const userId = request.usuario!.id
-    return configuracaoService.listar(userId)
+    // Usa contexto (perfil) se disponível, senão fallback para userId
+    const ctx = request.contexto || request.usuario!.id
+    return configuracaoService.listar(ctx)
   })
 
   /**
@@ -31,8 +32,8 @@ export async function configuracaoRoutes(app: FastifyInstance) {
     try {
       const { chave } = request.params
       const { valor } = atualizarConfiguracaoSchema.parse(request.body)
-      const userId = request.usuario!.id
-      const result = await configuracaoService.atualizar(chave, valor, userId)
+      const ctx = request.contexto || request.usuario!.id
+      const result = await configuracaoService.atualizar(chave, valor, ctx)
       return result
     } catch (error) {
       if (error instanceof Error) {

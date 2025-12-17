@@ -3,10 +3,14 @@
  *
  * Lógica de negócio para a dashboard.
  * Consolida dados de múltiplas fontes em uma resposta única.
+ * Todas as queries são filtradas por perfil_id para isolamento de dados.
  */
 
 import { dashboardRepository } from '../repositories/dashboard.repository.js'
-import { lancamentoRepository } from '../repositories/lancamento.repository.js'
+import { lancamentoRepository, type ContextoUsuario } from '../repositories/lancamento.repository.js'
+
+// Tipo para contexto: pode ser string (userId legado) ou ContextoUsuario completo
+type Contexto = ContextoUsuario | string
 
 /**
  * Retorna mês atual no formato YYYY-MM
@@ -47,10 +51,10 @@ function getMesLabel(mes: string): string {
 export const dashboardService = {
   /**
    * Retorna dados consolidados para a dashboard
-   * @param userId - ID do usuário
+   * @param ctx - Contexto do usuário/perfil
    * @param mes - Mês no formato YYYY-MM (opcional, default: mês atual)
    */
-  async getDashboard(userId: string, mes?: string) {
+  async getDashboard(ctx: Contexto, mes?: string) {
     const mesAtual = getMesAtual()
     const mesSelecionado = mes || mesAtual
     const ultimosMeses = getUltimosMeses(6)
@@ -60,14 +64,14 @@ export const dashboardService = {
 
     // Busca dados em paralelo para melhor performance
     const [lancamentosMesSelecionado, recentLancamentos, totaisPorMes, proximosVencimentos, gastosPorCategoria] = await Promise.all([
-      lancamentoRepository.findByMes(mesSelecionado, userId),
-      dashboardRepository.findRecentByMes(userId, mesSelecionado, 5),
-      dashboardRepository.getTotaisPorMes(ultimosMeses, userId),
+      lancamentoRepository.findByMes(mesSelecionado, ctx),
+      dashboardRepository.findRecentByMes(ctx, mesSelecionado, 5),
+      dashboardRepository.getTotaisPorMes(ultimosMeses, ctx),
       // Se mês atual: próximos 7 dias; senão: vencimentos pendentes do mês selecionado
       isCurrentMonth
-        ? dashboardRepository.findProximosVencimentos(userId, 5)
-        : dashboardRepository.findVencimentosByMes(userId, mesSelecionado, 5),
-      dashboardRepository.getGastosPorCategoria(ultimosMeses, userId),
+        ? dashboardRepository.findProximosVencimentos(ctx, 5)
+        : dashboardRepository.findVencimentosByMes(ctx, mesSelecionado, 5),
+      dashboardRepository.getGastosPorCategoria(ultimosMeses, ctx),
     ])
 
     // Calcula totais do mês selecionado

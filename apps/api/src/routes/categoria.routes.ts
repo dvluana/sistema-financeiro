@@ -16,12 +16,12 @@ export async function categoriaRoutes(app: FastifyInstance) {
 
   /**
    * GET /api/categorias
-   * Lista todas as categorias do usuário
+   * Lista todas as categorias do usuário/perfil
    */
   app.get('/', async (request, reply) => {
     try {
-      const userId = request.usuario!.id
-      const categorias = await categoriaService.listar(userId)
+      const ctx = request.contexto || request.usuario!.id
+      const categorias = await categoriaService.listar(ctx)
       return reply.send(categorias)
     } catch (error) {
       request.log.error(error, 'Erro ao listar categorias')
@@ -35,7 +35,7 @@ export async function categoriaRoutes(app: FastifyInstance) {
    */
   app.get('/tipo/:tipo', async (request, reply) => {
     try {
-      const userId = request.usuario!.id
+      const ctx = request.contexto || request.usuario!.id
       const { tipo } = request.params as { tipo: string }
 
       // Valida o tipo
@@ -44,7 +44,7 @@ export async function categoriaRoutes(app: FastifyInstance) {
         return reply.status(400).send({ error: 'Tipo inválido. Use "entrada" ou "saida"' })
       }
 
-      const categorias = await categoriaService.listarPorTipo(tipoValidado.data, userId)
+      const categorias = await categoriaService.listarPorTipo(tipoValidado.data, ctx)
       return reply.send(categorias)
     } catch (error) {
       request.log.error(error, 'Erro ao listar categorias por tipo')
@@ -58,10 +58,10 @@ export async function categoriaRoutes(app: FastifyInstance) {
    */
   app.get('/:id', async (request, reply) => {
     try {
-      const userId = request.usuario!.id
+      const ctx = request.contexto || request.usuario!.id
       const { id } = request.params as { id: string }
 
-      const categoria = await categoriaService.buscarPorId(id, userId)
+      const categoria = await categoriaService.buscarPorId(id, ctx)
       if (!categoria) {
         return reply.status(404).send({ error: 'Categoria não encontrada' })
       }
@@ -79,10 +79,10 @@ export async function categoriaRoutes(app: FastifyInstance) {
    */
   app.post('/', async (request, reply) => {
     try {
-      const userId = request.usuario!.id
+      const ctx = request.contexto || request.usuario!.id
       const input = criarCategoriaSchema.parse(request.body)
 
-      const categoria = await categoriaService.criar(input, userId)
+      const categoria = await categoriaService.criar(input, ctx)
       return reply.status(201).send(categoria)
     } catch (error) {
       if (error instanceof ZodError) {
@@ -102,11 +102,11 @@ export async function categoriaRoutes(app: FastifyInstance) {
    */
   app.put('/:id', async (request, reply) => {
     try {
-      const userId = request.usuario!.id
+      const ctx = request.contexto || request.usuario!.id
       const { id } = request.params as { id: string }
       const input = atualizarCategoriaSchema.parse(request.body)
 
-      const categoria = await categoriaService.atualizar(id, input, userId)
+      const categoria = await categoriaService.atualizar(id, input, ctx)
       return reply.send(categoria)
     } catch (error) {
       if (error instanceof ZodError) {
@@ -126,10 +126,10 @@ export async function categoriaRoutes(app: FastifyInstance) {
    */
   app.delete('/:id', async (request, reply) => {
     try {
-      const userId = request.usuario!.id
+      const ctx = request.contexto || request.usuario!.id
       const { id } = request.params as { id: string }
 
-      await categoriaService.excluir(id, userId)
+      await categoriaService.excluir(id, ctx)
       return reply.status(204).send()
     } catch (error) {
       request.log.error(error, 'Erro ao excluir categoria')

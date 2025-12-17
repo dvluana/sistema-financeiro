@@ -3,7 +3,7 @@
  *
  * Acesso a dados de categorias de lançamentos.
  * Categorias padrão vêm de constantes no código (não do banco).
- * Apenas categorias criadas pelo usuário são salvas no banco.
+ * Categorias criadas pelo usuário são salvas no banco por perfil_id.
  */
 
 import { supabase } from '../lib/supabase.js'
@@ -15,6 +15,7 @@ import {
   isCategoriaPadrao,
   type CategoriaPadrao,
 } from '../constants/categorias-padrao.js'
+import type { ContextoUsuario } from './lancamento.repository.js'
 
 // Converte categoria padrão para o formato Categoria
 function categoriaPadraoToCategoria(cp: CategoriaPadrao): Categoria {
@@ -34,20 +35,23 @@ function categoriaPadraoToCategoria(cp: CategoriaPadrao): Categoria {
 
 export const categoriaRepository = {
   /**
-   * Lista todas as categorias disponíveis para um usuário
-   * Combina: categorias padrão (do código) + categorias do usuário (do banco)
+   * Lista todas as categorias disponíveis para um usuário/perfil
+   * Combina: categorias padrão (do código) + categorias do perfil (do banco)
    */
-  async findAll(userId: string): Promise<Categoria[]> {
-    // Busca categorias do usuário no banco
+  async findAll(ctx: ContextoUsuario | string): Promise<Categoria[]> {
+    const filterColumn = typeof ctx === 'string' ? 'user_id' : 'perfil_id'
+    const filterValue = typeof ctx === 'string' ? ctx : ctx.perfilId
+
+    // Busca categorias do perfil no banco
     const { data: userCategorias, error } = await supabase
       .from('categorias')
       .select('*')
-      .eq('user_id', userId)
+      .eq(filterColumn, filterValue)
       .order('ordem', { ascending: true })
 
     if (error) throw error
 
-    // Combina padrão + usuário
+    // Combina padrão + perfil
     const padrao = CATEGORIAS_PADRAO.map(categoriaPadraoToCategoria)
     return [...padrao, ...(userCategorias || [])]
   },
@@ -55,39 +59,45 @@ export const categoriaRepository = {
   /**
    * Lista categorias por tipo (entrada ou saida)
    */
-  async findByTipo(tipo: TipoLancamento, userId: string): Promise<Categoria[]> {
-    // Busca categorias do usuário no banco
+  async findByTipo(tipo: TipoLancamento, ctx: ContextoUsuario | string): Promise<Categoria[]> {
+    const filterColumn = typeof ctx === 'string' ? 'user_id' : 'perfil_id'
+    const filterValue = typeof ctx === 'string' ? ctx : ctx.perfilId
+
+    // Busca categorias do perfil no banco
     const { data: userCategorias, error } = await supabase
       .from('categorias')
       .select('*')
       .eq('tipo', tipo)
-      .eq('user_id', userId)
+      .eq(filterColumn, filterValue)
       .order('ordem', { ascending: true })
 
     if (error) throw error
 
-    // Combina padrão + usuário
+    // Combina padrão + perfil
     const padrao = getCategoriasPadraoByTipo(tipo).map(categoriaPadraoToCategoria)
     return [...padrao, ...(userCategorias || [])]
   },
 
   /**
    * Busca categoria por ID
-   * Pode ser uma categoria padrão (do código) ou do usuário (do banco)
+   * Pode ser uma categoria padrão (do código) ou do perfil (do banco)
    */
-  async findById(id: string, userId: string): Promise<Categoria | null> {
+  async findById(id: string, ctx: ContextoUsuario | string): Promise<Categoria | null> {
     // Primeiro verifica se é categoria padrão
     if (isCategoriaPadrao(id)) {
       const padrao = getCategoriaPadraoById(id)
       return padrao ? categoriaPadraoToCategoria(padrao) : null
     }
 
+    const filterColumn = typeof ctx === 'string' ? 'user_id' : 'perfil_id'
+    const filterValue = typeof ctx === 'string' ? ctx : ctx.perfilId
+
     // Senão, busca no banco
     const { data, error } = await supabase
       .from('categorias')
       .select('*')
       .eq('id', id)
-      .eq('user_id', userId)
+      .eq(filterColumn, filterValue)
       .single()
 
     if (error) {
@@ -98,16 +108,16 @@ export const categoriaRepository = {
   },
 
   /**
-   * Cria nova categoria para um usuário
+   * Cria nova categoria para um perfil
    */
-  async create(input: CriarCategoriaInput, userId: string): Promise<Categoria> {
+  async create(input: CriarCategoriaInput, ctx: ContextoUsuario | string): Promise<Categoria> {
+    const insertData = typeof ctx === 'string'
+      ? { ...input, user_id: ctx, is_default: false }
+      : { ...input, user_id: ctx.userId, perfil_id: ctx.perfilId, is_default: false }
+
     const { data, error } = await supabase
       .from('categorias')
-      .insert({
-        ...input,
-        user_id: userId,
-        is_default: false,
-      })
+      .insert(insertData)
       .select()
       .single()
 
@@ -116,19 +126,22 @@ export const categoriaRepository = {
   },
 
   /**
-   * Atualiza categoria (apenas do próprio usuário, não as padrão)
+   * Atualiza categoria (apenas do próprio perfil, não as padrão)
    */
-  async update(id: string, input: AtualizarCategoriaInput, userId: string): Promise<Categoria> {
+  async update(id: string, input: AtualizarCategoriaInput, ctx: ContextoUsuario | string): Promise<Categoria> {
     // Não permite editar categorias padrão
     if (isCategoriaPadrao(id)) {
       throw new Error('Não é possível editar categorias padrão do sistema')
     }
 
+    const filterColumn = typeof ctx === 'string' ? 'user_id' : 'perfil_id'
+    const filterValue = typeof ctx === 'string' ? ctx : ctx.perfilId
+
     const { data, error } = await supabase
       .from('categorias')
       .update(input)
       .eq('id', id)
-      .eq('user_id', userId)
+      .eq(filterColumn, filterValue)
       .select()
       .single()
 
@@ -137,19 +150,22 @@ export const categoriaRepository = {
   },
 
   /**
-   * Remove categoria (apenas do próprio usuário, não as padrão)
+   * Remove categoria (apenas do próprio perfil, não as padrão)
    */
-  async delete(id: string, userId: string): Promise<void> {
+  async delete(id: string, ctx: ContextoUsuario | string): Promise<void> {
     // Não permite deletar categorias padrão
     if (isCategoriaPadrao(id)) {
       throw new Error('Não é possível excluir categorias padrão do sistema')
     }
 
+    const filterColumn = typeof ctx === 'string' ? 'user_id' : 'perfil_id'
+    const filterValue = typeof ctx === 'string' ? ctx : ctx.perfilId
+
     const { error } = await supabase
       .from('categorias')
       .delete()
       .eq('id', id)
-      .eq('user_id', userId)
+      .eq(filterColumn, filterValue)
 
     if (error) throw error
   },

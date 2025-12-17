@@ -138,19 +138,37 @@ export async function lancamentoRoutes(app: FastifyInstance) {
   })
 
   /**
-   * DELETE /api/lancamentos/:id
+   * DELETE /api/lancamentos/:id?force=true
    * Remove lançamento
+   *
+   * Query params:
+   * - force (boolean, optional): Se true, confirma exclusão de agrupador com filhos
    */
-  app.delete<{ Params: { id: string } }>('/api/lancamentos/:id', async (request, reply) => {
+  app.delete<{
+    Params: { id: string }
+    Querystring: { force?: string }
+  }>('/api/lancamentos/:id', async (request, reply) => {
     try {
       const { id } = request.params
+      const { force } = request.query
       const ctx = request.contexto || request.usuario!.id
-      const result = await lancamentoService.excluir(id, ctx)
+
+      // Converte force string para boolean
+      const forceBoolean = force === 'true' || force === '1'
+
+      const result = await lancamentoService.excluir(id, ctx, forceBoolean)
       return result
     } catch (error) {
       if (error instanceof Error) {
         if (error.message === 'Lançamento não encontrado') {
           return reply.status(404).send({ error: error.message })
+        }
+        // Erro de confirmação de exclusão (agrupador com filhos)
+        if (error.message.includes('possui') && error.message.includes('filhos')) {
+          return reply.status(409).send({
+            error: error.message,
+            requiresConfirmation: true
+          })
         }
         return reply.status(400).send({ error: error.message })
       }

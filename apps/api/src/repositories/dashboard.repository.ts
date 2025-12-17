@@ -3,17 +3,22 @@
  *
  * Acesso a dados para a dashboard.
  * Busca dados consolidados para múltiplos meses.
+ * Todas as queries são filtradas por perfil_id para isolamento de dados.
  */
 
 import { supabase } from '../lib/supabase.js'
 import type { Lancamento } from '../schemas/lancamento.js'
 import { getCategoriaPadraoById, isCategoriaPadrao } from '../constants/categorias-padrao.js'
+import type { ContextoUsuario } from './lancamento.repository.js'
 
 export const dashboardRepository = {
   /**
-   * Lista lançamentos de múltiplos meses para um usuário
+   * Lista lançamentos de múltiplos meses para um usuário/perfil
    */
-  async findByMeses(meses: string[], userId: string): Promise<Lancamento[]> {
+  async findByMeses(meses: string[], ctx: ContextoUsuario | string): Promise<Lancamento[]> {
+    const filterColumn = typeof ctx === 'string' ? 'user_id' : 'perfil_id'
+    const filterValue = typeof ctx === 'string' ? ctx : ctx.perfilId
+
     const { data, error } = await supabase
       .from('lancamentos')
       .select(`
@@ -21,7 +26,7 @@ export const dashboardRepository = {
         categoria:categorias(id, nome, tipo, icone, cor, ordem, is_default)
       `)
       .in('mes', meses)
-      .eq('user_id', userId)
+      .eq(filterColumn, filterValue)
       .order('created_at', { ascending: true })
 
     if (error) throw error
@@ -31,14 +36,17 @@ export const dashboardRepository = {
   /**
    * Lista os últimos N lançamentos de um mês específico
    */
-  async findRecentByMes(userId: string, mes: string, limit: number = 5): Promise<Lancamento[]> {
+  async findRecentByMes(ctx: ContextoUsuario | string, mes: string, limit: number = 5): Promise<Lancamento[]> {
+    const filterColumn = typeof ctx === 'string' ? 'user_id' : 'perfil_id'
+    const filterValue = typeof ctx === 'string' ? ctx : ctx.perfilId
+
     const { data, error } = await supabase
       .from('lancamentos')
       .select(`
         *,
         categoria:categorias(id, nome, tipo, icone, cor, ordem, is_default)
       `)
-      .eq('user_id', userId)
+      .eq(filterColumn, filterValue)
       .eq('mes', mes)
       .order('created_at', { ascending: false })
       .limit(limit)
@@ -50,16 +58,19 @@ export const dashboardRepository = {
   /**
    * Busca totais agregados por mês
    */
-  async getTotaisPorMes(meses: string[], userId: string): Promise<Array<{
+  async getTotaisPorMes(meses: string[], ctx: ContextoUsuario | string): Promise<Array<{
     mes: string
     tipo: 'entrada' | 'saida'
     total: number
   }>> {
+    const filterColumn = typeof ctx === 'string' ? 'user_id' : 'perfil_id'
+    const filterValue = typeof ctx === 'string' ? ctx : ctx.perfilId
+
     const { data, error } = await supabase
       .from('lancamentos')
       .select('mes, tipo, valor')
       .in('mes', meses)
-      .eq('user_id', userId)
+      .eq(filterColumn, filterValue)
 
     if (error) throw error
 
@@ -89,12 +100,15 @@ export const dashboardRepository = {
   /**
    * Busca próximos vencimentos (saídas pendentes nos próximos 7 dias)
    */
-  async findProximosVencimentos(userId: string, limit: number = 5): Promise<Array<{
+  async findProximosVencimentos(ctx: ContextoUsuario | string, limit: number = 5): Promise<Array<{
     id: string
     nome: string
     valor: number
     data_prevista: string
   }>> {
+    const filterColumn = typeof ctx === 'string' ? 'user_id' : 'perfil_id'
+    const filterValue = typeof ctx === 'string' ? ctx : ctx.perfilId
+
     const hoje = new Date()
     const seteDias = new Date()
     seteDias.setDate(hoje.getDate() + 7)
@@ -105,7 +119,7 @@ export const dashboardRepository = {
     const { data, error } = await supabase
       .from('lancamentos')
       .select('id, nome, valor, data_prevista')
-      .eq('user_id', userId)
+      .eq(filterColumn, filterValue)
       .eq('tipo', 'saida')
       .eq('concluido', false)
       .gte('data_prevista', hojeStr)
@@ -125,16 +139,19 @@ export const dashboardRepository = {
   /**
    * Busca vencimentos pendentes de um mês específico (saídas não concluídas)
    */
-  async findVencimentosByMes(userId: string, mes: string, limit: number = 5): Promise<Array<{
+  async findVencimentosByMes(ctx: ContextoUsuario | string, mes: string, limit: number = 5): Promise<Array<{
     id: string
     nome: string
     valor: number
     data_prevista: string
   }>> {
+    const filterColumn = typeof ctx === 'string' ? 'user_id' : 'perfil_id'
+    const filterValue = typeof ctx === 'string' ? ctx : ctx.perfilId
+
     const { data, error } = await supabase
       .from('lancamentos')
       .select('id, nome, valor, data_prevista')
-      .eq('user_id', userId)
+      .eq(filterColumn, filterValue)
       .eq('mes', mes)
       .eq('tipo', 'saida')
       .eq('concluido', false)
@@ -153,13 +170,16 @@ export const dashboardRepository = {
   /**
    * Busca gastos agrupados por categoria nos últimos N meses
    */
-  async getGastosPorCategoria(meses: string[], userId: string): Promise<Array<{
+  async getGastosPorCategoria(meses: string[], ctx: ContextoUsuario | string): Promise<Array<{
     categoria_id: string | null
     categoria_nome: string
     categoria_icone: string | null
     categoria_cor: string | null
     total: number
   }>> {
+    const filterColumn = typeof ctx === 'string' ? 'user_id' : 'perfil_id'
+    const filterValue = typeof ctx === 'string' ? ctx : ctx.perfilId
+
     const { data, error } = await supabase
       .from('lancamentos')
       .select(`
@@ -168,7 +188,7 @@ export const dashboardRepository = {
         categoria:categorias(id, nome, icone, cor)
       `)
       .in('mes', meses)
-      .eq('user_id', userId)
+      .eq(filterColumn, filterValue)
       .eq('tipo', 'saida')
 
     if (error) throw error

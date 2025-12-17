@@ -25,10 +25,13 @@ import {
   CreditCard,
   PiggyBank,
   TrendingUp,
+  Loader2,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { usePerfilStore } from '@/stores/usePerfilStore'
+import { useFinanceiroStore } from '@/stores/useFinanceiroStore'
+import { useDashboardStore } from '@/stores/useDashboardStore'
 import { PerfilDialog } from './PerfilDialog'
 import { ConfirmDialog } from './ConfirmDialog'
 import type { Perfil } from '@/lib/api'
@@ -70,6 +73,8 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
   const [editingPerfil, setEditingPerfil] = useState<Perfil | null>(null)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [deletingPerfil, setDeletingPerfil] = useState<Perfil | null>(null)
+  const [isSwitching, setIsSwitching] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const dropdownRef = useRef<HTMLDivElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -82,6 +87,10 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
     arquivarPerfil,
     isLoading,
   } = usePerfilStore()
+
+  // Stores de dados para recarregar após troca de workspace
+  const { carregarMes, carregarConfiguracoes, mesAtual } = useFinanceiroStore()
+  const { carregarDashboard, mesSelecionado } = useDashboardStore()
 
   // Carrega perfis ao montar
   useEffect(() => {
@@ -104,10 +113,37 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const handleSelectPerfil = (perfilId: string) => {
-    selecionarPerfil(perfilId)
+  const handleSelectPerfil = async (perfilId: string) => {
+    // Verifica se é o mesmo perfil
+    if (perfilId === perfilAtual?.id) {
+      setIsOpen(false)
+      return
+    }
+
+    // Evita múltiplos cliques
+    if (isSwitching) return
+
+    setIsSwitching(true)
     setIsOpen(false)
     setMenuOpenId(null)
+
+    try {
+      // Seleciona o novo perfil
+      selecionarPerfil(perfilId)
+
+      // Recarrega os dados para o novo workspace
+      // Usa setTimeout para garantir que o header x-perfil-id seja atualizado
+      await new Promise(resolve => setTimeout(resolve, 0))
+      await Promise.all([
+        carregarMes(mesAtual),
+        carregarConfiguracoes(),
+        carregarDashboard(mesSelecionado),
+      ])
+    } catch (error) {
+      console.error('Erro ao trocar workspace:', error)
+    } finally {
+      setIsSwitching(false)
+    }
   }
 
   const handleOpenCreate = () => {
@@ -131,10 +167,30 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
   }
 
   const handleConfirmDelete = async () => {
-    if (deletingPerfil) {
+    if (!deletingPerfil || isDeleting) return
+
+    setIsDeleting(true)
+
+    try {
+      const wasCurrentPerfil = deletingPerfil.id === perfilAtual?.id
       await arquivarPerfil(deletingPerfil.id)
       setDeleteConfirmOpen(false)
       setDeletingPerfil(null)
+
+      // Se arquivou o perfil atual, recarrega dados para o novo perfil
+      if (wasCurrentPerfil) {
+        await new Promise(resolve => setTimeout(resolve, 0))
+        await Promise.all([
+          carregarMes(mesAtual),
+          carregarConfiguracoes(),
+          carregarDashboard(mesSelecionado),
+        ])
+      }
+    } catch (error) {
+      console.error('Erro ao excluir workspace:', error)
+      // Mantém o dialog aberto para o usuário ver o erro
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -166,14 +222,22 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
         {/* Trigger button */}
         <button
           type="button"
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => !isSwitching && setIsOpen(!isOpen)}
+          disabled={isSwitching}
           className={cn(
             'flex items-center gap-2 px-2 py-1.5 rounded-lg',
             'hover:bg-accent transition-colors',
-            'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2'
+            'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+            'disabled:opacity-70 disabled:cursor-wait'
           )}
         >
-          {renderIcon(perfilAtual.icone, perfilAtual.cor)}
+          {isSwitching ? (
+            <div className="flex items-center justify-center w-8 h-8">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            renderIcon(perfilAtual.icone, perfilAtual.cor)
+          )}
           <span className="text-corpo font-medium text-foreground max-w-[120px] truncate">
             {perfilAtual.nome}
           </span>
@@ -330,6 +394,7 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
         description={`Tem certeza que deseja excluir "${deletingPerfil?.nome}"? Todos os lançamentos, categorias e configurações deste workspace serão arquivados.`}
         confirmLabel="Excluir"
         onConfirm={handleConfirmDelete}
+        isLoading={isDeleting}
       />
     </>
   )

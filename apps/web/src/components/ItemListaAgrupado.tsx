@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { ChevronDown, Plus } from 'lucide-react'
+import { ChevronDown, Plus, Calculator } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { StatusCircle } from "./StatusCircle"
 import { formatarMoeda, cn } from "@/lib/utils"
@@ -42,8 +42,14 @@ export const ItemListaAgrupado = React.memo(function ItemListaAgrupado({
     [filhos]
   )
 
-  // Diferença entre valor do agrupador e soma dos filhos
-  const diferenca = agrupador.valor - totalFilhos
+  // Modo de valor (padrão: 'soma')
+  const valorModo = agrupador.valor_modo || 'soma'
+
+  // Valor exibido depende do modo
+  const valorExibido = valorModo === 'soma' ? totalFilhos : agrupador.valor
+
+  // Diferença entre valor do agrupador e soma dos filhos (apenas para modo fixo)
+  const diferenca = valorModo === 'fixo' ? agrupador.valor - totalFilhos : 0
 
   return (
     <div className="border-b border-border last:border-0">
@@ -121,11 +127,21 @@ export const ItemListaAgrupado = React.memo(function ItemListaAgrupado({
               )}
             </AnimatePresence>
 
+            {/* Badge modo fixo */}
+            {valorModo === 'fixo' && (
+              <span
+                className="text-[10px] font-medium px-1.5 py-0.5 rounded border bg-azul/10 text-azul border-azul/20"
+                aria-label="Valor fixo"
+              >
+                Fixo
+              </span>
+            )}
+
             <span className={cn(
               'text-corpo-medium text-foreground',
               agrupador.concluido && mostrarConcluidosDiscretos && 'opacity-50'
             )}>
-              {formatarMoeda(agrupador.valor)}
+              {formatarMoeda(valorExibido)}
             </span>
           </div>
         </button>
@@ -142,22 +158,35 @@ export const ItemListaAgrupado = React.memo(function ItemListaAgrupado({
             className="overflow-hidden"
           >
             <div className="pl-8 md:pl-10 pr-2 pb-2 space-y-1">
-              {/* Resumo */}
-              {temFilhos && (
-                <div className="flex justify-between items-center text-micro text-muted-foreground py-2 px-3 bg-muted/30 rounded-lg">
-                  <span>Total dos itens</span>
-                  <span className="font-medium">{formatarMoeda(totalFilhos)}</span>
+              {/* Resumo - modo soma automática */}
+              {valorModo === 'soma' && temFilhos && (
+                <div className="flex justify-between items-center text-micro text-muted-foreground py-2 px-3 bg-azul/5 rounded-lg border border-azul/10">
+                  <span className="flex items-center gap-1.5">
+                    <Calculator className="w-3.5 h-3.5 text-azul" />
+                    <span>Total calculado</span>
+                  </span>
+                  <span className="font-medium text-foreground">{formatarMoeda(totalFilhos)}</span>
                 </div>
               )}
 
-              {diferenca !== 0 && temFilhos && (
-                <div className={cn(
-                  "flex justify-between items-center text-micro py-2 px-3 rounded-lg font-medium",
-                  diferenca > 0 ? "bg-amber-500/10 text-amber-600" : "bg-verde/10 text-verde"
-                )}>
-                  <span>{diferenca > 0 ? 'Falta lançar' : 'Excedente'}</span>
-                  <span>{formatarMoeda(Math.abs(diferenca))}</span>
-                </div>
+              {/* Resumo - modo fixo */}
+              {valorModo === 'fixo' && temFilhos && (
+                <>
+                  <div className="flex justify-between items-center text-micro text-muted-foreground py-2 px-3 bg-muted/30 rounded-lg">
+                    <span>Total dos itens</span>
+                    <span className="font-medium">{formatarMoeda(totalFilhos)}</span>
+                  </div>
+
+                  {diferenca !== 0 && (
+                    <div className={cn(
+                      "flex justify-between items-center text-micro py-2 px-3 rounded-lg font-medium",
+                      diferenca > 0 ? "bg-amber-500/10 text-amber-600" : "bg-verde/10 text-verde"
+                    )}>
+                      <span>{diferenca > 0 ? 'Falta lançar' : 'Excedente'}</span>
+                      <span>{formatarMoeda(Math.abs(diferenca))}</span>
+                    </div>
+                  )}
+                </>
               )}
 
               {/* Lista de filhos */}

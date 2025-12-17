@@ -19,9 +19,10 @@ export async function dashboardRoutes(app: FastifyInstance) {
     { preHandler: requireAuth },
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        const userId = request.usuario!.id
+        // Usa contexto (perfil) se disponível, senão fallback para userId
+        const ctx = request.contexto || request.usuario!.id
         const mes = (request.query as { mes?: string }).mes
-        const data = await dashboardService.getDashboard(userId, mes)
+        const data = await dashboardService.getDashboard(ctx, mes)
         return reply.send(data)
       } catch (error) {
         request.log.error(error, 'Erro ao buscar dashboard')

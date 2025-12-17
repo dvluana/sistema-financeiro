@@ -6,47 +6,51 @@
 
 import { categoriaRepository } from '../repositories/categoria.repository.js'
 import type { Categoria, CriarCategoriaInput, AtualizarCategoriaInput, TipoLancamento } from '../schemas/categoria.js'
+import type { ContextoUsuario } from '../repositories/lancamento.repository.js'
+
+// Tipo para contexto: pode ser string (userId legado) ou ContextoUsuario completo
+type Contexto = ContextoUsuario | string
 
 export const categoriaService = {
   /**
-   * Lista todas as categorias disponíveis para o usuário
+   * Lista todas as categorias disponíveis para o usuário/perfil
    */
-  async listar(userId: string): Promise<Categoria[]> {
-    return categoriaRepository.findAll(userId)
+  async listar(ctx: Contexto): Promise<Categoria[]> {
+    return categoriaRepository.findAll(ctx)
   },
 
   /**
    * Lista categorias por tipo
    */
-  async listarPorTipo(tipo: TipoLancamento, userId: string): Promise<Categoria[]> {
-    return categoriaRepository.findByTipo(tipo, userId)
+  async listarPorTipo(tipo: TipoLancamento, ctx: Contexto): Promise<Categoria[]> {
+    return categoriaRepository.findByTipo(tipo, ctx)
   },
 
   /**
    * Busca categoria por ID
    */
-  async buscarPorId(id: string, userId: string): Promise<Categoria | null> {
-    return categoriaRepository.findById(id, userId)
+  async buscarPorId(id: string, ctx: Contexto): Promise<Categoria | null> {
+    return categoriaRepository.findById(id, ctx)
   },
 
   /**
    * Cria nova categoria
    */
-  async criar(input: CriarCategoriaInput, userId: string): Promise<Categoria> {
-    return categoriaRepository.create(input, userId)
+  async criar(input: CriarCategoriaInput, ctx: Contexto): Promise<Categoria> {
+    return categoriaRepository.create(input, ctx)
   },
 
   /**
    * Atualiza categoria existente
    */
-  async atualizar(id: string, input: AtualizarCategoriaInput, userId: string): Promise<Categoria> {
-    return categoriaRepository.update(id, input, userId)
+  async atualizar(id: string, input: AtualizarCategoriaInput, ctx: Contexto): Promise<Categoria> {
+    return categoriaRepository.update(id, input, ctx)
   },
 
   /**
    * Remove categoria
    */
-  async excluir(id: string, userId: string): Promise<void> {
-    return categoriaRepository.delete(id, userId)
+  async excluir(id: string, ctx: Contexto): Promise<void> {
+    return categoriaRepository.delete(id, ctx)
   },
 }

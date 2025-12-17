@@ -4,19 +4,23 @@ import { useDebouncedCallback } from "use-debounce"
 import { Label } from "@/components/ui/label"
 
 interface InputMoedaProps {
-  label: string
+  label?: string
+  id?: string
   value: string
   onChange: (value: string) => void
   error?: string
   debounceMs?: number
+  disabled?: boolean
 }
 
 export function InputMoeda({
   label,
+  id,
   value,
   onChange,
   error,
-  debounceMs = 150
+  debounceMs = 150,
+  disabled = false
 }: InputMoedaProps) {
   // Estado local para feedback imediato
   const [localValue, setLocalValue] = useState(value)
@@ -41,9 +45,10 @@ export function InputMoeda({
 
   return (
     <div className="space-y-2">
-      <Label className="text-pequeno-medium text-foreground">{label}</Label>
+      {label && <Label htmlFor={id} className="text-pequeno-medium text-foreground">{label}</Label>}
       <CurrencyInput
-        className="flex min-h-touch w-full rounded-input border border-border bg-card px-4 text-corpo text-foreground placeholder:text-muted-foreground focus:border-2 focus:border-foreground focus:outline-none"
+        id={id}
+        className="flex min-h-touch w-full rounded-input border border-border bg-card px-4 text-corpo text-foreground placeholder:text-muted-foreground focus:border-2 focus:border-foreground focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-muted"
         placeholder="R$ 0,00"
         prefix="R$ "
         decimalsLimit={2}
@@ -51,6 +56,7 @@ export function InputMoeda({
         groupSeparator="."
         value={localValue}
         onValueChange={handleValueChange}
+        disabled={disabled}
       />
       {error && <p className="text-pequeno text-vermelho">{error}</p>}
     </div>

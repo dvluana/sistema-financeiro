@@ -115,6 +115,7 @@ export interface Lancamento {
   categoria_id: string | null
   parent_id: string | null
   is_agrupador: boolean
+  valor_modo?: 'soma' | 'fixo'
   categoria?: Categoria | null
   filhos?: Lancamento[]
   created_at: string
@@ -149,6 +150,7 @@ export interface CriarLancamentoInput {
   categoria_id?: string | null
   parent_id?: string | null
   is_agrupador?: boolean
+  valor_modo?: 'soma' | 'fixo'
 }
 
 export interface CriarFilhoInput {
@@ -180,6 +182,7 @@ export interface AtualizarLancamentoInput {
   data_prevista?: string | null
   concluido?: boolean
   categoria_id?: string | null
+  valor_modo?: 'soma' | 'fixo'
 }
 
 export interface Configuracao {

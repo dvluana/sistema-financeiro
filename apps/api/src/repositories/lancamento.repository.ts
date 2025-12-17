@@ -234,6 +234,7 @@ export const lancamentoRepository = {
    * 2. Valida que parent tem is_agrupador=true
    * 3. Valida que mes do filho = mes do parent
    * 4. Valida que tipo do filho = tipo do parent
+   * 5. FORÇA concluido = false (filhos não têm status concluído)
    *
    * Triggers do banco fornecem última linha de defesa,
    * mas validação aqui dá feedback melhor ao usuário.
@@ -261,10 +262,17 @@ export const lancamentoRepository = {
       throw new Error(`Child tipo (${input.tipo}) must match parent tipo (${parent.tipo})`)
     }
 
+    // VALIDAÇÃO 5: Filhos SEMPRE têm concluido = false
+    // (trigger do banco também força isso, mas definimos explicitamente)
+    const inputWithForcedDefaults = {
+      ...input,
+      concluido: false,  // FORÇA false - filhos não têm controle de concluído
+    }
+
     // Todas validações OK, cria o filho
     const insertData = typeof ctx === 'string'
-      ? { ...input, mes, parent_id: parentId, user_id: ctx }
-      : { ...input, mes, parent_id: parentId, user_id: ctx.userId, perfil_id: ctx.perfilId }
+      ? { ...inputWithForcedDefaults, mes, parent_id: parentId, user_id: ctx }
+      : { ...inputWithForcedDefaults, mes, parent_id: parentId, user_id: ctx.userId, perfil_id: ctx.perfilId }
 
     const { data, error } = await supabase
       .from('lancamentos')

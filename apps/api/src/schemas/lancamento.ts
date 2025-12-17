@@ -4,6 +4,9 @@ import { z } from 'zod'
 // Agrupador NÃO é um tipo - é uma propriedade (is_agrupador)
 export const tipoLancamento = z.enum(['entrada', 'saida'])
 
+// Modo de cálculo do valor de um agrupador
+export const valorModo = z.enum(['soma', 'fixo'])
+
 export const criarLancamentoSchema = z.object({
   tipo: tipoLancamento,
   nome: z.string().min(1, 'Nome é obrigatório').max(100, 'Nome muito longo'),
@@ -14,6 +17,7 @@ export const criarLancamentoSchema = z.object({
   categoria_id: z.string().uuid().nullable().optional(),
   parent_id: z.string().uuid().nullable().optional(),
   is_agrupador: z.boolean().optional().default(false),
+  valor_modo: valorModo.optional().default('soma'),
 })
 
 export const atualizarLancamentoSchema = z.object({
@@ -22,6 +26,7 @@ export const atualizarLancamentoSchema = z.object({
   data_prevista: z.string().nullable().optional(),
   concluido: z.boolean().optional(),
   categoria_id: z.string().uuid().nullable().optional(),
+  valor_modo: valorModo.optional(),
 })
 
 export const criarLancamentoRecorrenteSchema = z.object({
@@ -57,6 +62,7 @@ export const criarFilhoSchema = z.object({
 })
 
 export type TipoLancamento = z.infer<typeof tipoLancamento>
+export type ValorModo = z.infer<typeof valorModo>
 export type CriarFilhoInput = z.infer<typeof criarFilhoSchema>
 export type CriarLancamentoInput = z.infer<typeof criarLancamentoSchema>
 export type AtualizarLancamentoInput = z.infer<typeof atualizarLancamentoSchema>
@@ -82,6 +88,8 @@ export interface Lancamento {
   categoria_id: string | null
   parent_id: string | null
   is_agrupador: boolean
+  valor_modo: ValorModo
+  valor_calculado?: number  // Calculado no service baseado em valor_modo
   categoria?: Categoria | null
   filhos?: Lancamento[]
   created_at: string

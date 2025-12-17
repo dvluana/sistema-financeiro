@@ -16,6 +16,8 @@ import {
   Repeat,
   Calendar,
   Layers,
+  Calculator,
+  PenLine,
 } from 'lucide-react'
 import { Drawer as DrawerPrimitive } from 'vaul'
 import { cn } from '@/lib/utils'
@@ -35,6 +37,7 @@ export interface LancamentoFormData {
   concluido: boolean
   categoria_id: string | null
   is_agrupador: boolean
+  valor_modo?: 'soma' | 'fixo'
   recorrencia?: {
     tipo: 'mensal' | 'parcelas'
     quantidade: number
@@ -77,6 +80,7 @@ export function LancamentoSheet({
   const [concluido, setConcluido] = useState(false)
   const [categoriaId, setCategoriaId] = useState<string | null>(null)
   const [isAgrupador, setIsAgrupador] = useState(false)
+  const [valorModo, setValorModo] = useState<'soma' | 'fixo'>('soma')
 
   // Recorrência
   const [recorrente, setRecorrente] = useState(false)
@@ -100,6 +104,7 @@ export function LancamentoSheet({
       setCategoriaId(lancamento.categoria_id || null)
       setDataPrevista(lancamento.data_prevista || '')
       setIsAgrupador(lancamento.is_agrupador || false)
+      setValorModo(lancamento.valor_modo || 'soma')
       setRecorrente(false)
     } else {
       setTipo(tipoInicial)
@@ -109,6 +114,7 @@ export function LancamentoSheet({
       setConcluido(autoMarcarConcluido[tipoInicial])
       setCategoriaId(null)
       setIsAgrupador(false)
+      setValorModo('soma')
       setRecorrente(false)
       setTipoRecorrencia('mensal')
       setQuantidadeParcelas('12')
@@ -140,8 +146,11 @@ export function LancamentoSheet({
     }
 
     const valorNumerico = parseFloat(valor.replace(',', '.'))
-    if (!valor || isNaN(valorNumerico) || valorNumerico <= 0) {
-      newErrors.valor = 'Valor deve ser maior que zero'
+    // Validação do valor: apenas para modo fixo ou quando não é agrupador
+    if (!isAgrupador || (isAgrupador && valorModo === 'fixo')) {
+      if (!valor || isNaN(valorNumerico) || valorNumerico <= 0) {
+        newErrors.valor = 'Valor deve ser maior que zero'
+      }
     }
 
     if (recorrente && tipoRecorrencia === 'parcelas') {
@@ -158,11 +167,16 @@ export function LancamentoSheet({
 
     const data: LancamentoFormData = {
       nome: nome.trim(),
-      valor: valorNumerico,
+      valor: isAgrupador && valorModo === 'soma' ? 0 : valorNumerico,
       data_prevista: dataPrevista || null,
       concluido,
       categoria_id: categoriaId,
       is_agrupador: isAgrupador,
+    }
+
+    // Adiciona valor_modo apenas se for agrupador
+    if (isAgrupador) {
+      data.valor_modo = valorModo
     }
 
     if (!isEditing && recorrente && !isAgrupador) {
@@ -288,15 +302,25 @@ export function LancamentoSheet({
         </div>
 
         {/* Valor */}
-        <InputMoeda
-          label="Quanto?"
-          value={valor}
-          onChange={(val) => {
-            setValor(val)
-            if (errors.valor) setErrors((prev) => ({ ...prev, valor: undefined }))
-          }}
-          error={errors.valor}
-        />
+        <div className="space-y-2">
+          <Label htmlFor="valor">Quanto?</Label>
+          <InputMoeda
+            id="valor"
+            value={valor}
+            onChange={(val) => {
+              setValor(val)
+              if (errors.valor) setErrors((prev) => ({ ...prev, valor: undefined }))
+            }}
+            error={errors.valor}
+            disabled={isAgrupador && valorModo === 'soma'}
+          />
+          {isAgrupador && valorModo === 'soma' && (
+            <p className="text-micro text-muted-foreground flex items-center gap-1.5">
+              <Calculator className="w-3.5 h-3.5" />
+              <span>Calculado automaticamente pela soma dos itens</span>
+            </p>
+          )}
+        </div>
 
         {/* Categoria */}
         <CategoriaSelect
@@ -330,7 +354,7 @@ export function LancamentoSheet({
 
         {/* Toggle: É um grupo/cartão (apenas ao criar) */}
         {!isEditing && (
-          <div className="border-t border-border pt-4">
+          <div className="border-t border-border pt-4 space-y-4">
             <div className="flex items-center justify-between min-h-touch">
               <div className="flex items-center gap-2">
                 <Layers className="w-4 h-4 text-muted-foreground" />
@@ -349,6 +373,75 @@ export function LancamentoSheet({
                 onCheckedChange={setIsAgrupador}
               />
             </div>
+
+            {/* Seletor de modo de valor (apenas se for agrupador) */}
+            <AnimatePresence>
+              {isAgrupador && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="space-y-3 pl-6">
+                    <Label className="text-pequeno text-muted-foreground">
+                      Como calcular o valor total?
+                    </Label>
+
+                    <div className="flex gap-2">
+                      {/* Opção: Soma automática */}
+                      <button
+                        type="button"
+                        onClick={() => setValorModo('soma')}
+                        className={cn(
+                          'flex-1 flex items-center gap-2 py-3 px-4 rounded-lg border-2 transition-all',
+                          'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+                          valorModo === 'soma'
+                            ? 'border-azul bg-azul/5 text-foreground'
+                            : 'border-border bg-background text-muted-foreground hover:border-muted hover:text-foreground'
+                        )}
+                        aria-label="Soma automática dos itens"
+                        aria-pressed={valorModo === 'soma'}
+                      >
+                        <Calculator className={cn(
+                          'w-4 h-4 shrink-0',
+                          valorModo === 'soma' ? 'text-azul' : 'text-current'
+                        )} />
+                        <div className="flex flex-col items-start min-w-0">
+                          <span className="text-pequeno-medium">Soma automática</span>
+                          <span className="text-micro opacity-80">Calcula pela soma</span>
+                        </div>
+                      </button>
+
+                      {/* Opção: Valor fixo */}
+                      <button
+                        type="button"
+                        onClick={() => setValorModo('fixo')}
+                        className={cn(
+                          'flex-1 flex items-center gap-2 py-3 px-4 rounded-lg border-2 transition-all',
+                          'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+                          valorModo === 'fixo'
+                            ? 'border-azul bg-azul/5 text-foreground'
+                            : 'border-border bg-background text-muted-foreground hover:border-muted hover:text-foreground'
+                        )}
+                        aria-label="Valor fixo definido manualmente"
+                        aria-pressed={valorModo === 'fixo'}
+                      >
+                        <PenLine className={cn(
+                          'w-4 h-4 shrink-0',
+                          valorModo === 'fixo' ? 'text-azul' : 'text-current'
+                        )} />
+                        <div className="flex flex-col items-start min-w-0">
+                          <span className="text-pequeno-medium">Valor fixo</span>
+                          <span className="text-micro opacity-80">Define manualmente</span>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )}
 

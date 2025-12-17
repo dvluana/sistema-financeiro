@@ -12,24 +12,69 @@ import type { Lancamento, CriarLancamentoInput, AtualizarLancamentoInput, Lancam
 type Contexto = ContextoUsuario | string
 
 /**
+ * Calcula o valor efetivo de um lançamento baseado em seu tipo e valor_modo
+ *
+ * REGRAS:
+ * - Se is_agrupador=false: retorna valor direto
+ * - Se is_agrupador=true e valor_modo='fixo': retorna valor direto
+ * - Se is_agrupador=true e valor_modo='soma': retorna soma dos filhos
+ */
+function calcularValorEfetivo(lancamento: Lancamento): number {
+  // Não é agrupador: valor direto
+  if (!lancamento.is_agrupador) {
+    return Number(lancamento.valor)
+  }
+
+  // Agrupador com modo fixo: usa valor do agrupador
+  if (lancamento.valor_modo === 'fixo') {
+    return Number(lancamento.valor)
+  }
+
+  // Agrupador com modo soma: calcula soma dos filhos
+  if (lancamento.filhos && lancamento.filhos.length > 0) {
+    return lancamento.filhos.reduce((sum, filho) => sum + Number(filho.valor), 0)
+  }
+
+  // Agrupador sem filhos: valor é 0
+  return 0
+}
+
+/**
+ * Adiciona valor_calculado em todos os lançamentos
+ * Para agrupadores, respeita o valor_modo
+ */
+function enrichWithValorCalculado(lancamentos: Lancamento[]): Lancamento[] {
+  return lancamentos.map(l => ({
+    ...l,
+    valor_calculado: calcularValorEfetivo(l)
+  }))
+}
+
+/**
  * Calcula totalizadores a partir das listas de entradas e saídas
  *
  * IMPORTANTE: Com a nova arquitetura, agrupadores NÃO são um tipo separado.
  * - Entradas podem ser agrupadores (is_agrupador=true)
  * - Saídas podem ser agrupadores (is_agrupador=true)
  * - Todos os lançamentos raiz (parent_id=null) contam no saldo
+ *
+ * VALOR_MODO:
+ * - Agrupadores com valor_modo='soma': usa SUM(filhos.valor)
+ * - Agrupadores com valor_modo='fixo': usa agrupador.valor
+ * - Não-agrupadores: usa valor direto
  */
 function calcularTotais(entradas: Lancamento[], saidas: Lancamento[]) {
-  const totalEntradas = entradas.reduce((sum, e) => sum + Number(e.valor), 0)
+  // Calcula totais usando valor_calculado (respeita valor_modo)
+  const totalEntradas = entradas.reduce((sum, e) => sum + calcularValorEfetivo(e), 0)
   const jaEntrou = entradas
     .filter((e) => e.concluido)
-    .reduce((sum, e) => sum + Number(e.valor), 0)
+    .reduce((sum, e) => sum + calcularValorEfetivo(e), 0)
   const faltaEntrar = totalEntradas - jaEntrou
 
-  const totalSaidas = saidas.reduce((sum, s) => sum + Number(s.valor), 0)
+  const totalSaidas = saidas.reduce((sum, s) => sum + calcularValorEfetivo(s), 0)
   const jaPaguei = saidas
     .filter((s) => s.concluido)
-    .reduce((sum, s) => sum + Number(s.valor), 0)
+    .reduce((sum, s) => sum + calcularValorEfetivo(s), 0)
   const faltaPagar = totalSaidas - jaPaguei
 
   return {
@@ -57,11 +102,14 @@ export const lancamentoService = {
   async listarPorMes(mes: string, ctx: Contexto): Promise<LancamentoResponse> {
     const lancamentos = await lancamentoRepository.findByMes(mes, ctx)
 
-    const entradas = lancamentos.filter((l) => l.tipo === 'entrada')
-    const saidas = lancamentos.filter((l) => l.tipo === 'saida')
+    // Adiciona valor_calculado em todos os lançamentos (respeita valor_modo)
+    const lancamentosEnriquecidos = enrichWithValorCalculado(lancamentos)
+
+    const entradas = lancamentosEnriquecidos.filter((l) => l.tipo === 'entrada')
+    const saidas = lancamentosEnriquecidos.filter((l) => l.tipo === 'saida')
 
     // Agrupadores = todos com is_agrupador=true
-    const agrupadores = lancamentos.filter((l) => l.is_agrupador)
+    const agrupadores = lancamentosEnriquecidos.filter((l) => l.is_agrupador)
 
     const totais = calcularTotais(entradas, saidas)
 
@@ -97,11 +145,19 @@ export const lancamentoService = {
 
   /**
    * Alterna status de conclusão
+   *
+   * REGRA: Apenas lançamentos raiz (parent_id = null) podem ter toggle de concluído.
+   * Filhos sempre têm concluido = false.
    */
   async toggleConcluido(id: string, ctx: Contexto): Promise<LancamentoResponse> {
     const lancamento = await lancamentoRepository.findById(id, ctx)
     if (!lancamento) {
       throw new Error('Lançamento não encontrado')
+    }
+
+    // VALIDAÇÃO: Filhos não podem ter toggle de concluído
+    if (lancamento.parent_id !== null) {
+      throw new Error('Não é possível alterar status de conclusão de filhos. Apenas o agrupador (pai) pode ser marcado como concluído.')
     }
 
     await lancamentoRepository.toggleConcluido(id, ctx)
@@ -110,11 +166,30 @@ export const lancamentoService = {
 
   /**
    * Remove lançamento
+   *
+   * REGRA: Se for agrupador com filhos, requer confirmação (force=true)
+   * - Sem force: retorna erro com quantidade de filhos que serão excluídos
+   * - Com force=true: exclui agrupador e todos os filhos (CASCADE)
    */
-  async excluir(id: string, ctx: Contexto): Promise<LancamentoResponse> {
+  async excluir(id: string, ctx: Contexto, force: boolean = false): Promise<LancamentoResponse> {
     const lancamento = await lancamentoRepository.findById(id, ctx)
     if (!lancamento) {
       throw new Error('Lançamento não encontrado')
+    }
+
+    // Se é agrupador, verificar se tem filhos
+    if (lancamento.is_agrupador) {
+      const filhos = await lancamentoRepository.findFilhos(id, ctx)
+      const numFilhos = filhos.length
+
+      // Se tem filhos e force != true, retornar erro com quantidade
+      if (numFilhos > 0 && !force) {
+        throw new Error(
+          `Este agrupador possui ${numFilhos} ${numFilhos === 1 ? 'filho' : 'filhos'}. ` +
+          `Todos os filhos serão excluídos junto com o agrupador. ` +
+          `Para confirmar a exclusão, use o parâmetro force=true.`
+        )
+      }
     }
 
     const mes = lancamento.mes
@@ -184,6 +259,7 @@ export const lancamentoService = {
         mes,
         concluido: concluido ?? false,
         is_agrupador: false,
+        valor_modo: 'soma' as const,
         data_prevista,
         categoria_id: categoria_id ?? null,
       }
@@ -232,6 +308,10 @@ export const lancamentoService = {
     if (!agrupador) {
       throw new Error('Agrupador não encontrado')
     }
+
+    // Adiciona valor_calculado respeitando valor_modo
+    agrupador.valor_calculado = calcularValorEfetivo(agrupador)
+
     return agrupador
   },
 }

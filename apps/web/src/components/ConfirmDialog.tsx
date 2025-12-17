@@ -5,6 +5,7 @@
  * Exibe título, descrição e botões de cancelar/confirmar.
  */
 
+import { Loader2 } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogContent,
@@ -15,6 +16,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from '@/components/ui/alert-dialog'
+import { cn } from '@/lib/utils'
 
 interface ConfirmDialogProps {
   open: boolean
@@ -23,6 +25,7 @@ interface ConfirmDialogProps {
   description: string
   confirmLabel?: string
   onConfirm: () => void
+  isLoading?: boolean
 }
 
 export function ConfirmDialog({
@@ -32,21 +35,33 @@ export function ConfirmDialog({
   description,
   confirmLabel = 'Excluir',
   onConfirm,
+  isLoading = false,
 }: ConfirmDialogProps) {
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog open={open} onOpenChange={isLoading ? undefined : onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogCancel disabled={isLoading}>Cancelar</AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
-            className="bg-vermelho hover:bg-vermelho/90"
+            disabled={isLoading}
+            className={cn(
+              'bg-vermelho hover:bg-vermelho/90',
+              'disabled:opacity-70 disabled:cursor-not-allowed'
+            )}
           >
-            {confirmLabel}
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Excluindo...
+              </>
+            ) : (
+              confirmLabel
+            )}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
