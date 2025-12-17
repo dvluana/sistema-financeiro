@@ -107,8 +107,7 @@ export function Home() {
    */
   const handleEditLancamento = useCallback((lancamento: Lancamento) => {
     setLancamentoSelecionado(lancamento)
-    // Agrupadores são tratados como saída no formulário de edição
-    setTipoInicial(lancamento.tipo === 'agrupador' ? 'saida' : lancamento.tipo)
+    setTipoInicial(lancamento.tipo)
     setLancamentoSheetOpen(true)
   }, [])
 
@@ -181,7 +180,7 @@ export function Home() {
   /**
    * Submete o formulário (criar ou atualizar)
    */
-  const handleFormSubmit = async (tipo: 'entrada' | 'saida' | 'agrupador', data: LancamentoFormData) => {
+  const handleFormSubmit = async (tipo: 'entrada' | 'saida', data: LancamentoFormData) => {
     try {
       if (lancamentoSelecionado) {
         await atualizarLancamento(lancamentoSelecionado.id, {
@@ -191,13 +190,13 @@ export function Home() {
           concluido: data.concluido,
           categoria_id: data.categoria_id,
         })
-      } else if (data.recorrencia && tipo !== 'agrupador') {
-        // Recorrência só para entrada/saida
+      } else if (data.recorrencia && !data.is_agrupador) {
+        // Recorrência só para lançamentos normais (não agrupadores)
         const diaPrevisto = data.data_prevista
           ? parseInt(data.data_prevista.split('-')[2], 10)
           : null
         await criarLancamentoRecorrente({
-          tipo: tipo as 'entrada' | 'saida',
+          tipo,
           nome: data.nome,
           valor: data.valor,
           mes_inicial: mesSelecionado,
@@ -215,6 +214,7 @@ export function Home() {
           concluido: data.concluido,
           data_prevista: data.data_prevista,
           categoria_id: data.categoria_id,
+          is_agrupador: data.is_agrupador,
         })
       }
       setLancamentoSheetOpen(false)
@@ -351,7 +351,6 @@ export function Home() {
             onSubmit={handleFormSubmit}
             onDelete={lancamentoSelecionado ? handleDeleteClick : undefined}
             isLoading={isLoading}
-            showAgrupadorOption={!lancamentoSelecionado}
           />
         )}
       </Suspense>

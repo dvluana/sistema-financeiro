@@ -106,7 +106,7 @@ export function getCategoriaPadraoById(id: string): Categoria | undefined {
 
 export interface Lancamento {
   id: string
-  tipo: 'entrada' | 'saida' | 'agrupador'
+  tipo: 'entrada' | 'saida'
   nome: string
   valor: number
   concluido: boolean
@@ -114,6 +114,7 @@ export interface Lancamento {
   mes: string
   categoria_id: string | null
   parent_id: string | null
+  is_agrupador: boolean
   categoria?: Categoria | null
   filhos?: Lancamento[]
   created_at: string
@@ -139,7 +140,7 @@ export interface LancamentoResponse {
 }
 
 export interface CriarLancamentoInput {
-  tipo: 'entrada' | 'saida' | 'agrupador'
+  tipo: 'entrada' | 'saida'
   nome: string
   valor: number
   mes: string
@@ -147,6 +148,7 @@ export interface CriarLancamentoInput {
   data_prevista?: string | null
   categoria_id?: string | null
   parent_id?: string | null
+  is_agrupador?: boolean
 }
 
 export interface CriarFilhoInput {
@@ -246,6 +248,24 @@ export function removeToken(): void {
   localStorage.removeItem(TOKEN_KEY)
 }
 
+// Chave para armazenar perfil_id no localStorage (usado pelo perfilStore)
+const PERFIL_KEY = 'perfil_atual_id'
+
+/**
+ * Obtém o ID do perfil atual do localStorage
+ * Retorna null se não houver perfil selecionado
+ */
+function getPerfilAtualId(): string | null {
+  try {
+    const stored = localStorage.getItem(PERFIL_KEY)
+    if (!stored) return null
+    const parsed = JSON.parse(stored)
+    return parsed?.state?.perfilAtual?.id || null
+  } catch {
+    return null
+  }
+}
+
 /**
  * Função auxiliar para fazer requisições HTTP
  */
@@ -269,6 +289,12 @@ async function request<T>(
     const token = getToken()
     if (token) {
       headers['Authorization'] = `Bearer ${token}`
+    }
+
+    // Adiciona x-perfil-id se houver perfil selecionado
+    const perfilId = getPerfilAtualId()
+    if (perfilId) {
+      headers['x-perfil-id'] = perfilId
     }
   }
 

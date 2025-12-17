@@ -2,11 +2,14 @@
  * Service de Lançamentos
  *
  * Lógica de negócio para operações com lançamentos financeiros.
- * Todas as operações requerem userId para isolamento de dados.
+ * Todas as operações requerem userId/perfilId para isolamento de dados.
  */
 
-import { lancamentoRepository } from '../repositories/lancamento.repository.js'
+import { lancamentoRepository, type ContextoUsuario } from '../repositories/lancamento.repository.js'
 import type { Lancamento, CriarLancamentoInput, AtualizarLancamentoInput, LancamentoResponse, CriarFilhoInput } from '../schemas/lancamento.js'
+
+// Tipo para contexto: pode ser string (userId legado) ou ContextoUsuario completo
+type Contexto = ContextoUsuario | string
 
 /**
  * Calcula totalizadores a partir das listas de entradas e saídas
@@ -51,13 +54,13 @@ export const lancamentoService = {
    * - Array 'agrupadores' é mantido para compatibilidade com frontend,
    *   mas contém apenas lançamentos com is_agrupador=true
    */
-  async listarPorMes(mes: string, userId: string): Promise<LancamentoResponse> {
-    const lancamentos = await lancamentoRepository.findByMes(mes, userId)
+  async listarPorMes(mes: string, ctx: Contexto): Promise<LancamentoResponse> {
+    const lancamentos = await lancamentoRepository.findByMes(mes, ctx)
 
     const entradas = lancamentos.filter((l) => l.tipo === 'entrada')
     const saidas = lancamentos.filter((l) => l.tipo === 'saida')
 
-    // Agrupadores = todos com is_agrupador=true (para compatibilidade com frontend)
+    // Agrupadores = todos com is_agrupador=true
     const agrupadores = lancamentos.filter((l) => l.is_agrupador)
 
     const totais = calcularTotais(entradas, saidas)
@@ -74,56 +77,56 @@ export const lancamentoService = {
   /**
    * Cria novo lançamento
    */
-  async criar(input: CriarLancamentoInput, userId: string): Promise<LancamentoResponse> {
-    await lancamentoRepository.create(input, userId)
-    return this.listarPorMes(input.mes, userId)
+  async criar(input: CriarLancamentoInput, ctx: Contexto): Promise<LancamentoResponse> {
+    await lancamentoRepository.create(input, ctx)
+    return this.listarPorMes(input.mes, ctx)
   },
 
   /**
    * Atualiza lançamento existente
    */
-  async atualizar(id: string, input: AtualizarLancamentoInput, userId: string): Promise<LancamentoResponse> {
-    const lancamento = await lancamentoRepository.findById(id, userId)
+  async atualizar(id: string, input: AtualizarLancamentoInput, ctx: Contexto): Promise<LancamentoResponse> {
+    const lancamento = await lancamentoRepository.findById(id, ctx)
     if (!lancamento) {
       throw new Error('Lançamento não encontrado')
     }
 
-    await lancamentoRepository.update(id, input, userId)
-    return this.listarPorMes(lancamento.mes, userId)
+    await lancamentoRepository.update(id, input, ctx)
+    return this.listarPorMes(lancamento.mes, ctx)
   },
 
   /**
    * Alterna status de conclusão
    */
-  async toggleConcluido(id: string, userId: string): Promise<LancamentoResponse> {
-    const lancamento = await lancamentoRepository.findById(id, userId)
+  async toggleConcluido(id: string, ctx: Contexto): Promise<LancamentoResponse> {
+    const lancamento = await lancamentoRepository.findById(id, ctx)
     if (!lancamento) {
       throw new Error('Lançamento não encontrado')
     }
 
-    await lancamentoRepository.toggleConcluido(id, userId)
-    return this.listarPorMes(lancamento.mes, userId)
+    await lancamentoRepository.toggleConcluido(id, ctx)
+    return this.listarPorMes(lancamento.mes, ctx)
   },
 
   /**
    * Remove lançamento
    */
-  async excluir(id: string, userId: string): Promise<LancamentoResponse> {
-    const lancamento = await lancamentoRepository.findById(id, userId)
+  async excluir(id: string, ctx: Contexto): Promise<LancamentoResponse> {
+    const lancamento = await lancamentoRepository.findById(id, ctx)
     if (!lancamento) {
       throw new Error('Lançamento não encontrado')
     }
 
     const mes = lancamento.mes
-    await lancamentoRepository.delete(id, userId)
-    return this.listarPorMes(mes, userId)
+    await lancamentoRepository.delete(id, ctx)
+    return this.listarPorMes(mes, ctx)
   },
 
   /**
    * Cria múltiplos lançamentos em lote (batch)
    */
-  async criarLote(inputs: CriarLancamentoInput[], userId: string): Promise<{ criados: number }> {
-    return lancamentoRepository.createMany(inputs, userId)
+  async criarLote(inputs: CriarLancamentoInput[], ctx: Contexto): Promise<{ criados: number }> {
+    return lancamentoRepository.createMany(inputs, ctx)
   },
 
   /**
@@ -144,7 +147,7 @@ export const lancamentoService = {
         quantidade: number
       }
     },
-    userId: string
+    ctx: Contexto
   ): Promise<{ criados: number }> {
     const { tipo, nome, valor, mes_inicial, dia_previsto, concluido, categoria_id, recorrencia } = input
     const quantidade = recorrencia.quantidade
@@ -180,51 +183,52 @@ export const lancamentoService = {
         valor,
         mes,
         concluido: concluido ?? false,
+        is_agrupador: false,
         data_prevista,
         categoria_id: categoria_id ?? null,
       }
     })
 
     // Batch insert - 1 query ao invés de N
-    return lancamentoRepository.createMany(lancamentos, userId)
+    return lancamentoRepository.createMany(lancamentos, ctx)
   },
 
   /**
    * Lista filhos de um agrupador
    */
-  async listarFilhos(agrupadorId: string, userId: string): Promise<Lancamento[]> {
-    const agrupador = await lancamentoRepository.findById(agrupadorId, userId)
+  async listarFilhos(agrupadorId: string, ctx: Contexto): Promise<Lancamento[]> {
+    const agrupador = await lancamentoRepository.findById(agrupadorId, ctx)
     if (!agrupador) {
       throw new Error('Agrupador não encontrado')
     }
-    if (agrupador.tipo !== 'agrupador') {
+    if (!agrupador.is_agrupador) {
       throw new Error('Lançamento não é um agrupador')
     }
 
-    return lancamentoRepository.findFilhos(agrupadorId, userId)
+    return lancamentoRepository.findFilhos(agrupadorId, ctx)
   },
 
   /**
    * Cria um filho para um agrupador
    */
-  async criarFilho(agrupadorId: string, input: CriarFilhoInput, userId: string): Promise<LancamentoResponse> {
-    const agrupador = await lancamentoRepository.findById(agrupadorId, userId)
+  async criarFilho(agrupadorId: string, input: CriarFilhoInput, ctx: Contexto): Promise<LancamentoResponse> {
+    const agrupador = await lancamentoRepository.findById(agrupadorId, ctx)
     if (!agrupador) {
       throw new Error('Agrupador não encontrado')
     }
-    if (agrupador.tipo !== 'agrupador') {
+    if (!agrupador.is_agrupador) {
       throw new Error('Lançamento não é um agrupador')
     }
 
-    await lancamentoRepository.createFilho(agrupadorId, input, agrupador.mes, userId)
-    return this.listarPorMes(agrupador.mes, userId)
+    await lancamentoRepository.createFilho(agrupadorId, input, agrupador.mes, ctx)
+    return this.listarPorMes(agrupador.mes, ctx)
   },
 
   /**
    * Busca agrupador com seus filhos
    */
-  async buscarAgrupador(agrupadorId: string, userId: string): Promise<Lancamento> {
-    const agrupador = await lancamentoRepository.findAgrupadorComFilhos(agrupadorId, userId)
+  async buscarAgrupador(agrupadorId: string, ctx: Contexto): Promise<Lancamento> {
+    const agrupador = await lancamentoRepository.findAgrupadorComFilhos(agrupadorId, ctx)
     if (!agrupador) {
       throw new Error('Agrupador não encontrado')
     }

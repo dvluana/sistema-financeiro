@@ -3,7 +3,7 @@
  *
  * Drawer/Bottomsheet responsivo para criar lançamentos manualmente.
  * Possui abas para alternar entre Entrada e Saída.
- * Design moderno com visual limpo e animações suaves.
+ * Suporta criação de agrupadores (cartões/grupos) via toggle.
  */
 
 import { useState, useEffect } from 'react'
@@ -15,7 +15,7 @@ import {
   Loader2,
   Repeat,
   Calendar,
-  CreditCard,
+  Layers,
 } from 'lucide-react'
 import { Drawer as DrawerPrimitive } from 'vaul'
 import { cn } from '@/lib/utils'
@@ -34,26 +34,23 @@ export interface LancamentoFormData {
   data_prevista: string | null
   concluido: boolean
   categoria_id: string | null
+  is_agrupador: boolean
   recorrencia?: {
     tipo: 'mensal' | 'parcelas'
     quantidade: number
   }
 }
 
-type TipoLancamento = 'entrada' | 'saida' | 'agrupador'
-
 interface LancamentoSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   mesAtual: string
   lancamento?: Lancamento | null
-  tipoInicial?: TipoLancamento
+  tipoInicial?: 'entrada' | 'saida'
   autoMarcarConcluido?: { entrada: boolean; saida: boolean }
-  onSubmit: (tipo: TipoLancamento, data: LancamentoFormData) => Promise<void>
+  onSubmit: (tipo: 'entrada' | 'saida', data: LancamentoFormData) => Promise<void>
   onDelete?: () => void
   isLoading?: boolean
-  /** Mostra opção de criar agrupador (cartão/grupo) */
-  showAgrupadorOption?: boolean
 }
 
 export function LancamentoSheet({
@@ -66,13 +63,12 @@ export function LancamentoSheet({
   onSubmit,
   onDelete,
   isLoading = false,
-  showAgrupadorOption = false,
 }: LancamentoSheetProps) {
   const isDesktop = useIsDesktop()
   const isEditing = !!lancamento
 
-  // Tipo selecionado (entrada, saída ou agrupador)
-  const [tipo, setTipo] = useState<TipoLancamento>(tipoInicial)
+  // Tipo selecionado (entrada ou saída)
+  const [tipo, setTipo] = useState<'entrada' | 'saida'>(tipoInicial)
 
   // Campos do formulário
   const [nome, setNome] = useState('')
@@ -80,6 +76,7 @@ export function LancamentoSheet({
   const [dataPrevista, setDataPrevista] = useState('')
   const [concluido, setConcluido] = useState(false)
   const [categoriaId, setCategoriaId] = useState<string | null>(null)
+  const [isAgrupador, setIsAgrupador] = useState(false)
 
   // Recorrência
   const [recorrente, setRecorrente] = useState(false)
@@ -96,25 +93,22 @@ export function LancamentoSheet({
   // Inicializa campos quando abre ou quando lançamento muda
   useEffect(() => {
     if (lancamento) {
-      // Preserva o tipo original (incluindo agrupador)
       setTipo(lancamento.tipo)
       setNome(lancamento.nome)
       setValor(String(lancamento.valor))
       setConcluido(lancamento.concluido)
       setCategoriaId(lancamento.categoria_id || null)
-      // Usa a data_prevista completa se existir
       setDataPrevista(lancamento.data_prevista || '')
+      setIsAgrupador(lancamento.is_agrupador || false)
       setRecorrente(false)
     } else {
       setTipo(tipoInicial)
       setNome('')
       setValor('')
-      // Pré-preenche com a data do mês selecionado (primeiro dia)
       setDataPrevista('')
-      // Agrupadores não têm auto-concluído
-      const autoValue = tipoInicial === 'agrupador' ? false : autoMarcarConcluido[tipoInicial as 'entrada' | 'saida']
-      setConcluido(autoValue)
+      setConcluido(autoMarcarConcluido[tipoInicial])
       setCategoriaId(null)
+      setIsAgrupador(false)
       setRecorrente(false)
       setTipoRecorrencia('mensal')
       setQuantidadeParcelas('12')
@@ -124,10 +118,17 @@ export function LancamentoSheet({
 
   // Atualiza concluido quando troca de tipo (apenas ao criar)
   useEffect(() => {
-    if (!isEditing && tipo !== 'agrupador') {
+    if (!isEditing) {
       setConcluido(autoMarcarConcluido[tipo])
     }
   }, [tipo, isEditing, autoMarcarConcluido])
+
+  // Desabilita recorrência quando é agrupador
+  useEffect(() => {
+    if (isAgrupador) {
+      setRecorrente(false)
+    }
+  }, [isAgrupador])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -161,9 +162,10 @@ export function LancamentoSheet({
       data_prevista: dataPrevista || null,
       concluido,
       categoria_id: categoriaId,
+      is_agrupador: isAgrupador,
     }
 
-    if (!isEditing && recorrente) {
+    if (!isEditing && recorrente && !isAgrupador) {
       data.recorrencia = {
         tipo: tipoRecorrencia,
         quantidade: tipoRecorrencia === 'mensal' ? 12 : parseInt(quantidadeParcelas),
@@ -174,7 +176,11 @@ export function LancamentoSheet({
   }
 
   const labels = {
-    nome: tipo === 'entrada' ? 'O que entrou?' : tipo === 'agrupador' ? 'Nome do cartão/grupo' : 'O que foi?',
+    nome: isAgrupador
+      ? 'Nome do cartão/grupo'
+      : tipo === 'entrada'
+        ? 'O que entrou?'
+        : 'O que foi?',
     dataPrevista: tipo === 'entrada' ? 'Data prevista' : 'Data de vencimento',
     concluido: tipo === 'entrada' ? 'Já recebi' : 'Já paguei',
     recorrente: tipo === 'entrada' ? 'Entrada recorrente' : 'Saída recorrente',
@@ -195,12 +201,9 @@ export function LancamentoSheet({
         </DrawerPrimitive.Close>
       </div>
 
-      {/* Seletor de tipo (Entrada/Saída/Agrupador) */}
+      {/* Seletor de tipo (Entrada/Saída) */}
       {!isEditing && (
-        <div className={cn(
-          "flex gap-2 p-1 bg-secondary rounded-xl mb-6 shrink-0",
-          showAgrupadorOption && "flex-wrap"
-        )}>
+        <div className="flex gap-2 p-1 bg-secondary rounded-xl mb-6 shrink-0">
           <button
             type="button"
             onClick={() => setTipo('entrada')}
@@ -227,21 +230,6 @@ export function LancamentoSheet({
             <TrendingDown className="w-4 h-4" />
             <span>Saída</span>
           </button>
-          {showAgrupadorOption && (
-            <button
-              type="button"
-              onClick={() => setTipo('agrupador')}
-              className={cn(
-                'flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-corpo-medium font-medium transition-all',
-                tipo === 'agrupador'
-                  ? 'bg-azul text-white shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              <CreditCard className="w-4 h-4" />
-              <span>Cartão/Grupo</span>
-            </button>
-          )}
         </div>
       )}
 
@@ -252,19 +240,12 @@ export function LancamentoSheet({
             'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-micro font-medium',
             tipo === 'entrada'
               ? 'bg-verde/10 text-verde'
-              : tipo === 'agrupador'
-              ? 'bg-azul/10 text-azul'
               : 'bg-vermelho/10 text-vermelho'
           )}>
             {tipo === 'entrada' ? (
               <>
                 <TrendingUp className="w-3.5 h-3.5" />
                 <span>Entrada</span>
-              </>
-            ) : tipo === 'agrupador' ? (
-              <>
-                <CreditCard className="w-3.5 h-3.5" />
-                <span>Cartão/Grupo</span>
               </>
             ) : (
               <>
@@ -273,10 +254,16 @@ export function LancamentoSheet({
               </>
             )}
           </div>
+          {isAgrupador && (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-micro font-medium bg-azul/10 text-azul">
+              <Layers className="w-3.5 h-3.5" />
+              <span>Grupo</span>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Área scrollável com campos (data-vaul-no-drag permite scroll dentro do drawer) */}
+      {/* Área scrollável com campos */}
       <div
         className="flex-1 overflow-y-auto min-h-0 overscroll-contain -mx-4 px-4"
         data-vaul-no-drag
@@ -292,7 +279,7 @@ export function LancamentoSheet({
               setNome(e.target.value)
               if (errors.nome) setErrors((prev) => ({ ...prev, nome: undefined }))
             }}
-            placeholder="Ex: Salário"
+            placeholder={isAgrupador ? "Ex: Cartão Nubank, Gastos do Mês" : "Ex: Salário"}
             maxLength={100}
           />
           {errors.nome && (
@@ -313,7 +300,7 @@ export function LancamentoSheet({
 
         {/* Categoria */}
         <CategoriaSelect
-          tipo={tipo === 'agrupador' ? 'saida' : tipo}
+          tipo={tipo}
           value={categoriaId}
           onChange={setCategoriaId}
         />
@@ -341,8 +328,32 @@ export function LancamentoSheet({
           />
         </div>
 
+        {/* Toggle: É um grupo/cartão (apenas ao criar) */}
+        {!isEditing && (
+          <div className="border-t border-border pt-4">
+            <div className="flex items-center justify-between min-h-touch">
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-muted-foreground" />
+                <div>
+                  <Label htmlFor="isAgrupador" className="cursor-pointer">
+                    É um grupo/cartão
+                  </Label>
+                  <p className="text-micro text-muted-foreground">
+                    Para agrupar sub-itens (ex: fatura do cartão)
+                  </p>
+                </div>
+              </div>
+              <Switch
+                id="isAgrupador"
+                checked={isAgrupador}
+                onCheckedChange={setIsAgrupador}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Seção de Recorrência (apenas ao criar, não para agrupadores) */}
-        {!isEditing && tipo !== 'agrupador' && (
+        {!isEditing && !isAgrupador && (
           <>
             <div className="border-t border-border pt-4">
               <div className="flex items-center justify-between min-h-touch">
@@ -466,7 +477,7 @@ export function LancamentoSheet({
         </form>
       </div>
 
-      {/* Botões fixos no final (fora do scroll) */}
+      {/* Botões fixos no final */}
       <div className={cn(
         'space-y-3 pt-4 border-t border-border shrink-0',
         !isDesktop && 'pb-safe'

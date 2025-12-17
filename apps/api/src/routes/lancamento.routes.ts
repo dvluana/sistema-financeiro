@@ -28,8 +28,9 @@ export async function lancamentoRoutes(app: FastifyInstance) {
   app.get('/api/lancamentos', async (request, reply) => {
     try {
       const query = mesQuerySchema.parse(request.query)
-      const userId = request.usuario!.id
-      const result = await lancamentoService.listarPorMes(query.mes, userId)
+      // Usa contexto (perfil) se disponível, senão fallback para userId
+      const ctx = request.contexto || request.usuario!.id
+      const result = await lancamentoService.listarPorMes(query.mes, ctx)
       return result
     } catch (error) {
       if (error instanceof Error && error.message.includes('inválido')) {
@@ -46,8 +47,8 @@ export async function lancamentoRoutes(app: FastifyInstance) {
   app.post('/api/lancamentos', async (request, reply) => {
     try {
       const input = criarLancamentoSchema.parse(request.body)
-      const userId = request.usuario!.id
-      const result = await lancamentoService.criar(input, userId)
+      const ctx = request.contexto || request.usuario!.id
+      const result = await lancamentoService.criar(input, ctx)
       return reply.status(201).send(result)
     } catch (error) {
       if (error instanceof Error) {
@@ -64,8 +65,8 @@ export async function lancamentoRoutes(app: FastifyInstance) {
   app.post('/api/lancamentos/batch', async (request, reply) => {
     try {
       const input = criarLancamentosBatchSchema.parse(request.body)
-      const userId = request.usuario!.id
-      const result = await lancamentoService.criarLote(input.lancamentos, userId)
+      const ctx = request.contexto || request.usuario!.id
+      const result = await lancamentoService.criarLote(input.lancamentos, ctx)
       return reply.status(201).send(result)
     } catch (error) {
       if (error instanceof Error) {
@@ -82,8 +83,8 @@ export async function lancamentoRoutes(app: FastifyInstance) {
   app.post('/api/lancamentos/recorrente', async (request, reply) => {
     try {
       const input = criarLancamentoRecorrenteSchema.parse(request.body)
-      const userId = request.usuario!.id
-      const result = await lancamentoService.criarRecorrente(input, userId)
+      const ctx = request.contexto || request.usuario!.id
+      const result = await lancamentoService.criarRecorrente(input, ctx)
       return reply.status(201).send(result)
     } catch (error) {
       if (error instanceof Error) {
@@ -101,8 +102,8 @@ export async function lancamentoRoutes(app: FastifyInstance) {
     try {
       const { id } = request.params
       const input = atualizarLancamentoSchema.parse(request.body)
-      const userId = request.usuario!.id
-      const result = await lancamentoService.atualizar(id, input, userId)
+      const ctx = request.contexto || request.usuario!.id
+      const result = await lancamentoService.atualizar(id, input, ctx)
       return result
     } catch (error) {
       if (error instanceof Error) {
@@ -122,8 +123,8 @@ export async function lancamentoRoutes(app: FastifyInstance) {
   app.patch<{ Params: { id: string } }>('/api/lancamentos/:id/concluido', async (request, reply) => {
     try {
       const { id } = request.params
-      const userId = request.usuario!.id
-      const result = await lancamentoService.toggleConcluido(id, userId)
+      const ctx = request.contexto || request.usuario!.id
+      const result = await lancamentoService.toggleConcluido(id, ctx)
       return result
     } catch (error) {
       if (error instanceof Error) {
@@ -143,8 +144,8 @@ export async function lancamentoRoutes(app: FastifyInstance) {
   app.delete<{ Params: { id: string } }>('/api/lancamentos/:id', async (request, reply) => {
     try {
       const { id } = request.params
-      const userId = request.usuario!.id
-      const result = await lancamentoService.excluir(id, userId)
+      const ctx = request.contexto || request.usuario!.id
+      const result = await lancamentoService.excluir(id, ctx)
       return result
     } catch (error) {
       if (error instanceof Error) {
@@ -168,8 +169,8 @@ export async function lancamentoRoutes(app: FastifyInstance) {
   app.get<{ Params: { id: string } }>('/api/lancamentos/:id/filhos', async (request, reply) => {
     try {
       const { id } = request.params
-      const userId = request.usuario!.id
-      const result = await lancamentoService.listarFilhos(id, userId)
+      const ctx = request.contexto || request.usuario!.id
+      const result = await lancamentoService.listarFilhos(id, ctx)
       return result
     } catch (error) {
       if (error instanceof Error) {
@@ -193,8 +194,8 @@ export async function lancamentoRoutes(app: FastifyInstance) {
     try {
       const { id } = request.params
       const input = criarFilhoSchema.parse(request.body)
-      const userId = request.usuario!.id
-      const result = await lancamentoService.criarFilho(id, input, userId)
+      const ctx = request.contexto || request.usuario!.id
+      const result = await lancamentoService.criarFilho(id, input, ctx)
       return reply.status(201).send(result)
     } catch (error) {
       if (error instanceof Error) {
@@ -217,8 +218,8 @@ export async function lancamentoRoutes(app: FastifyInstance) {
   app.get<{ Params: { id: string } }>('/api/lancamentos/:id/agrupador', async (request, reply) => {
     try {
       const { id } = request.params
-      const userId = request.usuario!.id
-      const result = await lancamentoService.buscarAgrupador(id, userId)
+      const ctx = request.contexto || request.usuario!.id
+      const result = await lancamentoService.buscarAgrupador(id, ctx)
       return result
     } catch (error) {
       if (error instanceof Error) {

@@ -9,10 +9,18 @@ import { FastifyRequest, FastifyReply } from 'fastify'
 import { authService } from '../services/auth.service.js'
 import type { Usuario } from '../schemas/auth.js'
 
-// Estende o tipo do request para incluir usuário
+// Contexto do usuário/perfil para uso nas rotas
+export interface ContextoRequest {
+  userId: string
+  perfilId: string
+}
+
+// Estende o tipo do request para incluir usuário e contexto
 declare module 'fastify' {
   interface FastifyRequest {
     usuario?: Usuario
+    perfilId?: string
+    contexto?: ContextoRequest
   }
 }
 
@@ -99,8 +107,20 @@ async function validateTokenWithCache(token: string): Promise<Usuario | null> {
 }
 
 /**
+ * Extrai perfilId do header x-perfil-id
+ */
+function extractPerfilId(request: FastifyRequest): string | null {
+  const perfilId = request.headers['x-perfil-id']
+  if (typeof perfilId === 'string' && perfilId.length > 0) {
+    return perfilId
+  }
+  return null
+}
+
+/**
  * Middleware que requer autenticação
  * Retorna 401 se não autenticado
+ * Também extrai x-perfil-id do header e configura o contexto
  */
 export async function requireAuth(
   request: FastifyRequest,
@@ -119,6 +139,16 @@ export async function requireAuth(
   }
 
   request.usuario = usuario
+
+  // Extrai perfilId do header
+  const perfilId = extractPerfilId(request)
+  if (perfilId) {
+    request.perfilId = perfilId
+    request.contexto = {
+      userId: usuario.id,
+      perfilId,
+    }
+  }
 }
 
 /**
