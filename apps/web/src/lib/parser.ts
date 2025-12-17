@@ -739,13 +739,16 @@ function detectarTipoRobusto(texto: string, valorNegativo?: boolean): TipoLancam
   if (valorNegativo) return 'saida'
 
   // Verifica indicadores explícitos de crédito/débito
+  // Escapa caracteres especiais de regex (como + e -)
+  const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
   for (const indicador of INDICADORES_CREDITO) {
-    const regex = new RegExp(`\\b${indicador}\\b`, 'i')
+    const regex = new RegExp(`\\b${escapeRegex(indicador)}\\b`, 'i')
     if (regex.test(textoLower)) return 'entrada'
   }
 
   for (const indicador of INDICADORES_DEBITO) {
-    const regex = new RegExp(`\\b${indicador}\\b`, 'i')
+    const regex = new RegExp(`\\b${escapeRegex(indicador)}\\b`, 'i')
     if (regex.test(textoLower)) return 'saida'
   }
 

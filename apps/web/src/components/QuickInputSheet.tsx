@@ -81,14 +81,12 @@ const LancamentoItem = ({
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, scale: 0.9, y: 20 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.9, x: -100 }}
-      transition={{ 
-        type: "spring",
-        stiffness: 300,
-        damping: 25,
-        delay: index * 0.05 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, x: -50 }}
+      transition={{
+        duration: 0.15,
+        delay: Math.min(index * 0.02, 0.1) // Max 100ms total delay
       }}
       className={cn(
         "group relative p-4 rounded-xl border transition-all duration-200",
