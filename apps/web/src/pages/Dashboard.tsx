@@ -8,6 +8,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Settings, LogOut } from 'lucide-react'
 import { cn, getMesAtual } from '@/lib/utils'
+import { WorkspaceSwitcher } from '@/components/WorkspaceSwitcher'
 import { HeroCard } from '@/components/HeroCard'
 import { UpcomingCard } from '@/components/UpcomingCard'
 import { CardEntradas } from '@/components/CardEntradas'
@@ -129,15 +130,8 @@ export function Dashboard({
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="max-w-[720px] mx-auto">
           <div className="flex items-center justify-between px-4 py-2.5">
-            <div className="flex items-center gap-2">
-              {/* Avatar com inicial */}
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-rosa to-rosa/80 text-white text-pequeno font-semibold">
-                {primeiroNome.charAt(0).toUpperCase()}
-              </div>
-              <span className="text-corpo text-foreground font-medium">
-                {primeiroNome}
-              </span>
-            </div>
+            {/* Workspace Switcher */}
+          <WorkspaceSwitcher />
 
             <div className="flex items-center gap-1">
               {/* Botão de configurações */}

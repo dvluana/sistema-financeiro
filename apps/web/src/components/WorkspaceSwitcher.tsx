@@ -212,8 +212,13 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
     )
   }
 
+  // Debug: log do perfilAtual
+  console.log('[WorkspaceSwitcher] perfilAtual:', perfilAtual)
+  console.log('[WorkspaceSwitcher] perfis:', perfis)
+
   // Verifica se o perfil tem os dados completos (não apenas o id)
   if (!perfilAtual || !perfilAtual.nome || !perfilAtual.icone) {
+    console.log('[WorkspaceSwitcher] Retornando null - perfil incompleto')
     return null
   }
 

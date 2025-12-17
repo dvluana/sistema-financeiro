@@ -55,6 +55,7 @@ export const usePerfilStore = create<PerfilState>()(
 
         try {
           const response = await perfisApi.listar()
+          console.log('[PerfilStore] Response from API:', response)
           const { perfis } = response
 
           // Se não tem perfil selecionado, seleciona o padrão
@@ -104,6 +105,7 @@ export const usePerfilStore = create<PerfilState>()(
        * Define perfil inicial (usado após login/register)
        */
       setPerfilInicial: (perfil: PerfilBasico) => {
+        console.log('[PerfilStore] setPerfilInicial chamado com:', perfil)
         // Converte PerfilBasico para Perfil completo (com campos default)
         const perfilCompleto: Perfil = {
           id: perfil.id,
