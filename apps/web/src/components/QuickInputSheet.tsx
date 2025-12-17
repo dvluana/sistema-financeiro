@@ -600,14 +600,14 @@ export function QuickInputSheet({
               : "border-border focus-within:border-rosa focus-within:shadow-lg focus-within:shadow-rosa/10"
           )}
         >
-          {/* Input */}
-          <input
+          {/* Input - mudado para textarea para suportar múltiplas linhas */}
+          <textarea
             ref={inputRef}
-            type="text"
             value={textoLocal}
             onChange={handleTextoChange}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
+              // Ctrl+Enter ou Cmd+Enter para processar
+              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();
                 handleProcess();
               }
@@ -615,14 +615,16 @@ export function QuickInputSheet({
             placeholder={
               isListening
                 ? "Escutando você..."
-                : "Ex: Mercado 250, Netflix 55,90, salário recebido 5000"
+                : "Cole múltiplas linhas ou digite (Ctrl+Enter para processar)"
             }
             disabled={isParsing}
             className={cn(
               "flex-1 bg-transparent text-corpo text-foreground",
               "placeholder:text-muted-foreground/50",
-              "focus:outline-none"
+              "focus:outline-none resize-none",
+              "min-h-[40px] max-h-[200px] overflow-y-auto"
             )}
+            rows={1}
           />
 
           {/* Botões de ação */}
