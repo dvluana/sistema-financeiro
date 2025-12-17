@@ -331,9 +331,9 @@ export function Home() {
             <Lembretes onOpenConfig={() => setConfigDrawerOpen(true)} />
           </motion.div>
         )}
-        {activeTab === 'insights' && (
+        {activeTab === 'relatorios' && (
           <motion.div
-            key="insights"
+            key="relatorios"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

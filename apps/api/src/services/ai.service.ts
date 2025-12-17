@@ -1142,14 +1142,8 @@ export class AIService {
         lancamentos,
         erro: parsed.erro,
       };
-    } catch (err) {
+    } catch {
       // Fallback silencioso para parsing básico quando Gemini falha
-      // Log apenas em desenvolvimento para debug
-      if (process.env.NODE_ENV !== "production") {
-          "Erro ao chamar IA, usando fallback:",
-          err instanceof Error ? err.message : err
-        );
-      }
       return this.parseBasico(textoProcessado, texto);
     }
   }

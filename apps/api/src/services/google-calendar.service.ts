@@ -228,10 +228,31 @@ export interface CalendarEvent {
 
 /**
  * Calcula tempo até o evento em formato legível
+ * @param eventStart - Data/hora do início do evento
+ * @param isAllDay - Se é evento de dia inteiro (data sem hora)
  */
-function calculateTimeUntil(eventStart: string): string {
-  const start = new Date(eventStart)
+function calculateTimeUntil(eventStart: string, isAllDay: boolean): string {
   const now = new Date()
+
+  let start: Date
+  if (isAllDay) {
+    // Para eventos de dia inteiro, a data vem como "YYYY-MM-DD"
+    // Precisamos interpretar como data LOCAL, não UTC
+    const [year, month, day] = eventStart.split('-').map(Number)
+    start = new Date(year, month - 1, day, 0, 0, 0) // Meia-noite local
+
+    // Para eventos de dia inteiro, comparamos apenas as datas
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const diffDays = Math.floor((start.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24))
+
+    if (diffDays < 0) return 'Passou'
+    if (diffDays === 0) return 'Hoje'
+    if (diffDays === 1) return 'Amanhã'
+    return `Em ${diffDays} dias`
+  }
+
+  // Para eventos com hora específica
+  start = new Date(eventStart)
   const diffMs = start.getTime() - now.getTime()
   const diffMins = Math.round(diffMs / 60000)
 
@@ -251,6 +272,7 @@ function calculateTimeUntil(eventStart: string): string {
 
 /**
  * Busca eventos do calendário do usuário
+ * Filtra eventos que o usuário recusou (declined)
  */
 export async function getUpcomingEvents(
   usuarioId: string,
@@ -272,14 +294,35 @@ export async function getUpcomingEvents(
     calendarId: 'primary',
     timeMin: now.toISOString(),
     timeMax: endDate.toISOString(),
-    maxResults,
+    maxResults: maxResults * 2, // Busca mais porque vamos filtrar
     singleEvents: true,
     orderBy: 'startTime',
   })
 
   const events = response.data.items || []
 
-  return events.map((event: calendar_v3.Schema$Event) => {
+  // Filtra eventos que o usuário recusou
+  const filteredEvents = events.filter((event: calendar_v3.Schema$Event) => {
+    // Se não tem attendees, é um evento próprio - mantém
+    if (!event.attendees || event.attendees.length === 0) {
+      return true
+    }
+
+    // Procura o status do usuário (self: true indica o próprio usuário)
+    const selfAttendee = event.attendees.find(a => a.self === true)
+
+    // Se encontrou e o status é 'declined', remove o evento
+    if (selfAttendee && selfAttendee.responseStatus === 'declined') {
+      return false
+    }
+
+    return true
+  })
+
+  // Limita ao maxResults após filtrar
+  const limitedEvents = filteredEvents.slice(0, maxResults)
+
+  return limitedEvents.map((event: calendar_v3.Schema$Event) => {
     const isAllDay = !event.start?.dateTime
     const startTime = event.start?.dateTime || event.start?.date || ''
     const endTime = event.end?.dateTime || event.end?.date || ''
@@ -294,7 +337,7 @@ export async function getUpcomingEvents(
       title: event.summary || 'Sem título',
       startTime,
       endTime,
-      timeUntil: calculateTimeUntil(startTime),
+      timeUntil: calculateTimeUntil(startTime, isAllDay),
       location: event.location || undefined,
       description: event.description || undefined,
       isAllDay,

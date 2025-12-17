@@ -191,7 +191,7 @@ export function Lembretes({ onOpenConfig }: LembretesProps) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-background to-background pb-24">
         <Header primeiroNome={primeiroNome} onOpenConfig={onOpenConfig} />
-        <div className="max-w-[720px] mx-auto p-4 flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="max-w-5xl mx-auto p-4 flex flex-col items-center justify-center min-h-[60vh]">
           <div className="text-center space-y-4">
             <div className="w-16 h-16 mx-auto bg-muted rounded-full flex items-center justify-center">
               <Calendar className="w-8 h-8 text-muted-foreground" />
@@ -211,7 +211,7 @@ export function Lembretes({ onOpenConfig }: LembretesProps) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-background to-background pb-24">
         <Header primeiroNome={primeiroNome} onOpenConfig={onOpenConfig} />
-        <div className="max-w-[720px] mx-auto p-4 flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="max-w-5xl mx-auto p-4 flex flex-col items-center justify-center min-h-[60vh]">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -266,7 +266,7 @@ export function Lembretes({ onOpenConfig }: LembretesProps) {
         isConnected={isConnected}
       />
 
-      <main className="max-w-[720px] mx-auto p-4 space-y-6">
+      <main className="max-w-5xl mx-auto p-4 space-y-6">
         {/* Loading state */}
         {isLoading && (
           <div className="flex flex-col items-center justify-center py-12">
@@ -614,7 +614,7 @@ interface HeaderProps {
 function Header({ primeiroNome, onOpenConfig, onRefresh, onDisconnect, isLoading, isConnected }: HeaderProps) {
   return (
     <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
-      <div className="max-w-[720px] mx-auto">
+      <div className="max-w-5xl mx-auto">
         <div className="flex items-center justify-between px-4 py-2.5">
           <div className="flex items-center gap-2">
             {/* Avatar com inicial */}

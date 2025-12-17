@@ -133,7 +133,7 @@ export function Dashboard({
     <div className="min-h-screen w-full bg-gradient-to-b from-background to-background pb-20 lg:pb-8">
       {/* Header moderno (mesmo padrão da MesView) */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
-        <div className="w-full max-w-7xl mx-auto">
+        <div className="w-full max-w-5xl mx-auto">
           <div className="flex items-center justify-between px-4 py-2.5">
             {/* Workspace Switcher */}
           <WorkspaceSwitcher />
@@ -172,7 +172,7 @@ export function Dashboard({
       </header>
 
       {/* Conteúdo */}
-      <main className="w-full max-w-7xl mx-auto px-4 lg:px-8 py-4 space-y-6">
+      <main className="w-full max-w-5xl mx-auto px-4 lg:px-6 py-4 space-y-6">
         {isLoading && !totais ? (
           <LoadingSkeleton />
         ) : (

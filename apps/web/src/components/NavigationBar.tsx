@@ -189,9 +189,6 @@ export function NavigationBar({
             </Button>
           </div>
         </motion.aside>
-
-        {/* Spacer para o conteúdo não ficar atrás da sidebar */}
-        <div className="w-64" />
       </TooltipProvider>
     )
   }

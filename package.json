@@ -9,10 +9,11 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "npm run kill-ports && concurrently -n api,web -c blue,magenta --kill-others-on-fail --kill-others --handle-input \"npm run dev:api\" \"npm run dev:web\"",
-    "dev:all": "npm run preflight && npm run dev",
+    "dev": "bash scripts/dev.sh",
+    "dev:all": "bash scripts/dev.sh",
     "dev:api": "npm run dev --workspace=apps/api",
     "dev:web": "npm run dev --workspace=apps/web",
+    "dev:quick": "npm run kill-ports && concurrently -n api,web -c blue,magenta --kill-others-on-fail \"npm run dev:api\" \"npm run dev:web\"",
     "preflight": "npm run health-check --workspace=apps/api",
     "kill-ports": "bash scripts/kill-ports.sh",
     "cleanup": "npm run kill-ports && (pkill -f 'tsx watch' || true) && (pkill -f 'vite' || true) && echo '✨ Processos limpos'",
