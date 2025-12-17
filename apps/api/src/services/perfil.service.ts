@@ -45,17 +45,17 @@ export const perfilService = {
 
   /**
    * Cria novo perfil
-   * Limite: maximo 10 perfis por usuario (previne abuso)
+   * Limite: maximo 10 perfis ativos por usuario (previne abuso)
    */
   async criarPerfil(input: CriarPerfilInput, usuarioId: string): Promise<Perfil> {
-    // Verifica limite de perfis
-    const perfisExistentes = await perfilRepository.findAllByUsuarioId(usuarioId)
-    if (perfisExistentes.length >= 10) {
+    // Verifica limite de perfis ativos
+    const perfisAtivos = await perfilRepository.findByUsuarioId(usuarioId)
+    if (perfisAtivos.length >= 10) {
       throw new Error('Limite maximo de 10 perfis atingido')
     }
 
-    // Verifica se ja existe perfil com mesmo nome
-    const nomeExistente = perfisExistentes.find(
+    // Verifica se ja existe perfil ATIVO com mesmo nome
+    const nomeExistente = perfisAtivos.find(
       p => p.nome.toLowerCase() === input.nome.toLowerCase()
     )
     if (nomeExistente) {
@@ -75,10 +75,10 @@ export const perfilService = {
       throw new Error('Perfil nao encontrado')
     }
 
-    // Se estiver alterando o nome, verifica duplicidade
+    // Se estiver alterando o nome, verifica duplicidade apenas em perfis ativos
     if (input.nome && input.nome.toLowerCase() !== perfil.nome.toLowerCase()) {
-      const perfis = await perfilRepository.findAllByUsuarioId(usuarioId)
-      const nomeExistente = perfis.find(
+      const perfisAtivos = await perfilRepository.findByUsuarioId(usuarioId)
+      const nomeExistente = perfisAtivos.find(
         p => p.id !== id && p.nome.toLowerCase() === input.nome!.toLowerCase()
       )
       if (nomeExistente) {

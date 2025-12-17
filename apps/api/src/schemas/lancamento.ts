@@ -7,6 +7,16 @@ export const tipoLancamento = z.enum(['entrada', 'saida'])
 // Modo de cálculo do valor de um agrupador
 export const valorModo = z.enum(['soma', 'fixo'])
 
+// Helper: aceita UUID, null, undefined ou string vazia (converte vazia para null)
+const optionalUuid = z
+  .string()
+  .nullable()
+  .optional()
+  .transform(val => (val === '' ? null : val))
+  .refine(val => val === null || val === undefined || z.string().uuid().safeParse(val).success, {
+    message: 'Invalid uuid',
+  })
+
 export const criarLancamentoSchema = z.object({
   tipo: tipoLancamento,
   nome: z.string().min(1, 'Nome é obrigatório').max(100, 'Nome muito longo'),
@@ -14,8 +24,8 @@ export const criarLancamentoSchema = z.object({
   mes: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Formato de mês inválido (YYYY-MM)'),
   concluido: z.boolean().optional().default(false),
   data_prevista: z.string().nullable().optional(),
-  categoria_id: z.string().uuid().nullable().optional(),
-  parent_id: z.string().uuid().nullable().optional(),
+  categoria_id: optionalUuid,
+  parent_id: optionalUuid,
   is_agrupador: z.boolean().optional().default(false),
   valor_modo: valorModo.optional().default('soma'),
 })
@@ -25,7 +35,7 @@ export const atualizarLancamentoSchema = z.object({
   valor: z.number().positive().optional(),
   data_prevista: z.string().nullable().optional(),
   concluido: z.boolean().optional(),
-  categoria_id: z.string().uuid().nullable().optional(),
+  categoria_id: optionalUuid,
   valor_modo: valorModo.optional(),
 })
 
@@ -36,7 +46,7 @@ export const criarLancamentoRecorrenteSchema = z.object({
   mes_inicial: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Formato de mês inválido (YYYY-MM)'),
   dia_previsto: z.number().min(1).max(31).nullable().optional(),
   concluido: z.boolean().optional().default(false),
-  categoria_id: z.string().uuid().nullable().optional(),
+  categoria_id: optionalUuid,
   recorrencia: z.object({
     tipo: z.enum(['mensal', 'parcelas']),
     quantidade: z.number().min(2).max(60),
@@ -58,7 +68,7 @@ export const criarFilhoSchema = z.object({
   valor: z.number().positive('Valor deve ser maior que zero'),
   concluido: z.boolean().optional().default(false),
   data_prevista: z.string().nullable().optional(),
-  categoria_id: z.string().uuid().nullable().optional(),
+  categoria_id: optionalUuid,
 })
 
 export type TipoLancamento = z.infer<typeof tipoLancamento>

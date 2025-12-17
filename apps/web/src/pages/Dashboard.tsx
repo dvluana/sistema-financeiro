@@ -18,6 +18,7 @@ import { LoadingSkeleton } from '@/components/LoadingSkeleton'
 import { useDashboardStore } from '@/stores/useDashboardStore'
 import { useFinanceiroStore } from '@/stores/useFinanceiroStore'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { usePerfilStore } from '@/stores/usePerfilStore'
 import type { Lancamento } from '@/lib/api'
 
 type LancamentoFilter = 'todos' | 'entradas' | 'saidas'
@@ -44,7 +45,8 @@ export function Dashboard({
   // Filtro de visualização de lançamentos
   const [lancamentoFilter, setLancamentoFilter] = useState<LancamentoFilter>('todos')
 
-  const { usuario, logout } = useAuthStore()
+  const { logout } = useAuthStore()
+  const { perfilAtual } = usePerfilStore()
   const {
     mesSelecionado,
     totais: dashboardTotais,
@@ -121,8 +123,8 @@ export function Dashboard({
     )
   }, [entradas, saidas, agrupadores])
 
-  // Extrai nome do usuário (primeiro nome apenas)
-  const primeiroNome = usuario?.nome?.split(' ')[0] || 'Usuário'
+  // Usa nome do workspace atual
+  const nomeWorkspace = perfilAtual?.nome || 'Workspace'
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-background pb-20">
@@ -174,7 +176,7 @@ export function Dashboard({
           <>
             {/* Hero - Saudação e resumo do mês */}
             <HeroCard
-              nome={primeiroNome}
+              nome={nomeWorkspace}
               mesSelecionado={mesSelecionado}
               saldo={totais?.saldo ?? 0}
               jaEntrou={totais?.jaEntrou ?? 0}

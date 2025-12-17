@@ -20,6 +20,7 @@ import {
   PiggyBank,
   TrendingUp,
   Check,
+  Loader2,
 } from 'lucide-react'
 import {
   Dialog,
@@ -51,12 +52,14 @@ interface PerfilDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   perfil?: Perfil | null
+  onSuccess?: (message: string) => void
 }
 
 export function PerfilDialog({
   open,
   onOpenChange,
   perfil,
+  onSuccess,
 }: PerfilDialogProps) {
   const [nome, setNome] = useState('')
   const [cor, setCor] = useState(CORES_WORKSPACE[0])
@@ -107,12 +110,14 @@ export function PerfilDialog({
           cor,
           icone,
         })
+        onSuccess?.(`Workspace "${nomeTrimmed}" atualizado!`)
       } else {
         await criarPerfil({
           nome: nomeTrimmed,
           cor,
           icone,
         })
+        onSuccess?.(`Workspace "${nomeTrimmed}" criado!`)
       }
       onOpenChange(false)
     } catch (err) {
@@ -252,14 +257,20 @@ export function PerfilDialog({
                 'bg-rosa text-white',
                 'hover:bg-rosa-hover active:bg-rosa-pressed',
                 'transition-colors text-botao',
-                'disabled:opacity-50 disabled:cursor-not-allowed'
+                'disabled:opacity-50 disabled:cursor-not-allowed',
+                'flex items-center justify-center gap-2'
               )}
             >
-              {isSubmitting
-                ? 'Salvando...'
-                : isEditing
-                  ? 'Salvar'
-                  : 'Criar'}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {isEditing ? 'Salvando...' : 'Criando...'}
+                </>
+              ) : isEditing ? (
+                'Salvar'
+              ) : (
+                'Criar'
+              )}
             </button>
           </div>
         </form>

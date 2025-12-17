@@ -34,6 +34,7 @@ import { useFinanceiroStore } from '@/stores/useFinanceiroStore'
 import { useDashboardStore } from '@/stores/useDashboardStore'
 import { PerfilDialog } from './PerfilDialog'
 import { ConfirmDialog } from './ConfirmDialog'
+import { Toast } from './Toast'
 import type { Perfil } from '@/lib/api'
 
 // Mapa de ícones disponíveis
@@ -75,6 +76,8 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
   const [deletingPerfil, setDeletingPerfil] = useState<Perfil | null>(null)
   const [isSwitching, setIsSwitching] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const dropdownRef = useRef<HTMLDivElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -161,6 +164,7 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
 
   const handleOpenDelete = (perfil: Perfil) => {
     setDeletingPerfil(perfil)
+    setDeleteError(null)
     setDeleteConfirmOpen(true)
     setIsOpen(false)
     setMenuOpenId(null)
@@ -170,6 +174,7 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
     if (!deletingPerfil || isDeleting) return
 
     setIsDeleting(true)
+    setDeleteError(null)
 
     try {
       const wasCurrentPerfil = deletingPerfil.id === perfilAtual?.id
@@ -188,7 +193,11 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
       }
     } catch (error) {
       console.error('Erro ao excluir workspace:', error)
-      // Mantém o dialog aberto para o usuário ver o erro
+      setDeleteError(
+        error instanceof Error
+          ? error.message
+          : 'Erro ao excluir. O workspace pode já ter sido excluído.'
+      )
     } finally {
       setIsDeleting(false)
     }
@@ -197,6 +206,17 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
   const handleDialogClose = () => {
     setDialogOpen(false)
     setEditingPerfil(null)
+  }
+
+  const handleDialogSuccess = async (message: string) => {
+    setToastMessage(message)
+    // Recarrega dados para o novo workspace (perfilAtual já foi atualizado pelo store)
+    await new Promise(resolve => setTimeout(resolve, 0))
+    await Promise.all([
+      carregarMes(mesAtual),
+      carregarConfiguracoes(),
+      carregarDashboard(mesSelecionado),
+    ])
   }
 
   // Renderiza ícone do perfil
@@ -390,6 +410,7 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
         open={dialogOpen}
         onOpenChange={handleDialogClose}
         perfil={editingPerfil}
+        onSuccess={handleDialogSuccess}
       />
 
       {/* Dialog de confirmação de exclusão */}
@@ -401,6 +422,14 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
         confirmLabel="Excluir"
         onConfirm={handleConfirmDelete}
         isLoading={isDeleting}
+        error={deleteError}
+      />
+
+      {/* Toast de sucesso */}
+      <Toast
+        message={toastMessage}
+        onClose={() => setToastMessage(null)}
+        variant="success"
       />
     </>
   )

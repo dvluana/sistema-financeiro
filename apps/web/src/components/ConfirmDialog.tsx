@@ -26,6 +26,7 @@ interface ConfirmDialogProps {
   confirmLabel?: string
   onConfirm: () => void
   isLoading?: boolean
+  error?: string | null
 }
 
 export function ConfirmDialog({
@@ -36,6 +37,7 @@ export function ConfirmDialog({
   confirmLabel = 'Excluir',
   onConfirm,
   isLoading = false,
+  error = null,
 }: ConfirmDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={isLoading ? undefined : onOpenChange}>
@@ -44,6 +46,9 @@ export function ConfirmDialog({
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
+        {error && (
+          <p className="text-pequeno text-vermelho px-1">{error}</p>
+        )}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isLoading}>Cancelar</AlertDialogCancel>
           <AlertDialogAction

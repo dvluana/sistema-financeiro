@@ -127,7 +127,7 @@ export const usePerfilStore = create<PerfilState>()(
       },
 
       /**
-       * Cria novo perfil
+       * Cria novo perfil e automaticamente o seleciona
        */
       criarPerfil: async (data: CriarPerfilInput) => {
         set({ isLoading: true, error: null })
@@ -136,8 +136,10 @@ export const usePerfilStore = create<PerfilState>()(
           const novoPerfil = await perfisApi.criar(data)
           const { perfis } = get()
 
+          // Adiciona na lista E seleciona como ativo
           set({
             perfis: [...perfis, novoPerfil],
+            perfilAtual: novoPerfil,
             isLoading: false,
           })
 
