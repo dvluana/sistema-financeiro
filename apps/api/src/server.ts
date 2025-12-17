@@ -55,7 +55,7 @@ const allowedOrigins = process.env.NODE_ENV === 'production'
 await app.register(cors, {
   origin: allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-perfil-id'],
   credentials: true,
 })
 

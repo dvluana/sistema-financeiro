@@ -7,6 +7,7 @@
 
 import React, { useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Layers } from 'lucide-react'
 import { StatusCircle } from './StatusCircle'
 import { EmptyState } from './EmptyState'
 import { formatarMoeda, cn } from '@/lib/utils'
@@ -79,7 +80,15 @@ const RecentListItem = React.memo(function RecentListItem({
         aria-label={`Editar ${lancamento.nome}, ${lancamento.tipo === 'entrada' ? 'entrada' : 'saída'} de ${formatarMoeda(lancamento.valor)}`}
       >
         <div className={cn('flex flex-col', lancamento.concluido && 'opacity-50')}>
-          <span className="text-corpo text-foreground truncate">{lancamento.nome}</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-corpo text-foreground truncate">{lancamento.nome}</span>
+            {lancamento.is_agrupador && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-azul/10 text-azul border border-azul/20">
+                <Layers className="w-2.5 h-2.5" />
+                Grupo
+              </span>
+            )}
+          </div>
           <span className="text-micro text-muted-foreground">{dataFormatada}</span>
         </div>
         <div className="flex items-center gap-2">

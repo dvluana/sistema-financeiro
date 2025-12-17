@@ -113,11 +113,12 @@ export function Dashboard({
   }, [entradas, saidas, onEditLancamento])
 
   // Lista ordenada de lançamentos (memoizada para evitar recálculo)
+  // Inclui entradas, saídas E agrupadores para exibir todos na aba "Todos"
   const lancamentosOrdenados = useMemo(() => {
-    return [...entradas, ...saidas].sort((a, b) =>
+    return [...entradas, ...saidas, ...agrupadores].sort((a, b) =>
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     )
-  }, [entradas, saidas])
+  }, [entradas, saidas, agrupadores])
 
   // Extrai nome do usuário (primeiro nome apenas)
   const primeiroNome = usuario?.nome?.split(' ')[0] || 'Usuário'
