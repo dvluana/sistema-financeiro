@@ -76,26 +76,33 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   error: null,
 
   carregarDashboard: async (mes?: string) => {
+    const mesParaCarregar = mes || get().mesSelecionado
     set({ isLoading: true, error: null })
 
     try {
-      const data = await dashboardApi.get(mes)
-      set({
-        mesSelecionado: data.mesAtual,
-        totais: data.totais,
-        recentLancamentos: data.recentLancamentos,
-        historico: data.historico,
-        pendentesEntrada: data.pendentesEntrada,
-        pendentesSaida: data.pendentesSaida,
-        proximosVencimentos: data.proximosVencimentos || [],
-        gastosPorCategoria: data.gastosPorCategoria || [],
-        isLoading: false,
-      })
+      const data = await dashboardApi.get(mesParaCarregar)
+
+      // Só atualiza se o mês ainda for o mesmo (evita race condition)
+      if (get().mesSelecionado === mesParaCarregar) {
+        set({
+          totais: data.totais,
+          recentLancamentos: data.recentLancamentos,
+          historico: data.historico,
+          pendentesEntrada: data.pendentesEntrada,
+          pendentesSaida: data.pendentesSaida,
+          proximosVencimentos: data.proximosVencimentos || [],
+          gastosPorCategoria: data.gastosPorCategoria || [],
+          isLoading: false,
+        })
+      }
     } catch (error) {
-      set({
-        isLoading: false,
-        error: error instanceof Error ? error.message : 'Erro ao carregar dashboard',
-      })
+      // Só mostra erro se ainda for o mesmo mês
+      if (get().mesSelecionado === mesParaCarregar) {
+        set({
+          isLoading: false,
+          error: error instanceof Error ? error.message : 'Erro ao carregar dashboard',
+        })
+      }
     }
   },
 
