@@ -823,21 +823,61 @@ export class AIService {
 
   /**
    * Determina o tipo quando não há IA disponível (fallback)
-   * Baseado apenas em verbos de ação no texto
+   * Baseado em palavras-chave e verbos de ação no texto
    */
   private determinarTipoSemIA(textoOriginal: string): "entrada" | "saida" {
-    const textoL = textoOriginal.toLowerCase();
+    // Normaliza texto removendo acentos para comparação robusta
+    const textoN = this.normalizarTexto(textoOriginal);
+
+    // PALAVRAS-CHAVE QUE SEMPRE INDICAM ENTRADA
+    const PALAVRAS_ENTRADA = [
+      "salario",
+      "holerite",
+      "13o",
+      "decimo terceiro",
+      "ferias",
+      "freela",
+      "freelance",
+      "freelancer",
+      "dividendo",
+      "dividendos",
+      "rendimento",
+      "rendimentos",
+      "juros",
+      "resgate",
+      "investimento",
+      "investimentos",
+      "acoes",
+      "fii",
+      "fiis",
+      "cdb",
+      "poupanca",
+      "lucro",
+      "comissao",
+      "bonus",
+      "reembolso",
+      "cliente",
+      "projeto",
+      "venda",
+    ];
+
+    // Verifica palavras-chave de entrada primeiro (mais importante)
+    for (const palavra of PALAVRAS_ENTRADA) {
+      if (textoN.includes(palavra)) {
+        return "entrada";
+      }
+    }
 
     // Verifica verbos de entrada
     for (const verbo of VERBOS_ENTRADA_INEQUIVOCOS) {
-      if (textoL.includes(verbo)) {
+      if (textoN.includes(verbo)) {
         return "entrada";
       }
     }
 
     // Verifica verbos de saída
     for (const verbo of VERBOS_SAIDA_INEQUIVOCOS) {
-      if (textoL.includes(verbo)) {
+      if (textoN.includes(verbo)) {
         return "saida";
       }
     }
@@ -1012,8 +1052,12 @@ export class AIService {
         lancamentos,
         erro: parsed.erro,
       };
-    } catch {
+    } catch (err) {
       // Fallback silencioso para parsing básico quando Gemini falha
+      // Log apenas em desenvolvimento para debug
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('Erro ao chamar IA, usando fallback:', err instanceof Error ? err.message : err);
+      }
       return this.parseBasico(textoProcessado, texto);
     }
   }
