@@ -5,7 +5,7 @@
  * Inclui suporte a agrupadores e melhor organização visual.
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Calendar,
   DollarSign,
@@ -17,7 +17,10 @@ import {
   Layers,
   Calculator,
   Settings2,
-  Check
+  Check,
+  Plus,
+  Loader2,
+  Tag
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -39,7 +42,14 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 
 // Componentes internos
 import { CategoriaSelect } from '@/components/CategoriaSelect'
-import type { Lancamento } from '@/lib/api'
+import type { Lancamento, Categoria } from '@/lib/api'
+import { categoriasApi } from '@/lib/api'
+
+// Cores predefinidas para novas categorias
+const PRESET_COLORS = [
+  '#ef4444', '#f97316', '#f59e0b', '#84cc16',
+  '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6',
+]
 
 export interface LancamentoFormData {
   nome: string
@@ -104,6 +114,35 @@ export function LancamentoSheet({
   // Validação
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
 
+  // Estado para categorias
+  const [categorias, setCategorias] = useState<Categoria[]>([])
+  const [isCreatingCategoria, setIsCreatingCategoria] = useState(false)
+  const [newCatName, setNewCatName] = useState('')
+  const [newCatColor, setNewCatColor] = useState(PRESET_COLORS[0])
+  const [isSubmittingCat, setIsSubmittingCat] = useState(false)
+  const [catError, setCatError] = useState<string | null>(null)
+  const newCatInputRef = useRef<HTMLInputElement>(null)
+
+  // Carrega categorias
+  useEffect(() => {
+    async function loadCategorias() {
+      try {
+        const data = await categoriasApi.listar()
+        setCategorias(data)
+      } catch (error) {
+        console.error('Erro ao carregar categorias:', error)
+      }
+    }
+    loadCategorias()
+  }, [])
+
+  // Foca no input de criar categoria quando expande
+  useEffect(() => {
+    if (isCreatingCategoria && newCatInputRef.current) {
+      setTimeout(() => newCatInputRef.current?.focus(), 100)
+    }
+  }, [isCreatingCategoria])
+
   // Inicializa campos quando abre ou muda o lançamento
   useEffect(() => {
     if (lancamento) {
@@ -134,6 +173,11 @@ export function LancamentoSheet({
       setQtdParcelas('2')
     }
     setErrors({})
+    // Reset categoria creation state
+    setIsCreatingCategoria(false)
+    setNewCatName('')
+    setNewCatColor(PRESET_COLORS[0])
+    setCatError(null)
   }, [lancamento, tipoInicial, autoMarcarConcluido, open])
 
   const validateForm = () => {
@@ -187,6 +231,50 @@ export function LancamentoSheet({
     }
 
     await onSubmit(tipo, formData)
+  }
+
+  // Criar nova categoria
+  const handleCreateCategory = async () => {
+    const trimmedName = newCatName.trim()
+
+    if (!trimmedName) {
+      setCatError('Digite um nome')
+      return
+    }
+
+    // Verifica se já existe
+    const exists = categorias.some(
+      cat => cat.nome.toLowerCase() === trimmedName.toLowerCase()
+    )
+    if (exists) {
+      setCatError('Já existe uma categoria com esse nome')
+      return
+    }
+
+    setIsSubmittingCat(true)
+    setCatError(null)
+
+    try {
+      const newCategoria = await categoriasApi.criar({
+        nome: trimmedName,
+        tipo,
+        cor: newCatColor,
+      })
+
+      // Adiciona à lista e seleciona
+      setCategorias(prev => [...prev, newCategoria])
+      setCategoriaId(newCategoria.id)
+
+      // Reset form
+      setIsCreatingCategoria(false)
+      setNewCatName('')
+      setNewCatColor(PRESET_COLORS[0])
+    } catch (error) {
+      console.error('Erro ao criar categoria:', error)
+      setCatError('Erro ao criar categoria')
+    } finally {
+      setIsSubmittingCat(false)
+    }
   }
 
   return (
@@ -325,10 +413,114 @@ export function LancamentoSheet({
             <div className="space-y-2">
               <Label className="text-sm font-medium">Categoria</Label>
               <CategoriaSelect
-                tipo={tipo}
                 value={categoriaId}
                 onChange={setCategoriaId}
+                categorias={categorias}
+                onCreateNew={() => setIsCreatingCategoria(true)}
               />
+
+              {/* Criar nova categoria - inline expandível */}
+              <AnimatePresence>
+                {isCreatingCategoria && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-3 p-4 rounded-lg border bg-muted/30 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                          <Tag className="w-4 h-4 text-muted-foreground" />
+                          <span>Nova categoria</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsCreatingCategoria(false)
+                            setNewCatName('')
+                            setCatError(null)
+                          }}
+                          className="text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+
+                      {/* Nome */}
+                      <div className="space-y-1.5">
+                        <Input
+                          ref={newCatInputRef}
+                          value={newCatName}
+                          onChange={(e) => {
+                            setNewCatName(e.target.value)
+                            setCatError(null)
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              handleCreateCategory()
+                            }
+                            if (e.key === 'Escape') {
+                              setIsCreatingCategoria(false)
+                              setNewCatName('')
+                              setCatError(null)
+                            }
+                          }}
+                          placeholder="Nome da categoria"
+                          className={cn(
+                            "h-10",
+                            catError && "border-destructive"
+                          )}
+                        />
+                        {catError && (
+                          <p className="text-xs text-destructive">{catError}</p>
+                        )}
+                      </div>
+
+                      {/* Cor */}
+                      <div className="space-y-1.5">
+                        <label className="text-xs text-muted-foreground">Cor</label>
+                        <div className="flex gap-1.5">
+                          {PRESET_COLORS.map((color) => (
+                            <button
+                              key={color}
+                              type="button"
+                              onClick={() => setNewCatColor(color)}
+                              className={cn(
+                                "w-7 h-7 rounded-md transition-all",
+                                newCatColor === color
+                                  ? "ring-2 ring-offset-1 ring-offset-background ring-primary scale-110"
+                                  : "hover:scale-105 opacity-70 hover:opacity-100"
+                              )}
+                              style={{ backgroundColor: color }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Botão criar */}
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleCreateCategory}
+                        disabled={isSubmittingCat || !newCatName.trim()}
+                        className="w-full"
+                      >
+                        {isSubmittingCat ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Check className="w-4 h-4 mr-1.5" />
+                            Criar categoria
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Datas - Mesma linha */}
