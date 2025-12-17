@@ -127,7 +127,7 @@ const LancamentoItem = React.memo(function LancamentoItem({
           type="text"
           value={item.nome}
           onChange={(e) => onUpdateLancamento(item.id, "nome", e.target.value)}
-          placeholder="Descrição"
+          placeholder="O que foi?"
           className={cn(
             "flex-1 min-w-0 bg-transparent text-corpo",
             "focus:outline-none placeholder:text-muted-foreground/40"
@@ -315,7 +315,7 @@ export function QuickInputSheet({
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   // Ref para o input
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Verifica suporte a Speech Recognition
   useEffect(() => {
@@ -432,7 +432,7 @@ export function QuickInputSheet({
 
       if (result.lancamentos.length === 0) {
         setErro(
-          'Não consegui entender. Tente algo como: "Netflix 55,90" ou "salário 5000"'
+          'Não consegui identificar lançamentos. Tente incluir valores, como: "Almoço 45" ou "Recebido pagamento 1500"'
         );
         return;
       }
@@ -574,11 +574,11 @@ export function QuickInputSheet({
           </div>
           <div>
             <DrawerPrimitive.Title className="text-titulo-card text-foreground font-medium">
-              Lançamento Inteligente
+              Adicionar com IA
             </DrawerPrimitive.Title>
             <p className="text-micro text-muted-foreground flex items-center gap-1">
               <Sparkles className="w-3 h-3" />
-              Escreva naturalmente, a IA entende
+              Descreva seus gastos em linguagem natural
             </p>
           </div>
         </div>
@@ -613,7 +613,9 @@ export function QuickInputSheet({
               }
             }}
             placeholder={
-              isListening ? "Ouvindo..." : "Netflix 55,90, salário 5000..."
+              isListening
+                ? "Escutando você..."
+                : "Ex: Mercado 250, Netflix 55,90, salário recebido 5000"
             }
             disabled={isParsing}
             className={cn(
@@ -670,7 +672,7 @@ export function QuickInputSheet({
         {/* Hint de IA */}
         {lancamentos.length === 0 && !textoLocal && !isParsing && (
           <p className="text-micro text-muted-foreground/60 mt-2 px-1">
-            Dica: você pode escrever vários de uma vez separados por vírgula
+            💡 Dica: Digite vários itens de uma vez, separados por vírgula
           </p>
         )}
       </div>
@@ -690,10 +692,10 @@ export function QuickInputSheet({
               </div>
               <div>
                 <p className="text-corpo font-medium text-foreground">
-                  Analisando...
+                  Processando...
                 </p>
                 <p className="text-micro text-muted-foreground">
-                  A IA está identificando seus lançamentos
+                  Identificando valores, datas e categorias automaticamente
                 </p>
               </div>
             </div>

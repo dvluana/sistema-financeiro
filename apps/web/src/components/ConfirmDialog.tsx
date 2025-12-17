@@ -34,7 +34,7 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
-  confirmLabel = 'Excluir',
+  confirmLabel = 'Confirmar exclusão',
   onConfirm,
   isLoading = false,
   error = null,
@@ -50,7 +50,7 @@ export function ConfirmDialog({
           <p className="text-pequeno text-vermelho px-1">{error}</p>
         )}
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isLoading}>Cancelar</AlertDialogCancel>
+          <AlertDialogCancel disabled={isLoading}>Não, cancelar</AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
             disabled={isLoading}
@@ -62,7 +62,7 @@ export function ConfirmDialog({
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Excluindo...
+                Processando...
               </>
             ) : (
               confirmLabel

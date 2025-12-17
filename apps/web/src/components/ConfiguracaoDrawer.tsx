@@ -39,26 +39,26 @@ export function ConfiguracaoDrawer({
   const { theme, setTheme } = useTheme()
 
   const themeOptions = [
-    { value: 'light', label: 'Claro', icon: Sun },
-    { value: 'dark', label: 'Escuro', icon: Moon },
-    { value: 'system', label: 'Sistema', icon: Monitor },
+    { value: 'light', label: 'Modo claro', icon: Sun },
+    { value: 'dark', label: 'Modo escuro', icon: Moon },
+    { value: 'system', label: 'Automático', icon: Monitor },
   ]
 
   const configs = [
     {
       chave: 'entradas_auto_recebido',
-      label: 'Marcar entradas como recebidas',
-      descricao: 'Novas entradas já vêm marcadas como recebidas',
+      label: 'Auto-marcar entradas como recebidas',
+      descricao: 'Ao criar uma entrada, ela já virá marcada como recebida automaticamente',
     },
     {
       chave: 'saidas_auto_pago',
-      label: 'Marcar saídas como pagas',
-      descricao: 'Novas saídas já vêm marcadas como pagas',
+      label: 'Auto-marcar saídas como pagas',
+      descricao: 'Ao criar uma saída, ela já virá marcada como paga automaticamente',
     },
     {
       chave: 'mostrar_concluidos_discretos',
-      label: 'Itens concluídos discretos',
-      descricao: 'Mostrar itens concluídos com menos destaque',
+      label: 'Destacar menos itens pagos',
+      descricao: 'Itens já pagos/recebidos aparecerão mais discretos na lista',
     },
   ]
 
@@ -74,10 +74,10 @@ export function ConfiguracaoDrawer({
           <div className="space-y-3">
             <div>
               <Label className="text-corpo-medium text-foreground">
-                Aparência
+                Tema visual
               </Label>
               <p className="text-pequeno text-muted-foreground mt-0.5">
-                Escolha o tema da interface
+                Como você prefere visualizar o app?
               </p>
             </div>
             <div className="flex gap-2">

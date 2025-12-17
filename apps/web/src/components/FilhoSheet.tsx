@@ -85,12 +85,12 @@ export function FilhoSheet({
     const newErrors: typeof errors = {}
 
     if (!nome.trim()) {
-      newErrors.nome = 'Nome é obrigatório'
+      newErrors.nome = 'Adicione uma descrição para este item'
     }
 
     const valorNumerico = parseFloat(valor.replace(',', '.'))
     if (!valor || isNaN(valorNumerico) || valorNumerico <= 0) {
-      newErrors.valor = 'Valor deve ser maior que zero'
+      newErrors.valor = 'Digite um valor válido (maior que R$ 0,00)'
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -116,10 +116,10 @@ export function FilhoSheet({
       <div className="flex items-center justify-between mb-4 shrink-0">
         <div>
           <DrawerPrimitive.Title className="text-titulo-card text-foreground">
-            {isEditing ? 'Editar item' : 'Adicionar item'}
+            {isEditing ? 'Editar item do grupo' : 'Novo item no grupo'}
           </DrawerPrimitive.Title>
           <p className="text-micro text-muted-foreground mt-0.5">
-            em {agrupador.nome}
+            Adicionando em: {agrupador.nome}
           </p>
         </div>
         <DrawerPrimitive.Close className="p-2 -mr-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
@@ -135,7 +135,7 @@ export function FilhoSheet({
         <form id="filho-form" onSubmit={handleSubmit} className="space-y-5 pb-4">
           {/* Nome */}
           <div className="space-y-2">
-            <Label htmlFor="nome">O que foi?</Label>
+            <Label htmlFor="nome">Descrição do item</Label>
             <Input
               id="nome"
               value={nome}
@@ -143,7 +143,7 @@ export function FilhoSheet({
                 setNome(e.target.value)
                 if (errors.nome) setErrors((prev) => ({ ...prev, nome: undefined }))
               }}
-              placeholder="Ex: iFood, Netflix, Uber..."
+              placeholder="Ex: Compra no supermercado, Gasolina, Restaurante"
               maxLength={100}
               autoFocus
             />
@@ -154,7 +154,7 @@ export function FilhoSheet({
 
           {/* Valor */}
           <InputMoeda
-            label="Quanto?"
+            label="Valor deste item"
             value={valor}
             onChange={(val) => {
               setValor(val)
@@ -172,7 +172,7 @@ export function FilhoSheet({
 
           {/* Data prevista */}
           <div className="space-y-2">
-            <Label htmlFor="dataPrevista">Data</Label>
+            <Label htmlFor="dataPrevista">Data da compra</Label>
             <Input
               id="dataPrevista"
               type="date"
@@ -184,7 +184,7 @@ export function FilhoSheet({
           {/* Toggle: Concluído */}
           <div className="flex items-center justify-between min-h-touch">
             <Label htmlFor="concluido" className="cursor-pointer">
-              Já paguei
+              Já foi pago
             </Label>
             <Switch
               id="concluido"
@@ -212,7 +212,7 @@ export function FilhoSheet({
               Salvando...
             </>
           ) : (
-            'Salvar'
+            isEditing ? 'Salvar alterações' : 'Adicionar ao grupo'
           )}
         </Button>
 
@@ -224,7 +224,7 @@ export function FilhoSheet({
             onClick={onDelete}
             disabled={isLoading}
           >
-            Excluir
+            Remover item
           </Button>
         )}
       </div>

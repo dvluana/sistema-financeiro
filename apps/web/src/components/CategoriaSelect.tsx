@@ -109,7 +109,7 @@ export function CategoriaSelect({
   // Cria nova categoria
   const handleCriarCategoria = async () => {
     if (!novoNome.trim()) {
-      setErro('Nome é obrigatório')
+      setErro('Digite um nome para a categoria')
       return
     }
 
@@ -129,7 +129,7 @@ export function CategoriaSelect({
       onChange(novaCategoria.id)
       setDialogOpen(false)
     } catch (error) {
-      setErro(error instanceof Error ? error.message : 'Erro ao criar categoria')
+      setErro(error instanceof Error ? error.message : 'Não foi possível criar a categoria. Tente novamente')
     } finally {
       setIsSaving(false)
     }
@@ -154,7 +154,7 @@ export function CategoriaSelect({
           disabled={isLoading}
         >
           <SelectTrigger className="min-h-touch rounded-input border-border focus:border-2 focus:border-foreground">
-            <SelectValue placeholder="Selecione uma categoria">
+            <SelectValue placeholder="Escolha ou crie uma categoria">
               {categoriaSelecionada ? (
                 <div className="flex items-center gap-2">
                   {categoriaSelecionada.icone && (() => {
@@ -171,7 +171,7 @@ export function CategoriaSelect({
                   <span>{categoriaSelecionada.nome}</span>
                 </div>
               ) : (
-                <span className="text-muted-foreground">Sem categoria</span>
+                <span className="text-muted-foreground">Nenhuma categoria</span>
               )}
             </SelectValue>
           </SelectTrigger>
@@ -182,7 +182,7 @@ export function CategoriaSelect({
                 <span className="flex items-center justify-center w-5 h-5 rounded bg-rosa/10">
                   <Plus className="w-3.5 h-3.5" />
                 </span>
-                <span>Criar nova categoria</span>
+                <span>Adicionar categoria</span>
               </div>
             </SelectItem>
 
@@ -194,7 +194,7 @@ export function CategoriaSelect({
                 <span className="flex items-center justify-center w-5 h-5 rounded bg-muted">
                   <X className="w-3 h-3 text-muted-foreground" />
                 </span>
-                <span>Sem categoria</span>
+                <span>Nenhuma categoria selecionada</span>
               </div>
             </SelectItem>
 
@@ -229,28 +229,28 @@ export function CategoriaSelect({
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-[360px]">
           <DialogHeader>
-            <DialogTitle>Nova categoria</DialogTitle>
+            <DialogTitle>Criar categoria</DialogTitle>
             <DialogDescription>
-              Crie uma categoria para organizar seus lançamentos de {tipo === 'entrada' ? 'entrada' : 'saída'}.
+              Organize melhor suas {tipo === 'entrada' ? 'receitas' : 'despesas'} criando categorias personalizadas.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             {/* Nome */}
             <div className="space-y-2">
-              <Label htmlFor="nome-categoria">Nome</Label>
+              <Label htmlFor="nome-categoria">Nome da categoria</Label>
               <Input
                 id="nome-categoria"
                 value={novoNome}
                 onChange={(e) => setNovoNome(e.target.value)}
-                placeholder="Ex: Alimentação"
+                placeholder={tipo === 'entrada' ? "Ex: Salário, Freelances" : "Ex: Alimentação, Transporte"}
                 maxLength={50}
               />
             </div>
 
             {/* Ícone */}
             <div className="space-y-2">
-              <Label>Ícone</Label>
+              <Label>Escolha um ícone</Label>
               <div className="grid grid-cols-5 gap-2">
                 {ICONES_DISPONIVEIS.map((iconeName) => {
                   const Icon = getIconComponent(iconeName)
@@ -276,7 +276,7 @@ export function CategoriaSelect({
 
             {/* Cor */}
             <div className="space-y-2">
-              <Label>Cor</Label>
+              <Label>Escolha uma cor</Label>
               <div className="flex flex-wrap gap-2">
                 {CORES_DISPONIVEIS.map((cor) => {
                   const isSelected = novaCor === cor
@@ -300,7 +300,7 @@ export function CategoriaSelect({
 
             {/* Preview */}
             <div className="space-y-2">
-              <Label className="text-muted-foreground">Preview</Label>
+              <Label className="text-muted-foreground">Pré-visualização</Label>
               <div className="flex items-center gap-3 p-3 bg-secondary rounded-lg">
                 {(() => {
                   const Icon = getIconComponent(novoIcone)
@@ -314,14 +314,14 @@ export function CategoriaSelect({
                   ) : null
                 })()}
                 <span className="text-corpo-medium font-medium text-foreground">
-                  {novoNome || 'Nome da categoria'}
+                  {novoNome || 'Digite o nome acima'}
                 </span>
               </div>
             </div>
 
             {/* Erro */}
-            {erro && (
-              <p className="text-pequeno text-vermelho">{erro}</p>
+              {erro && (
+              <p className="text-pequeno text-vermelho">⚠️ {erro}</p>
             )}
           </div>
 
@@ -343,7 +343,7 @@ export function CategoriaSelect({
                   Criando...
                 </>
               ) : (
-                'Criar categoria'
+                'Criar e usar categoria'
               )}
             </Button>
           </DialogFooter>

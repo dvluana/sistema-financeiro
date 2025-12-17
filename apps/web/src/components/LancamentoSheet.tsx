@@ -1,47 +1,63 @@
 /**
  * LancamentoSheet Component
  *
- * Drawer/Bottomsheet responsivo para criar lançamentos manualmente.
- * Possui abas para alternar entre Entrada e Saída.
- * Suporta criação de agrupadores (cartões/grupos) via toggle.
+ * Sheet moderno para adicionar e editar lançamentos financeiros.
+ * Design atualizado com shadcn/ui para melhor UX.
  */
 
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import {
-  TrendingUp,
-  TrendingDown,
-  X,
-  Loader2,
-  Repeat,
-  Calendar,
-  Layers,
-  Calculator,
-  PenLine,
+import { 
+  Calendar, 
+  DollarSign, 
+  Tag, 
+  Repeat, 
+  ChevronRight, 
+  Hash,
+  CalendarDays,
+  Trash2,
+  AlertCircle,
+  Sparkles
 } from 'lucide-react'
-import { Drawer as DrawerPrimitive } from 'vaul'
 import { cn } from '@/lib/utils'
+import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+
+// Componentes shadcn/ui
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  Alert,
+  AlertDescription,
+} from '@/components/ui/alert'
+
+// Componentes internos
 import { InputMoeda } from '@/components/InputMoeda'
 import { CategoriaSelect } from '@/components/CategoriaSelect'
-import { useIsDesktop } from '@/hooks/useMediaQuery'
 import type { Lancamento } from '@/lib/api'
 
 export interface LancamentoFormData {
   nome: string
   valor: number
   data_prevista: string | null
+  data_vencimento?: string | null
   concluido: boolean
   categoria_id: string | null
-  is_agrupador: boolean
-  valor_modo?: 'soma' | 'fixo'
-  recorrencia?: {
-    tipo: 'mensal' | 'parcelas'
-    quantidade: number
-  }
+  meses?: string[]
+  qtd_parcelas?: number
 }
 
 interface LancamentoSheetProps {
@@ -67,78 +83,61 @@ export function LancamentoSheet({
   onDelete,
   isLoading = false,
 }: LancamentoSheetProps) {
-  const isDesktop = useIsDesktop()
   const isEditing = !!lancamento
 
-  // Tipo selecionado (entrada ou saída)
+  // Estado do tipo (entrada/saída)
   const [tipo, setTipo] = useState<'entrada' | 'saida'>(tipoInicial)
 
   // Campos do formulário
   const [nome, setNome] = useState('')
   const [valor, setValor] = useState('')
   const [dataPrevista, setDataPrevista] = useState('')
+  const [dataVencimento, setDataVencimento] = useState('')
   const [concluido, setConcluido] = useState(false)
   const [categoriaId, setCategoriaId] = useState<string | null>(null)
-  const [isAgrupador, setIsAgrupador] = useState(false)
-  const [valorModo, setValorModo] = useState<'soma' | 'fixo'>('soma')
 
-  // Recorrência
-  const [recorrente, setRecorrente] = useState(false)
+  // Estado para recorrência
+  const [isRecorrente, setIsRecorrente] = useState(false)
   const [tipoRecorrencia, setTipoRecorrencia] = useState<'mensal' | 'parcelas'>('mensal')
-  const [quantidadeParcelas, setQuantidadeParcelas] = useState('12')
+  const [qtdParcelas, setQtdParcelas] = useState('2')
 
-  // Erros
+  // Validação
   const [errors, setErrors] = useState<{
     nome?: string
     valor?: string
+    data?: string
     parcelas?: string
   }>({})
 
-  // Inicializa campos quando abre ou quando lançamento muda
+  // Inicializa campos quando abre ou muda o lançamento
   useEffect(() => {
     if (lancamento) {
-      setTipo(lancamento.tipo)
+      setTipo(lancamento.tipo as 'entrada' | 'saida')
       setNome(lancamento.nome)
       setValor(String(lancamento.valor))
       setConcluido(lancamento.concluido)
       setCategoriaId(lancamento.categoria_id || null)
       setDataPrevista(lancamento.data_prevista || '')
-      setIsAgrupador(lancamento.is_agrupador || false)
-      setValorModo(lancamento.valor_modo || 'soma')
-      setRecorrente(false)
+      setDataVencimento(lancamento.data_vencimento || '')
+      setIsRecorrente(false)
+      setTipoRecorrencia('mensal')
+      setQtdParcelas('2')
     } else {
       setTipo(tipoInicial)
       setNome('')
       setValor('')
-      setDataPrevista('')
       setConcluido(autoMarcarConcluido[tipoInicial])
       setCategoriaId(null)
-      setIsAgrupador(false)
-      setValorModo('soma')
-      setRecorrente(false)
+      setDataPrevista('')
+      setDataVencimento('')
+      setIsRecorrente(false)
       setTipoRecorrencia('mensal')
-      setQuantidadeParcelas('12')
+      setQtdParcelas('2')
     }
     setErrors({})
-  }, [lancamento, tipoInicial, open, autoMarcarConcluido, mesAtual])
+  }, [lancamento, tipoInicial, autoMarcarConcluido, open])
 
-  // Atualiza concluido quando troca de tipo (apenas ao criar)
-  useEffect(() => {
-    if (!isEditing) {
-      setConcluido(autoMarcarConcluido[tipo])
-    }
-  }, [tipo, isEditing, autoMarcarConcluido])
-
-  // Desabilita recorrência quando é agrupador
-  useEffect(() => {
-    if (isAgrupador) {
-      setRecorrente(false)
-    }
-  }, [isAgrupador])
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
+  const validateForm = () => {
     const newErrors: typeof errors = {}
 
     if (!nome.trim()) {
@@ -146,492 +145,417 @@ export function LancamentoSheet({
     }
 
     const valorNumerico = parseFloat(valor.replace(',', '.'))
-    // Validação do valor: apenas para modo fixo ou quando não é agrupador
-    if (!isAgrupador || (isAgrupador && valorModo === 'fixo')) {
-      if (!valor || isNaN(valorNumerico) || valorNumerico <= 0) {
-        newErrors.valor = 'Valor deve ser maior que zero'
+    if (!valor || isNaN(valorNumerico) || valorNumerico <= 0) {
+      newErrors.valor = 'Valor deve ser maior que zero'
+    }
+
+    if (tipo === 'saida' && dataVencimento && !dataPrevista) {
+      newErrors.data = 'Data prevista é obrigatória quando há vencimento'
+    }
+
+    if (isRecorrente && tipoRecorrencia === 'parcelas') {
+      const parcelas = parseInt(qtdParcelas)
+      if (!qtdParcelas || isNaN(parcelas) || parcelas < 2 || parcelas > 60) {
+        newErrors.parcelas = 'Parcelas devem ser entre 2 e 60'
       }
     }
 
-    if (recorrente && tipoRecorrencia === 'parcelas') {
-      const parcelas = parseInt(quantidadeParcelas)
-      if (isNaN(parcelas) || parcelas < 2 || parcelas > 60) {
-        newErrors.parcelas = 'Informe entre 2 e 60 parcelas'
-      }
-    }
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
 
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors)
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!validateForm()) {
       return
     }
 
-    const data: LancamentoFormData = {
+    const valorNumerico = parseFloat(valor.replace(',', '.'))
+    const formData: LancamentoFormData = {
       nome: nome.trim(),
-      valor: isAgrupador && valorModo === 'soma' ? 0 : valorNumerico,
+      valor: valorNumerico,
       data_prevista: dataPrevista || null,
+      data_vencimento: tipo === 'saida' ? (dataVencimento || null) : null,
       concluido,
-      categoria_id: categoriaId,
-      is_agrupador: isAgrupador,
+      categoria_id: tipo === 'saida' ? categoriaId : null,
     }
 
-    // Adiciona valor_modo apenas se for agrupador
-    if (isAgrupador) {
-      data.valor_modo = valorModo
-    }
-
-    if (!isEditing && recorrente && !isAgrupador) {
-      data.recorrencia = {
-        tipo: tipoRecorrencia,
-        quantidade: tipoRecorrencia === 'mensal' ? 12 : parseInt(quantidadeParcelas),
+    // Se for recorrente e não estiver editando
+    if (isRecorrente && !isEditing) {
+      if (tipoRecorrencia === 'mensal') {
+        // Próximos 12 meses
+        const meses: string[] = []
+        const [ano, mes] = mesAtual.split('-').map(Number)
+        for (let i = 0; i < 12; i++) {
+          const novoMes = mes + i
+          const novoAno = ano + Math.floor((novoMes - 1) / 12)
+          const mesFormatado = ((novoMes - 1) % 12) + 1
+          meses.push(`${novoAno}-${String(mesFormatado).padStart(2, '0')}`)
+        }
+        formData.meses = meses
+      } else {
+        // Parcelas
+        formData.qtd_parcelas = parseInt(qtdParcelas)
       }
     }
 
-    await onSubmit(tipo, data)
+    await onSubmit(tipo, formData)
   }
 
-  const labels = {
-    nome: isAgrupador
-      ? 'Nome do cartão/grupo'
-      : tipo === 'entrada'
-        ? 'O que entrou?'
-        : 'O que foi?',
-    dataPrevista: tipo === 'entrada' ? 'Data prevista' : 'Data de vencimento',
-    concluido: tipo === 'entrada' ? 'Já recebi' : 'Já paguei',
-    recorrente: tipo === 'entrada' ? 'Entrada recorrente' : 'Saída recorrente',
+  const getDateLabel = () => {
+    if (!dataPrevista) return 'Selecionar data'
+    try {
+      return format(new Date(dataPrevista + 'T12:00:00'), "d 'de' MMMM", { locale: ptBR })
+    } catch {
+      return 'Data inválida'
+    }
   }
 
-  const sharedContent = (
-    <div className={cn(
-      'flex flex-col overflow-hidden',
-      isDesktop ? 'h-full p-6' : 'max-h-[calc(92vh-12px)] p-4'
-    )}>
-      {/* Header com abas */}
-      <div className="flex items-center justify-between mb-6 shrink-0">
-        <DrawerPrimitive.Title className="text-titulo-card text-foreground">
-          {isEditing ? 'Editar lançamento' : 'Novo lançamento'}
-        </DrawerPrimitive.Title>
-        <DrawerPrimitive.Close className="p-2 -mr-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
-          <X className="w-5 h-5" />
-        </DrawerPrimitive.Close>
-      </div>
-
-      {/* Seletor de tipo (Entrada/Saída) */}
-      {!isEditing && (
-        <div className="flex gap-2 p-1 bg-secondary rounded-xl mb-6 shrink-0">
-          <button
-            type="button"
-            onClick={() => setTipo('entrada')}
-            className={cn(
-              'flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-corpo-medium font-medium transition-all',
-              tipo === 'entrada'
-                ? 'bg-verde text-white shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <TrendingUp className="w-4 h-4" />
-            <span>Entrada</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setTipo('saida')}
-            className={cn(
-              'flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-corpo-medium font-medium transition-all',
-              tipo === 'saida'
-                ? 'bg-vermelho text-white shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <TrendingDown className="w-4 h-4" />
-            <span>Saída</span>
-          </button>
-        </div>
-      )}
-
-      {/* Badge do tipo ao editar */}
-      {isEditing && (
-        <div className="flex items-center gap-2 mb-6">
-          <div className={cn(
-            'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-micro font-medium',
-            tipo === 'entrada'
-              ? 'bg-verde/10 text-verde'
-              : 'bg-vermelho/10 text-vermelho'
-          )}>
-            {tipo === 'entrada' ? (
-              <>
-                <TrendingUp className="w-3.5 h-3.5" />
-                <span>Entrada</span>
-              </>
-            ) : (
-              <>
-                <TrendingDown className="w-3.5 h-3.5" />
-                <span>Saída</span>
-              </>
-            )}
-          </div>
-          {isAgrupador && (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-micro font-medium bg-azul/10 text-azul">
-              <Layers className="w-3.5 h-3.5" />
-              <span>Grupo</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Área scrollável com campos */}
-      <div
-        className="flex-1 overflow-y-auto min-h-0 overscroll-contain -mx-4 px-4"
-        data-vaul-no-drag
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent 
+        side="right" 
+        className="w-full sm:max-w-lg p-0 flex flex-col h-full"
       >
-        <form id="lancamento-form" onSubmit={handleSubmit} className="space-y-5 pb-4">
-        {/* Nome */}
-        <div className="space-y-2">
-          <Label htmlFor="nome">{labels.nome}</Label>
-          <Input
-            id="nome"
-            value={nome}
-            onChange={(e) => {
-              setNome(e.target.value)
-              if (errors.nome) setErrors((prev) => ({ ...prev, nome: undefined }))
-            }}
-            placeholder={isAgrupador ? "Ex: Cartão Nubank, Gastos do Mês" : "Ex: Salário"}
-            maxLength={100}
-          />
-          {errors.nome && (
-            <p className="text-pequeno text-vermelho">{errors.nome}</p>
-          )}
-        </div>
+        <SheetHeader className="px-6 py-5 space-y-1 border-b">
+          <SheetTitle className="text-xl font-semibold">
+            {isEditing ? 'Editar lançamento' : 'Novo lançamento'}
+          </SheetTitle>
+          <SheetDescription className="text-sm text-muted-foreground">
+            {isEditing 
+              ? 'Atualize as informações do lançamento' 
+              : 'Adicione um novo lançamento financeiro'}
+          </SheetDescription>
+        </SheetHeader>
 
-        {/* Valor */}
-        <div className="space-y-2">
-          <Label htmlFor="valor">Quanto?</Label>
-          <InputMoeda
-            id="valor"
-            value={valor}
-            onChange={(val) => {
-              setValor(val)
-              if (errors.valor) setErrors((prev) => ({ ...prev, valor: undefined }))
-            }}
-            error={errors.valor}
-            disabled={isAgrupador && valorModo === 'soma'}
-          />
-          {isAgrupador && valorModo === 'soma' && (
-            <p className="text-micro text-muted-foreground flex items-center gap-1.5">
-              <Calculator className="w-3.5 h-3.5" />
-              <span>Calculado automaticamente pela soma dos itens</span>
-            </p>
-          )}
-        </div>
+        <ScrollArea className="flex-1 px-6 py-6">
+          <form id="lancamento-form" onSubmit={handleSubmit} className="space-y-6">
+            {/* Tipo: Entrada ou Saída */}
+            {!isEditing && (
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Tipo de lançamento</Label>
+                <Tabs value={tipo} onValueChange={(v) => setTipo(v as 'entrada' | 'saida')}>
+                  <TabsList className="grid w-full grid-cols-2 h-12">
+                    <TabsTrigger 
+                      value="entrada" 
+                      className="data-[state=active]:bg-verde/10 data-[state=active]:text-verde font-medium"
+                    >
+                      <DollarSign className="w-4 h-4 mr-2" />
+                      Entrada
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="saida"
+                      className="data-[state=active]:bg-rosa/10 data-[state=active]:text-rosa font-medium"
+                    >
+                      <DollarSign className="w-4 h-4 mr-2" />
+                      Saída
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+            )}
 
-        {/* Categoria */}
-        <CategoriaSelect
-          tipo={tipo}
-          value={categoriaId}
-          onChange={setCategoriaId}
-        />
+            <Separator />
 
-        {/* Data prevista */}
-        <div className="space-y-2">
-          <Label htmlFor="dataPrevista">{labels.dataPrevista}</Label>
-          <Input
-            id="dataPrevista"
-            type="date"
-            value={dataPrevista}
-            onChange={(e) => setDataPrevista(e.target.value)}
-          />
-        </div>
+            {/* Nome do lançamento */}
+            <div className="space-y-2">
+              <Label htmlFor="nome" className="text-sm font-medium">
+                {tipo === 'entrada' ? 'Origem do dinheiro' : 'Para onde foi o dinheiro?'}
+              </Label>
+              <div className="relative">
+                <Input
+                  id="nome"
+                  value={nome}
+                  onChange={(e) => {
+                    setNome(e.target.value)
+                    if (errors.nome) setErrors(prev => ({ ...prev, nome: undefined }))
+                  }}
+                  placeholder={tipo === 'entrada' 
+                    ? 'Ex: Salário, Freelance, Vendas...'
+                    : 'Ex: Supermercado, Netflix, Conta de luz...'}
+                  className={cn(
+                    "h-12 pl-10",
+                    errors.nome && "border-destructive focus:ring-destructive"
+                  )}
+                  autoFocus
+                />
+                <Sparkles className="absolute left-3 top-3.5 w-4 h-4 text-muted-foreground" />
+              </div>
+              {errors.nome && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {errors.nome}
+                </p>
+              )}
+            </div>
 
-        {/* Toggle: Concluído */}
-        <div className="flex items-center justify-between min-h-touch">
-          <Label htmlFor="concluido" className="cursor-pointer">
-            {labels.concluido}
-          </Label>
-          <Switch
-            id="concluido"
-            checked={concluido}
-            onCheckedChange={setConcluido}
-          />
-        </div>
+            {/* Valor */}
+            <div className="space-y-2">
+              <Label htmlFor="valor" className="text-sm font-medium">
+                Valor
+              </Label>
+              <div className="relative">
+                <InputMoeda
+                  value={valor}
+                  onChange={(val) => {
+                    setValor(val)
+                    if (errors.valor) setErrors(prev => ({ ...prev, valor: undefined }))
+                  }}
+                  error={errors.valor}
+                  className="h-12 pl-10"
+                />
+                <DollarSign className="absolute left-3 top-3.5 w-4 h-4 text-muted-foreground" />
+              </div>
+            </div>
 
-        {/* Toggle: É um grupo/cartão (apenas ao criar) */}
-        {!isEditing && (
-          <div className="border-t border-border pt-4 space-y-4">
-            <div className="flex items-center justify-between min-h-touch">
-              <div className="flex items-center gap-2">
-                <Layers className="w-4 h-4 text-muted-foreground" />
-                <div>
-                  <Label htmlFor="isAgrupador" className="cursor-pointer">
-                    É um grupo/cartão
-                  </Label>
-                  <p className="text-micro text-muted-foreground">
-                    Para agrupar sub-itens (ex: fatura do cartão)
-                  </p>
+            {/* Categoria (apenas para saídas) */}
+            {tipo === 'saida' && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  Categoria
+                </Label>
+                <div className="relative">
+                  <CategoriaSelect
+                    tipo="saida"
+                    value={categoriaId}
+                    onChange={setCategoriaId}
+                  />
+                  <Tag className="absolute left-3 top-3.5 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
                 </div>
               </div>
+            )}
+
+            {/* Datas */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="dataPrevista" className="text-sm font-medium">
+                  {tipo === 'entrada' ? 'Data de recebimento' : 'Data de pagamento'}
+                </Label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Aqui você pode adicionar um date picker mais sofisticado
+                    const input = document.getElementById('dataPrevista') as HTMLInputElement
+                    input?.showPicker?.()
+                  }}
+                  className={cn(
+                    "w-full h-12 px-3 rounded-lg border bg-background text-left flex items-center justify-between",
+                    "hover:bg-accent transition-colors",
+                    dataPrevista ? "text-foreground" : "text-muted-foreground"
+                  )}
+                >
+                  <span className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    {getDateLabel()}
+                  </span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+                <input
+                  id="dataPrevista"
+                  type="date"
+                  value={dataPrevista}
+                  onChange={(e) => setDataPrevista(e.target.value)}
+                  className="sr-only"
+                />
+              </div>
+
+              {/* Data de vencimento (apenas para saídas) */}
+              {tipo === 'saida' && (
+                <div className="space-y-2">
+                  <Label htmlFor="dataVencimento" className="text-sm font-medium flex items-center gap-2">
+                    <CalendarDays className="w-4 h-4" />
+                    Data de vencimento
+                    <Badge variant="outline" className="text-xs">Opcional</Badge>
+                  </Label>
+                  <Input
+                    id="dataVencimento"
+                    type="date"
+                    value={dataVencimento}
+                    onChange={(e) => setDataVencimento(e.target.value)}
+                    className="h-12"
+                  />
+                  {errors.data && (
+                    <p className="text-xs text-destructive flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {errors.data}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Toggle: Concluído */}
+            <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border">
+              <div className="space-y-0.5">
+                <Label htmlFor="concluido" className="text-sm font-medium cursor-pointer">
+                  {tipo === 'entrada' ? 'Já recebi' : 'Já paguei'}
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Marcar como {tipo === 'entrada' ? 'recebido' : 'pago'}
+                </p>
+              </div>
               <Switch
-                id="isAgrupador"
-                checked={isAgrupador}
-                onCheckedChange={setIsAgrupador}
+                id="concluido"
+                checked={concluido}
+                onCheckedChange={setConcluido}
+                className="data-[state=checked]:bg-verde"
               />
             </div>
 
-            {/* Seletor de modo de valor (apenas se for agrupador) */}
-            <AnimatePresence>
-              {isAgrupador && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="overflow-hidden"
-                >
-                  <div className="space-y-3 pl-6">
-                    <Label className="text-pequeno text-muted-foreground">
-                      Como calcular o valor total?
-                    </Label>
-
-                    <div className="flex gap-2">
-                      {/* Opção: Soma automática */}
-                      <button
-                        type="button"
-                        onClick={() => setValorModo('soma')}
-                        className={cn(
-                          'flex-1 flex items-center gap-2 py-3 px-4 rounded-lg border-2 transition-all',
-                          'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
-                          valorModo === 'soma'
-                            ? 'border-azul bg-azul/5 text-foreground'
-                            : 'border-border bg-background text-muted-foreground hover:border-muted hover:text-foreground'
-                        )}
-                        aria-label="Soma automática dos itens"
-                        aria-pressed={valorModo === 'soma'}
-                      >
-                        <Calculator className={cn(
-                          'w-4 h-4 shrink-0',
-                          valorModo === 'soma' ? 'text-azul' : 'text-current'
-                        )} />
-                        <div className="flex flex-col items-start min-w-0">
-                          <span className="text-pequeno-medium">Soma automática</span>
-                          <span className="text-micro opacity-80">Calcula pela soma</span>
-                        </div>
-                      </button>
-
-                      {/* Opção: Valor fixo */}
-                      <button
-                        type="button"
-                        onClick={() => setValorModo('fixo')}
-                        className={cn(
-                          'flex-1 flex items-center gap-2 py-3 px-4 rounded-lg border-2 transition-all',
-                          'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
-                          valorModo === 'fixo'
-                            ? 'border-azul bg-azul/5 text-foreground'
-                            : 'border-border bg-background text-muted-foreground hover:border-muted hover:text-foreground'
-                        )}
-                        aria-label="Valor fixo definido manualmente"
-                        aria-pressed={valorModo === 'fixo'}
-                      >
-                        <PenLine className={cn(
-                          'w-4 h-4 shrink-0',
-                          valorModo === 'fixo' ? 'text-azul' : 'text-current'
-                        )} />
-                        <div className="flex flex-col items-start min-w-0">
-                          <span className="text-pequeno-medium">Valor fixo</span>
-                          <span className="text-micro opacity-80">Define manualmente</span>
-                        </div>
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        )}
-
-        {/* Seção de Recorrência (apenas ao criar, não para agrupadores) */}
-        {!isEditing && !isAgrupador && (
-          <>
-            <div className="border-t border-border pt-4">
-              <div className="flex items-center justify-between min-h-touch">
-                <div className="flex items-center gap-2">
-                  <Repeat className="w-4 h-4 text-muted-foreground" />
-                  <Label htmlFor="recorrente" className="cursor-pointer">
-                    {labels.recorrente}
-                  </Label>
-                </div>
-                <Switch
-                  id="recorrente"
-                  checked={recorrente}
-                  onCheckedChange={setRecorrente}
-                />
-              </div>
-            </div>
-
-            {/* Opções de recorrência */}
-            <AnimatePresence>
-              {recorrente && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="overflow-hidden"
-                >
-                  <div className="space-y-4 p-4 bg-secondary rounded-card">
-                    {/* Opção: Mensal */}
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="tipoRecorrencia"
-                        value="mensal"
-                        checked={tipoRecorrencia === 'mensal'}
-                        onChange={() => setTipoRecorrencia('mensal')}
-                        className="w-4 h-4 text-rosa accent-rosa"
-                      />
-                      <div className="flex-1">
-                        <span className="text-corpo-medium text-foreground">
-                          Todos os meses
+            {/* Recorrência (apenas para novos) */}
+            {!isEditing && (
+              <>
+                <Separator />
+                
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="recorrente" className="text-sm font-medium cursor-pointer">
+                        <span className="flex items-center gap-2">
+                          <Repeat className="w-4 h-4" />
+                          Lançamento recorrente
                         </span>
-                        <p className="text-micro text-muted-foreground">
-                          Lança para os próximos 12 meses
-                        </p>
-                      </div>
-                    </label>
-
-                    {/* Opção: Parcelas */}
-                    <label className="flex items-start gap-3 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="tipoRecorrencia"
-                        value="parcelas"
-                        checked={tipoRecorrencia === 'parcelas'}
-                        onChange={() => setTipoRecorrencia('parcelas')}
-                        className="w-4 h-4 text-rosa accent-rosa mt-1"
-                      />
-                      <div className="flex-1 space-y-2">
-                        <div>
-                          <span className="text-corpo-medium text-foreground">
-                            Parcelado
-                          </span>
-                          <p className="text-micro text-muted-foreground">
-                            Define número de parcelas
-                          </p>
-                        </div>
-
-                        {tipoRecorrencia === 'parcelas' && (
-                          <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="flex items-center gap-2"
-                          >
-                            <Calendar className="w-4 h-4 text-muted-foreground" />
-                            <Input
-                              type="number"
-                              min={2}
-                              max={60}
-                              value={quantidadeParcelas}
-                              onChange={(e) => {
-                                setQuantidadeParcelas(e.target.value)
-                                if (errors.parcelas) {
-                                  setErrors((prev) => ({ ...prev, parcelas: undefined }))
-                                }
-                              }}
-                              placeholder="12"
-                              className="w-20"
-                            />
-                            <span className="text-pequeno text-muted-foreground">parcelas</span>
-                          </motion.div>
-                        )}
-                      </div>
-                    </label>
-
-                    {errors.parcelas && (
-                      <p className="text-pequeno text-vermelho">{errors.parcelas}</p>
-                    )}
-
-                    {/* Preview */}
-                    <div className="pt-2 border-t border-border">
-                      <p className="text-micro text-muted-foreground">
-                        {tipoRecorrencia === 'mensal' ? (
-                          <>Será criado para os próximos <strong>12 meses</strong></>
-                        ) : (
-                          <>
-                            Será criado em <strong>{quantidadeParcelas || '0'} parcelas</strong>
-                            {parseInt(quantidadeParcelas) > 1 && (
-                              <> com nome "{nome || '...'} (1/{quantidadeParcelas})"</>
-                            )}
-                          </>
-                        )}
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Repetir este lançamento
                       </p>
                     </div>
+                    <Switch
+                      id="recorrente"
+                      checked={isRecorrente}
+                      onCheckedChange={setIsRecorrente}
+                    />
                   </div>
-                </motion.div>
+
+                  {isRecorrente && (
+                    <Alert className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950">
+                      <AlertDescription className="text-sm">
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Tipo de recorrência</Label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setTipoRecorrencia('mensal')}
+                                className={cn(
+                                  "p-3 rounded-lg border-2 transition-all text-left",
+                                  tipoRecorrencia === 'mensal'
+                                    ? "border-blue-500 bg-blue-100 dark:bg-blue-900"
+                                    : "border-border hover:border-muted-foreground"
+                                )}
+                              >
+                                <div className="font-medium text-sm">Mensal</div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  Próximos 12 meses
+                                </div>
+                              </button>
+                              
+                              <button
+                                type="button"
+                                onClick={() => setTipoRecorrencia('parcelas')}
+                                className={cn(
+                                  "p-3 rounded-lg border-2 transition-all text-left",
+                                  tipoRecorrencia === 'parcelas'
+                                    ? "border-blue-500 bg-blue-100 dark:bg-blue-900"
+                                    : "border-border hover:border-muted-foreground"
+                                )}
+                              >
+                                <div className="font-medium text-sm">Parcelado</div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  Definir parcelas
+                                </div>
+                              </button>
+                            </div>
+                          </div>
+
+                          {tipoRecorrencia === 'parcelas' && (
+                            <div className="space-y-2">
+                              <Label htmlFor="parcelas" className="text-sm font-medium">
+                                Número de parcelas
+                              </Label>
+                              <div className="relative">
+                                <Input
+                                  id="parcelas"
+                                  type="number"
+                                  min="2"
+                                  max="60"
+                                  value={qtdParcelas}
+                                  onChange={(e) => {
+                                    setQtdParcelas(e.target.value)
+                                    if (errors.parcelas) {
+                                      setErrors(prev => ({ ...prev, parcelas: undefined }))
+                                    }
+                                  }}
+                                  className={cn(
+                                    "h-10 pl-10",
+                                    errors.parcelas && "border-destructive"
+                                  )}
+                                />
+                                <Hash className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
+                              </div>
+                              {errors.parcelas && (
+                                <p className="text-xs text-destructive">{errors.parcelas}</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              </>
+            )}
+          </form>
+        </ScrollArea>
+
+        <SheetFooter className="px-6 py-4 border-t space-y-2 sm:space-y-0 sm:space-x-2">
+          {isEditing && onDelete && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={onDelete}
+              disabled={isLoading}
+              className="w-full sm:w-auto text-destructive hover:text-destructive hover:bg-destructive/10"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Excluir
+            </Button>
+          )}
+          
+          <div className="flex gap-2 w-full sm:w-auto sm:ml-auto">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isLoading}
+              className="flex-1 sm:flex-initial"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              form="lancamento-form"
+              disabled={isLoading}
+              className={cn(
+                "flex-1 sm:flex-initial",
+                tipo === 'entrada' 
+                  ? "bg-verde hover:bg-verde/90" 
+                  : "bg-rosa hover:bg-rosa/90"
               )}
-            </AnimatePresence>
-          </>
-        )}
-        </form>
-      </div>
-
-      {/* Botões fixos no final */}
-      <div className={cn(
-        'space-y-3 pt-4 border-t border-border shrink-0',
-        !isDesktop && 'pb-safe'
-      )}>
-        <Button
-          type="submit"
-          form="lancamento-form"
-          className="w-full"
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Salvando...
-            </>
-          ) : recorrente ? (
-            'Criar lançamentos'
-          ) : (
-            'Salvar'
-          )}
-        </Button>
-
-        {isEditing && onDelete && (
-          <Button
-            type="button"
-            variant="destructive"
-            className="w-full"
-            onClick={onDelete}
-            disabled={isLoading}
-          >
-            Excluir
-          </Button>
-        )}
-      </div>
-    </div>
-  )
-
-  return (
-    <DrawerPrimitive.Root
-      open={open}
-      onOpenChange={onOpenChange}
-      direction={isDesktop ? 'right' : 'bottom'}
-      shouldScaleBackground={!isDesktop}
-    >
-      <DrawerPrimitive.Portal>
-        <DrawerPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50" />
-        <DrawerPrimitive.Content
-          className={cn(
-            'fixed z-50 flex flex-col bg-card',
-            isDesktop
-              ? 'inset-y-0 right-0 h-full w-full max-w-md border-l border-border rounded-l-2xl shadow-xl'
-              : 'inset-x-0 bottom-0 rounded-t-2xl border-t border-border shadow-xl'
-          )}
-          style={!isDesktop ? { maxHeight: '92vh' } : undefined}
-        >
-          {!isDesktop && (
-            <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-border" />
-          )}
-          {sharedContent}
-        </DrawerPrimitive.Content>
-      </DrawerPrimitive.Portal>
-    </DrawerPrimitive.Root>
+            >
+              {isLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                  Salvando...
+                </>
+              ) : (
+                isEditing ? 'Salvar alterações' : 'Adicionar lançamento'
+              )}
+            </Button>
+          </div>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   )
 }

@@ -312,7 +312,7 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
                         </p>
                         {perfil.is_perfil_padrao && (
                           <p className="text-micro text-muted-foreground">
-                            Perfil padrão
+                            Workspace principal
                           </p>
                         )}
                       </div>
@@ -397,7 +397,7 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
                   <Plus className="w-5 h-5" />
                 </div>
                 <span className="text-corpo font-medium">
-                  Novo workspace
+                  Criar novo workspace
                 </span>
               </button>
             </motion.div>
@@ -417,9 +417,9 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
       <ConfirmDialog
         open={deleteConfirmOpen}
         onOpenChange={setDeleteConfirmOpen}
-        title="Excluir workspace?"
-        description={`Tem certeza que deseja excluir "${deletingPerfil?.nome}"? Todos os lançamentos, categorias e configurações deste workspace serão arquivados.`}
-        confirmLabel="Excluir"
+        title="Remover workspace?"
+        description={`Você tem certeza? O workspace "${deletingPerfil?.nome}" e todos os seus dados (lançamentos, categorias e configurações) serão arquivados permanentemente.`}
+        confirmLabel="Sim, remover workspace"
         onConfirm={handleConfirmDelete}
         isLoading={isDeleting}
         error={deleteError}

@@ -92,12 +92,12 @@ export function PerfilDialog({
     const nomeTrimmed = nome.trim()
 
     if (!nomeTrimmed) {
-      setError('Nome é obrigatório')
+      setError('Por favor, dê um nome ao workspace')
       return
     }
 
     if (nomeTrimmed.length < 2) {
-      setError('Nome deve ter pelo menos 2 caracteres')
+      setError('O nome precisa ter pelo menos 2 caracteres')
       return
     }
 
@@ -110,18 +110,18 @@ export function PerfilDialog({
           cor,
           icone,
         })
-        onSuccess?.(`Workspace "${nomeTrimmed}" atualizado!`)
+        onSuccess?.(`✅ Workspace "${nomeTrimmed}" atualizado com sucesso!`)
       } else {
         await criarPerfil({
           nome: nomeTrimmed,
           cor,
           icone,
         })
-        onSuccess?.(`Workspace "${nomeTrimmed}" criado!`)
+        onSuccess?.(`✅ Workspace "${nomeTrimmed}" criado com sucesso!`)
       }
       onOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao salvar workspace')
+      setError(err instanceof Error ? err.message : 'Não foi possível salvar o workspace. Tente novamente')
     } finally {
       setIsSubmitting(false)
     }
@@ -136,20 +136,20 @@ export function PerfilDialog({
           </DialogTitle>
           <DialogDescription>
             {isEditing
-              ? 'Altere as informações do workspace'
-              : 'Crie um novo espaço para organizar suas finanças'}
+              ? 'Personalize as configurações do seu workspace'
+              : 'Organize suas finanças em espaços separados (pessoal, empresa, etc)'}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Nome */}
           <div className="space-y-2">
-            <Label htmlFor="nome">Nome</Label>
+            <Label htmlFor="nome">Nome do workspace</Label>
             <Input
               id="nome"
               value={nome}
               onChange={(e) => setNome(e.target.value)}
-              placeholder="Ex: Empresa, Investimentos..."
+              placeholder="Ex: Pessoal, Empresa, Casa..."
               maxLength={100}
               autoFocus
             />

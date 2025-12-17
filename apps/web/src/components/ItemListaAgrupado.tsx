@@ -62,7 +62,7 @@ export const ItemListaAgrupado = React.memo(function ItemListaAgrupado({
           type="button"
           onClick={() => setExpanded(!expanded)}
           className="flex items-center justify-center w-8 h-8 -ml-1 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors"
-          aria-label={expanded ? 'Colapsar itens do grupo' : 'Expandir itens do grupo'}
+          aria-label={expanded ? `Ocultar ${filhos.length} itens de ${agrupador.nome}` : `Mostrar ${filhos.length} itens de ${agrupador.nome}`}
           aria-expanded={expanded}
         >
           <motion.div
@@ -77,7 +77,7 @@ export const ItemListaAgrupado = React.memo(function ItemListaAgrupado({
           type="button"
           onClick={onEdit}
           className="flex-1 flex justify-between items-center py-3 text-left min-h-touch"
-          aria-label={`Editar ${agrupador.nome}`}
+          aria-label={`Editar grupo ${agrupador.nome} - Total: ${formatarMoeda(valorExibido)}`}
         >
           <div className={cn(
             'flex items-center gap-2 min-w-0 flex-1',
@@ -103,7 +103,7 @@ export const ItemListaAgrupado = React.memo(function ItemListaAgrupado({
                 {temFilhos && (
                   <>
                     {agrupador.categoria && <span aria-hidden="true">•</span>}
-                    <span>{filhos.length} {filhos.length === 1 ? 'item' : 'itens'}</span>
+                    <span>{filhos.length} {filhos.length === 1 ? 'item no grupo' : 'itens no grupo'}</span>
                   </>
                 )}
               </div>
@@ -120,7 +120,7 @@ export const ItemListaAgrupado = React.memo(function ItemListaAgrupado({
                   exit={{ opacity: 0, scale: 0.8, x: 10 }}
                   transition={{ duration: 0.2, ease: 'easeOut' }}
                   className="text-[10px] font-medium px-1.5 py-0.5 rounded border bg-vermelho/10 text-vermelho border-vermelho/20"
-                  aria-label="Pago"
+                  aria-label="Este grupo já foi pago"
                 >
                   Pago
                 </motion.span>
@@ -131,7 +131,7 @@ export const ItemListaAgrupado = React.memo(function ItemListaAgrupado({
             {valorModo === 'fixo' && (
               <span
                 className="text-[10px] font-medium px-1.5 py-0.5 rounded border bg-azul/10 text-azul border-azul/20"
-                aria-label="Valor fixo"
+                aria-label="Grupo com valor fixo definido manualmente"
               >
                 Fixo
               </span>
@@ -205,7 +205,7 @@ export const ItemListaAgrupado = React.memo(function ItemListaAgrupado({
                 type="button"
                 onClick={onAddFilho}
                 className="w-full flex items-center justify-center gap-1.5 py-2.5 text-micro text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                aria-label="Adicionar novo item ao grupo"
+                aria-label={`Adicionar novo item ao grupo ${agrupador.nome}`}
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Adicionar item</span>
