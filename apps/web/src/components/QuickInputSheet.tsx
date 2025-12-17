@@ -200,78 +200,105 @@ const LancamentoItem = ({
                 </div>
               </div>
 
-              {/* Recorrência e Grupo lado a lado */}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] text-muted-foreground mb-1 block">Repetir</label>
-                  <div className="flex gap-1">
-                    <button
-                      type="button"
-                      onClick={() => onSetRecorrencia(index, undefined)}
-                      className={cn(
-                        "flex-1 py-1.5 rounded-md text-[10px] font-medium border transition-colors",
-                        !temRecorrencia
-                          ? "border-primary bg-primary/5 text-primary"
-                          : "border-border hover:border-muted-foreground/50"
-                      )}
-                    >
-                      1x
-                    </button>
+              {/* Data prevista */}
+              <div>
+                <label className="text-[10px] text-muted-foreground mb-1 block">
+                  Dia {lancamento.tipo === 'entrada' ? 'recebimento' : 'pagamento'}
+                </label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="31"
+                  value={lancamento.diaPrevisto || ''}
+                  onChange={(e) => {
+                    const dia = parseInt(e.target.value)
+                    onEdit(index, 'diaPrevisto', isNaN(dia) ? null : Math.min(31, Math.max(1, dia)))
+                  }}
+                  placeholder="Dia do mês"
+                  className="h-8 text-sm"
+                />
+              </div>
+
+              {/* Repetir com opções */}
+              <div className="border-t pt-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor={`repetir-${index}`} className="text-xs cursor-pointer flex items-center gap-1.5">
+                    <Repeat className="w-3 h-3" />
+                    Repetir
+                  </Label>
+                  <Switch
+                    id={`repetir-${index}`}
+                    checked={temRecorrencia}
+                    onCheckedChange={(checked) =>
+                      onSetRecorrencia(index, checked ? { tipo: 'mensal', quantidade: 12 } : undefined)
+                    }
+                    className="scale-90"
+                  />
+                </div>
+                {temRecorrencia && (
+                  <div className="mt-2 flex gap-1">
                     <button
                       type="button"
                       onClick={() => onSetRecorrencia(index, { tipo: 'mensal', quantidade: 12 })}
                       className={cn(
-                        "flex-1 py-1.5 rounded-md text-[10px] font-medium border transition-colors",
+                        "flex-1 py-1.5 text-[10px] font-medium rounded border transition-colors",
                         lancamento.recorrencia?.tipo === 'mensal'
                           ? "border-primary bg-primary/5 text-primary"
                           : "border-border hover:border-muted-foreground/50"
                       )}
                     >
-                      12x
+                      Mensal (12x)
                     </button>
                     <button
                       type="button"
-                      onClick={() => onSetRecorrencia(index, { tipo: 'parcelas', quantidade: 3 })}
+                      onClick={() => onSetRecorrencia(index, { tipo: 'parcelas', quantidade: lancamento.recorrencia?.quantidade || 3 })}
                       className={cn(
-                        "flex-1 py-1.5 rounded-md text-[10px] font-medium border transition-colors",
+                        "flex-1 py-1.5 text-[10px] font-medium rounded border transition-colors",
                         lancamento.recorrencia?.tipo === 'parcelas'
                           ? "border-primary bg-primary/5 text-primary"
                           : "border-border hover:border-muted-foreground/50"
                       )}
                     >
-                      {lancamento.recorrencia?.tipo === 'parcelas' ? `${lancamento.recorrencia.quantidade}x` : '3x'}
+                      Parcelas
                     </button>
+                    {lancamento.recorrencia?.tipo === 'parcelas' && (
+                      <Input
+                        type="number"
+                        min="2"
+                        max="60"
+                        value={lancamento.recorrencia.quantidade}
+                        onChange={(e) => {
+                          const qtd = parseInt(e.target.value)
+                          if (!isNaN(qtd) && qtd >= 2 && qtd <= 60) {
+                            onSetRecorrencia(index, { tipo: 'parcelas', quantidade: qtd })
+                          }
+                        }}
+                        className="w-14 h-7 text-[10px] text-center px-1"
+                      />
+                    )}
                   </div>
+                )}
+              </div>
+
+              {/* Grupo com opções */}
+              <div className="border-t pt-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor={`grupo-${index}`} className="text-xs cursor-pointer flex items-center gap-1.5">
+                    <span className="text-[10px]">📁</span>
+                    Criar como grupo
+                  </Label>
+                  <Switch
+                    id={`grupo-${index}`}
+                    checked={lancamento.isAgrupador || false}
+                    onCheckedChange={(checked) => onEdit(index, 'isAgrupador', checked)}
+                    className="scale-90"
+                  />
                 </div>
-                <div>
-                  <label className="text-[10px] text-muted-foreground mb-1 block">Tipo</label>
-                  <div className="flex gap-1">
-                    <button
-                      type="button"
-                      onClick={() => onEdit(index, 'isAgrupador', false)}
-                      className={cn(
-                        "flex-1 py-1.5 rounded-md text-[10px] font-medium border transition-colors",
-                        !lancamento.isAgrupador
-                          ? "border-primary bg-primary/5 text-primary"
-                          : "border-border hover:border-muted-foreground/50"
-                      )}
-                    >
-                      Normal
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onEdit(index, 'isAgrupador', true)}
-                      className={cn(
-                        "flex-1 py-1.5 rounded-md text-[10px] font-medium border transition-colors",
-                        lancamento.isAgrupador
-                          ? "border-primary bg-primary/5 text-primary"
-                          : "border-border hover:border-muted-foreground/50"
-                      )}
-                    >
-                      Grupo
-                    </button>
-                  </div>
-                </div>
+                {lancamento.isAgrupador && (
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    Grupos permitem agrupar lançamentos filhos. O valor será a soma dos filhos.
+                  </p>
+                )}
               </div>
             </div>
           </motion.div>
