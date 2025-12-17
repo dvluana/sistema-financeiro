@@ -33,6 +33,8 @@ export interface ParsedLancamento {
     tipo: 'mensal' | 'parcelas'
     quantidade: number // 12 para mensal, ou número de parcelas
   }
+  // Agrupador (grupo de lançamentos)
+  isAgrupador?: boolean
 }
 
 export interface ParseResult {

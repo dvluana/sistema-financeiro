@@ -49,37 +49,22 @@ interface QuickInputSheetProps {
   onConfirm: (lancamentos: ParsedLancamento[]) => Promise<void>
 }
 
-// Componente para cada item de lançamento - Design compacto e limpo
+// Componente para cada item de lançamento
 const LancamentoItem = ({
   lancamento,
   index,
   onEdit,
   onRemove,
-  onToggleRecorrencia,
+  onSetRecorrencia,
 }: {
   lancamento: ParsedLancamento
   index: number
   onEdit: (index: number, campo: keyof ParsedLancamento, valor: any) => void
   onRemove: (index: number) => void
-  onToggleRecorrencia: (index: number) => void
+  onSetRecorrencia: (index: number, rec: ParsedLancamento['recorrencia']) => void
 }) => {
-  const [isEditingNome, setIsEditingNome] = useState(false)
-  const [isEditingValor, setIsEditingValor] = useState(false)
-  const [valorTemp, setValorTemp] = useState('')
+  const [expanded, setExpanded] = useState(false)
   const temRecorrencia = !!lancamento.recorrencia
-
-  const handleValueSave = () => {
-    const numValue = parseFloat(valorTemp.replace(',', '.'))
-    if (!isNaN(numValue) && numValue > 0) {
-      onEdit(index, 'valor', numValue)
-    }
-    setIsEditingValor(false)
-  }
-
-  const startEditValor = () => {
-    setValorTemp((lancamento.valor || 0).toFixed(2).replace('.', ','))
-    setIsEditingValor(true)
-  }
 
   return (
     <motion.div
@@ -88,103 +73,172 @@ const LancamentoItem = ({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -50 }}
       transition={{ duration: 0.15 }}
-      className={cn(
-        "group flex items-center gap-3 p-3 rounded-xl border bg-card",
-        "transition-shadow hover:shadow-sm",
-        lancamento.tipo === 'entrada' ? "border-verde/20" : "border-rosa/20"
-      )}
+      className="rounded-xl border bg-card overflow-hidden"
     >
-      {/* Barra indicadora de tipo */}
-      <div className={cn(
-        "shrink-0 w-1 h-12 rounded-full",
-        lancamento.tipo === 'entrada' ? "bg-verde" : "bg-rosa"
-      )} />
-
-      {/* Conteúdo principal */}
-      <div className="flex-1 min-w-0">
-        {/* Nome - clicável para editar */}
-        {isEditingNome ? (
-          <Input
-            value={lancamento.nome}
-            onChange={(e) => onEdit(index, 'nome', e.target.value)}
-            onBlur={() => setIsEditingNome(false)}
-            onKeyDown={(e) => e.key === 'Enter' && setIsEditingNome(false)}
-            className="h-7 text-sm font-medium px-2"
-            autoFocus
-          />
-        ) : (
-          <button
-            onClick={() => setIsEditingNome(true)}
-            className="text-left w-full"
-          >
-            <p className="font-medium text-sm truncate hover:text-primary transition-colors">
-              {lancamento.nome}
-            </p>
-          </button>
-        )}
-
-        {/* Tags: dia e recorrência */}
-        <div className="flex items-center gap-1.5 mt-1.5">
-          {lancamento.diaPrevisto && (
-            <span className="inline-flex items-center text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-              <Calendar className="w-2.5 h-2.5 mr-0.5" />
-              dia {lancamento.diaPrevisto}
-            </span>
-          )}
-          <button
-            onClick={() => onToggleRecorrencia(index)}
-            className={cn(
-              "inline-flex items-center text-[10px] px-1.5 py-0.5 rounded transition-colors",
-              temRecorrencia
-                ? "bg-blue-500/10 text-blue-600"
-                : "bg-muted text-muted-foreground hover:bg-blue-500/10 hover:text-blue-600"
-            )}
-          >
-            <Repeat className="w-2.5 h-2.5 mr-0.5" />
-            {temRecorrencia
-              ? (lancamento.recorrencia?.tipo === 'mensal' ? '12x' : `${lancamento.recorrencia?.quantidade}x`)
-              : 'repetir'
-            }
-          </button>
-        </div>
-      </div>
-
-      {/* Valor - clicável para editar */}
-      {isEditingValor ? (
-        <Input
-          value={valorTemp}
-          onChange={(e) => setValorTemp(e.target.value.replace(/[^0-9,]/g, ''))}
-          onBlur={handleValueSave}
-          onKeyDown={(e) => e.key === 'Enter' && handleValueSave()}
-          className={cn(
-            "h-8 w-24 text-sm font-bold text-right px-2",
-            lancamento.tipo === 'entrada' ? "text-verde" : "text-rosa"
-          )}
-          autoFocus
-        />
-      ) : (
+      {/* Linha principal - sempre visível */}
+      <div
+        className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/30 transition-colors"
+        onClick={() => setExpanded(!expanded)}
+      >
+        {/* Toggle tipo entrada/saída */}
         <button
-          onClick={startEditValor}
+          onClick={(e) => {
+            e.stopPropagation()
+            onEdit(index, 'tipo', lancamento.tipo === 'entrada' ? 'saida' : 'entrada')
+          }}
           className={cn(
-            "shrink-0 text-sm font-bold tabular-nums hover:opacity-70 transition-opacity",
-            lancamento.tipo === 'entrada' ? "text-verde" : "text-rosa"
+            "shrink-0 px-2 py-1 rounded-md text-xs font-medium transition-colors",
+            lancamento.tipo === 'entrada'
+              ? "bg-verde/10 text-verde hover:bg-verde/20"
+              : "bg-rosa/10 text-rosa hover:bg-rosa/20"
           )}
         >
-          R$ {(lancamento.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          {lancamento.tipo === 'entrada' ? '+' : '−'}
         </button>
-      )}
 
-      {/* Botão remover */}
-      <button
-        onClick={() => onRemove(index)}
-        className={cn(
-          "shrink-0 p-1.5 rounded-lg transition-all",
-          "opacity-0 group-hover:opacity-100",
-          "text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+        {/* Nome */}
+        <span className="flex-1 font-medium text-sm truncate">
+          {lancamento.nome}
+        </span>
+
+        {/* Indicador de recorrência */}
+        {temRecorrencia && (
+          <span className="text-[10px] text-blue-600 bg-blue-500/10 px-1.5 py-0.5 rounded">
+            {lancamento.recorrencia?.tipo === 'mensal' ? '12x' : `${lancamento.recorrencia?.quantidade}x`}
+          </span>
         )}
-      >
-        <Trash2 className="w-4 h-4" />
-      </button>
+
+        {/* Valor */}
+        <span className={cn(
+          "shrink-0 font-bold text-sm tabular-nums",
+          lancamento.tipo === 'entrada' ? "text-verde" : "text-rosa"
+        )}>
+          R$ {(lancamento.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+        </span>
+
+        {/* Botão remover */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onRemove(index)
+          }}
+          className="shrink-0 p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Área expandida para edição */}
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="overflow-hidden"
+          >
+            <div className="px-3 pb-3 pt-1 space-y-3 border-t bg-muted/20">
+              {/* Tipo - segmented control */}
+              <div className="flex p-0.5 bg-muted rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => onEdit(index, 'tipo', 'entrada')}
+                  className={cn(
+                    "flex-1 py-1.5 rounded-md text-xs font-medium transition-all",
+                    lancamento.tipo === 'entrada'
+                      ? "bg-background text-verde shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Entrada
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onEdit(index, 'tipo', 'saida')}
+                  className={cn(
+                    "flex-1 py-1.5 rounded-md text-xs font-medium transition-all",
+                    lancamento.tipo === 'saida'
+                      ? "bg-background text-rosa shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Saída
+                </button>
+              </div>
+
+              {/* Nome e Valor lado a lado */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Nome</label>
+                  <Input
+                    value={lancamento.nome}
+                    onChange={(e) => onEdit(index, 'nome', e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Valor</label>
+                  <Input
+                    value={(lancamento.valor || 0).toFixed(2).replace('.', ',')}
+                    onChange={(e) => {
+                      const num = parseFloat(e.target.value.replace(',', '.'))
+                      if (!isNaN(num)) onEdit(index, 'valor', num)
+                    }}
+                    className={cn(
+                      "h-8 text-sm font-bold",
+                      lancamento.tipo === 'entrada' ? "text-verde" : "text-rosa"
+                    )}
+                  />
+                </div>
+              </div>
+
+              {/* Recorrência */}
+              <div>
+                <label className="text-[10px] text-muted-foreground mb-1 block">Repetir</label>
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => onSetRecorrencia(index, undefined)}
+                    className={cn(
+                      "flex-1 py-1.5 rounded-md text-xs font-medium border transition-colors",
+                      !temRecorrencia
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "border-border hover:border-muted-foreground/50"
+                    )}
+                  >
+                    Único
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onSetRecorrencia(index, { tipo: 'mensal', quantidade: 12 })}
+                    className={cn(
+                      "flex-1 py-1.5 rounded-md text-xs font-medium border transition-colors",
+                      lancamento.recorrencia?.tipo === 'mensal'
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "border-border hover:border-muted-foreground/50"
+                    )}
+                  >
+                    12x
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onSetRecorrencia(index, { tipo: 'parcelas', quantidade: 3 })}
+                    className={cn(
+                      "flex-1 py-1.5 rounded-md text-xs font-medium border transition-colors",
+                      lancamento.recorrencia?.tipo === 'parcelas'
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "border-border hover:border-muted-foreground/50"
+                    )}
+                  >
+                    {lancamento.recorrencia?.tipo === 'parcelas' ? `${lancamento.recorrencia.quantidade}x` : '3x'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }
@@ -209,6 +263,9 @@ export function QuickInputSheet({
   const speechSupported = typeof window !== 'undefined' && 
     ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
 
+  // Ref para controlar se queremos parar intencionalmente
+  const shouldStopRef = useRef(false)
+
   // Limpa estado ao fechar
   useEffect(() => {
     if (!open) {
@@ -217,8 +274,13 @@ export function QuickInputSheet({
       setIsParsing(false)
       setIsSubmitting(false)
       setIsListening(false)
+      shouldStopRef.current = true
       if (recognitionRef.current) {
-        recognitionRef.current.stop()
+        try {
+          recognitionRef.current.stop()
+        } catch {
+          // Ignore
+        }
       }
     }
   }, [open])
@@ -252,28 +314,41 @@ export function QuickInputSheet({
       if (finalTranscript) {
         setInput(prev => prev ? `${prev}, ${finalTranscript}` : finalTranscript)
       } else if (interimTranscript) {
-        // Para interim, só mostra se não tiver texto final ainda
         setInput(interimTranscript)
       }
     }
 
     recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error)
-      setIsListening(false)
+      // Erros fatais - para de ouvir
+      if (event.error === 'not-allowed' || event.error === 'audio-capture') {
+        shouldStopRef.current = true
+        setIsListening(false)
+      }
     }
 
     recognition.onend = () => {
+      // Se não foi parada intencional e ainda está "ouvindo", reinicia
+      if (!shouldStopRef.current) {
+        try {
+          recognition.start()
+          return // Não seta isListening para false
+        } catch {
+          // Falhou ao reiniciar
+        }
+      }
       setIsListening(false)
     }
 
     recognitionRef.current = recognition
 
     return () => {
+      shouldStopRef.current = true
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop()
         } catch {
-          // Ignore errors on cleanup
+          // Ignore
         }
       }
     }
@@ -287,16 +362,19 @@ export function QuickInputSheet({
     }
 
     if (isListening) {
+      // Parada intencional
+      shouldStopRef.current = true
       try {
         recognitionRef.current.stop()
       } catch {
-        // Ignore stop errors
+        // Ignore
       }
       setIsListening(false)
     } else {
       try {
         // Pede permissão do microfone primeiro
         await navigator.mediaDevices.getUserMedia({ audio: true })
+        shouldStopRef.current = false
         recognitionRef.current.start()
         setIsListening(true)
       } catch (err) {
@@ -336,17 +414,11 @@ export function QuickInputSheet({
     setLancamentos(prev => prev.filter((_, i) => i !== index))
   }
 
-  // Toggle recorrência
-  const handleToggleRecorrencia = (index: number) => {
-    setLancamentos(prev => prev.map((l, i) => {
-      if (i !== index) return l
-
-      if (l.recorrencia) {
-        return { ...l, recorrencia: undefined }
-      } else {
-        return { ...l, recorrencia: { tipo: 'mensal' as const, quantidade: 12 } }
-      }
-    }))
+  // Define recorrência
+  const handleSetRecorrencia = (index: number, rec: ParsedLancamento['recorrencia']) => {
+    setLancamentos(prev => prev.map((l, i) =>
+      i === index ? { ...l, recorrencia: rec } : l
+    ))
   }
 
   // Confirma e salva
@@ -580,7 +652,7 @@ export function QuickInputSheet({
                       index={index}
                       onEdit={handleEdit}
                       onRemove={handleRemove}
-                      onToggleRecorrencia={handleToggleRecorrencia}
+                      onSetRecorrencia={handleSetRecorrencia}
                     />
                   ))}
                 </AnimatePresence>
