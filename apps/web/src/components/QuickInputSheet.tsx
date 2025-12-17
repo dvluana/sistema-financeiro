@@ -41,6 +41,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { Progress } from '@/components/ui/progress'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 
 interface QuickInputSheetProps {
   open: boolean
@@ -101,7 +103,12 @@ const LancamentoItem = ({
           {lancamento.nome}
         </span>
 
-        {/* Indicador de recorrência */}
+        {/* Indicadores */}
+        {lancamento.isAgrupador && (
+          <span className="text-[10px] text-purple-600 bg-purple-500/10 px-1.5 py-0.5 rounded">
+            grupo
+          </span>
+        )}
         {temRecorrencia && (
           <span className="text-[10px] text-blue-600 bg-blue-500/10 px-1.5 py-0.5 rounded">
             {lancamento.recorrencia?.tipo === 'mensal' ? '12x' : `${lancamento.recorrencia?.quantidade}x`}
@@ -193,46 +200,77 @@ const LancamentoItem = ({
                 </div>
               </div>
 
-              {/* Recorrência */}
-              <div>
-                <label className="text-[10px] text-muted-foreground mb-1 block">Repetir</label>
-                <div className="flex gap-1">
-                  <button
-                    type="button"
-                    onClick={() => onSetRecorrencia(index, undefined)}
-                    className={cn(
-                      "flex-1 py-1.5 rounded-md text-xs font-medium border transition-colors",
-                      !temRecorrencia
-                        ? "border-primary bg-primary/5 text-primary"
-                        : "border-border hover:border-muted-foreground/50"
-                    )}
-                  >
-                    Único
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onSetRecorrencia(index, { tipo: 'mensal', quantidade: 12 })}
-                    className={cn(
-                      "flex-1 py-1.5 rounded-md text-xs font-medium border transition-colors",
-                      lancamento.recorrencia?.tipo === 'mensal'
-                        ? "border-primary bg-primary/5 text-primary"
-                        : "border-border hover:border-muted-foreground/50"
-                    )}
-                  >
-                    12x
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onSetRecorrencia(index, { tipo: 'parcelas', quantidade: 3 })}
-                    className={cn(
-                      "flex-1 py-1.5 rounded-md text-xs font-medium border transition-colors",
-                      lancamento.recorrencia?.tipo === 'parcelas'
-                        ? "border-primary bg-primary/5 text-primary"
-                        : "border-border hover:border-muted-foreground/50"
-                    )}
-                  >
-                    {lancamento.recorrencia?.tipo === 'parcelas' ? `${lancamento.recorrencia.quantidade}x` : '3x'}
-                  </button>
+              {/* Recorrência e Grupo lado a lado */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Repetir</label>
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => onSetRecorrencia(index, undefined)}
+                      className={cn(
+                        "flex-1 py-1.5 rounded-md text-[10px] font-medium border transition-colors",
+                        !temRecorrencia
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "border-border hover:border-muted-foreground/50"
+                      )}
+                    >
+                      1x
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onSetRecorrencia(index, { tipo: 'mensal', quantidade: 12 })}
+                      className={cn(
+                        "flex-1 py-1.5 rounded-md text-[10px] font-medium border transition-colors",
+                        lancamento.recorrencia?.tipo === 'mensal'
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "border-border hover:border-muted-foreground/50"
+                      )}
+                    >
+                      12x
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onSetRecorrencia(index, { tipo: 'parcelas', quantidade: 3 })}
+                      className={cn(
+                        "flex-1 py-1.5 rounded-md text-[10px] font-medium border transition-colors",
+                        lancamento.recorrencia?.tipo === 'parcelas'
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "border-border hover:border-muted-foreground/50"
+                      )}
+                    >
+                      {lancamento.recorrencia?.tipo === 'parcelas' ? `${lancamento.recorrencia.quantidade}x` : '3x'}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] text-muted-foreground mb-1 block">Tipo</label>
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => onEdit(index, 'isAgrupador', false)}
+                      className={cn(
+                        "flex-1 py-1.5 rounded-md text-[10px] font-medium border transition-colors",
+                        !lancamento.isAgrupador
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "border-border hover:border-muted-foreground/50"
+                      )}
+                    >
+                      Normal
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onEdit(index, 'isAgrupador', true)}
+                      className={cn(
+                        "flex-1 py-1.5 rounded-md text-[10px] font-medium border transition-colors",
+                        lancamento.isAgrupador
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "border-border hover:border-muted-foreground/50"
+                      )}
+                    >
+                      Grupo
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -257,7 +295,7 @@ export function QuickInputSheet({
   const [isListening, setIsListening] = useState(false)
   const [showTips, setShowTips] = useState(true)
   const recognitionRef = useRef<any>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
 
   // Suporte a reconhecimento de voz
   const speechSupported = typeof window !== 'undefined' && 
@@ -285,6 +323,9 @@ export function QuickInputSheet({
     }
   }, [open])
 
+  // Ref para armazenar texto já finalizado (para não perder quando vem interim)
+  const finalizedTextRef = useRef('')
+
   // Configura reconhecimento de voz (apenas uma vez)
   useEffect(() => {
     if (!speechSupported) return
@@ -298,24 +339,43 @@ export function QuickInputSheet({
     recognition.lang = 'pt-BR'
 
     recognition.onresult = (event: any) => {
+      console.log('Speech result event:', event.results)
+
       let finalTranscript = ''
       let interimTranscript = ''
 
-      for (let i = event.resultIndex; i < event.results.length; i++) {
+      // Processa todos os resultados
+      for (let i = 0; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript
         if (event.results[i].isFinal) {
-          finalTranscript += transcript
+          finalTranscript += transcript + ' '
         } else {
-          interimTranscript = transcript
+          interimTranscript += transcript
         }
       }
 
-      // Mostra resultado intermediário enquanto fala, ou final quando termina frase
-      if (finalTranscript) {
-        setInput(prev => prev ? `${prev}, ${finalTranscript}` : finalTranscript)
-      } else if (interimTranscript) {
-        setInput(interimTranscript)
+      console.log('Final:', finalTranscript, 'Interim:', interimTranscript)
+
+      // Atualiza o texto finalizado se tiver novo conteúdo final
+      if (finalTranscript.trim()) {
+        finalizedTextRef.current = finalTranscript.trim()
       }
+
+      // Mostra o texto finalizado + interim (se houver)
+      const displayText = finalizedTextRef.current + (interimTranscript ? ' ' + interimTranscript : '')
+      setInput(displayText.trim())
+    }
+
+    recognition.onaudiostart = () => {
+      console.log('Audio capturing started')
+    }
+
+    recognition.onspeechstart = () => {
+      console.log('Speech detected')
+    }
+
+    recognition.onspeechend = () => {
+      console.log('Speech ended')
     }
 
     recognition.onerror = (event: any) => {
@@ -325,9 +385,11 @@ export function QuickInputSheet({
         shouldStopRef.current = true
         setIsListening(false)
       }
+      // no-speech não é fatal - só significa que não detectou fala ainda
     }
 
     recognition.onend = () => {
+      console.log('Recognition ended, shouldStop:', shouldStopRef.current)
       // Se não foi parada intencional e ainda está "ouvindo", reinicia
       if (!shouldStopRef.current) {
         try {
@@ -355,7 +417,7 @@ export function QuickInputSheet({
   }, [speechSupported])
 
   // Toggle reconhecimento de voz
-  const toggleVoiceRecognition = async () => {
+  const toggleVoiceRecognition = () => {
     if (!recognitionRef.current) {
       console.error('Speech recognition not available')
       return
@@ -372,10 +434,12 @@ export function QuickInputSheet({
       setIsListening(false)
     } else {
       try {
-        // Pede permissão do microfone primeiro
-        await navigator.mediaDevices.getUserMedia({ audio: true })
+        // Reseta o texto finalizado para nova sessão
+        finalizedTextRef.current = ''
         shouldStopRef.current = false
+        // Inicia - SpeechRecognition gerencia sua própria permissão
         recognitionRef.current.start()
+        console.log('Speech recognition started')
         setIsListening(true)
       } catch (err) {
         console.error('Microphone permission denied or error:', err)
@@ -511,13 +575,14 @@ export function QuickInputSheet({
                 ? "border-blue-500 shadow-lg shadow-blue-500/20"
                 : "border-border hover:border-primary/50 focus-within:border-primary"
             )}>
-              <div className="flex items-center gap-3 p-3">
-                <Input
+              <div className="flex items-start gap-3 p-3">
+                <textarea
                   ref={inputRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
+                    // Ctrl+Enter ou Cmd+Enter processa
+                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                       e.preventDefault()
                       handleProcess()
                     }
@@ -525,14 +590,15 @@ export function QuickInputSheet({
                   placeholder={
                     isListening
                       ? "🎤 Ouvindo..."
-                      : "Digite: Salário 5000, Netflix 55,90..."
+                      : "Cole sua planilha ou digite:\nSalário 5000, Netflix 55,90..."
                   }
                   disabled={isParsing || isListening}
+                  rows={3}
                   className={cn(
-                    "flex-1 text-sm h-auto min-h-0 py-0 px-0",
-                    "bg-transparent !border-0 rounded-none",
+                    "flex-1 text-sm min-h-[60px] max-h-[120px] py-1 px-0 resize-none",
+                    "bg-transparent border-0 rounded-none",
                     "placeholder:text-muted-foreground/60",
-                    "focus:!border-0 focus:outline-none focus:ring-0",
+                    "focus:outline-none focus:ring-0",
                     "focus-visible:ring-0 focus-visible:ring-offset-0"
                   )}
                   autoFocus

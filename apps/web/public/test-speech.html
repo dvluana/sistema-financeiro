@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teste Speech Recognition</title>
+  <style>
+    body { font-family: system-ui; max-width: 600px; margin: 50px auto; padding: 20px; }
+    button { padding: 15px 30px; font-size: 18px; cursor: pointer; margin: 10px 0; }
+    button.listening { background: #ef4444; color: white; }
+    #output {
+      margin-top: 20px; padding: 20px; border: 1px solid #ccc;
+      min-height: 100px; font-size: 18px;
+    }
+    #logs {
+      margin-top: 20px; padding: 10px; background: #f5f5f5;
+      font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto;
+    }
+    .error { color: red; }
+    .success { color: green; }
+  </style>
+</head>
+<body>
+  <h1>Teste de Reconhecimento de Voz</h1>
+
+  <p>Clique no botão e fale algo em português.</p>
+
+  <button id="startBtn">🎤 Iniciar</button>
+
+  <div id="output">Texto reconhecido aparecerá aqui...</div>
+
+  <div id="logs"></div>
+
+  <script>
+    const btn = document.getElementById('startBtn');
+    const output = document.getElementById('output');
+    const logs = document.getElementById('logs');
+
+    let recognition = null;
+    let isListening = false;
+
+    function log(msg, type = '') {
+      const time = new Date().toLocaleTimeString();
+      logs.innerHTML += `<div class="${type}">[${time}] ${msg}</div>`;
+      logs.scrollTop = logs.scrollHeight;
+      console.log(msg);
+    }
+
+    // Verifica suporte
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      log('❌ SpeechRecognition não suportado neste navegador', 'error');
+      btn.disabled = true;
+    } else {
+      log('✅ SpeechRecognition suportado', 'success');
+
+      recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'pt-BR';
+
+      recognition.onstart = () => {
+        log('🎙️ Reconhecimento iniciado', 'success');
+      };
+
+      recognition.onaudiostart = () => {
+        log('🔊 Captura de áudio iniciada');
+      };
+
+      recognition.onspeechstart = () => {
+        log('🗣️ Fala detectada!', 'success');
+      };
+
+      recognition.onresult = (event) => {
+        log(`📝 Resultado recebido (${event.results.length} resultados)`);
+
+        let finalText = '';
+        let interimText = '';
+
+        for (let i = 0; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          const confidence = (event.results[i][0].confidence * 100).toFixed(1);
+
+          if (event.results[i].isFinal) {
+            finalText += transcript + ' ';
+            log(`  ✓ Final: "${transcript}" (${confidence}% confiança)`, 'success');
+          } else {
+            interimText += transcript;
+            log(`  ... Interim: "${transcript}"`);
+          }
+        }
+
+        output.innerHTML = finalText + '<span style="color:#999">' + interimText + '</span>';
+      };
+
+      recognition.onspeechend = () => {
+        log('🔇 Fim da fala detectado');
+      };
+
+      recognition.onerror = (event) => {
+        log(`❌ Erro: ${event.error}`, 'error');
+        if (event.error === 'not-allowed') {
+          log('   Permissão de microfone negada. Verifique as configurações do navegador.', 'error');
+        }
+      };
+
+      recognition.onend = () => {
+        log('⏹️ Reconhecimento encerrado');
+        if (isListening) {
+          log('🔄 Reiniciando automaticamente...');
+          try {
+            recognition.start();
+          } catch (e) {
+            log(`❌ Falha ao reiniciar: ${e.message}`, 'error');
+            isListening = false;
+            btn.textContent = '🎤 Iniciar';
+            btn.classList.remove('listening');
+          }
+        }
+      };
+    }
+
+    btn.addEventListener('click', () => {
+      if (!recognition) return;
+
+      if (isListening) {
+        isListening = false;
+        recognition.stop();
+        btn.textContent = '🎤 Iniciar';
+        btn.classList.remove('listening');
+        log('⏸️ Parado pelo usuário');
+      } else {
+        try {
+          isListening = true;
+          recognition.start();
+          btn.textContent = '⏹️ Parar';
+          btn.classList.add('listening');
+        } catch (e) {
+          log(`❌ Erro ao iniciar: ${e.message}`, 'error');
+          isListening = false;
+        }
+      }
+    });
+  </script>
+</body>
+</html>

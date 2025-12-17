@@ -270,13 +270,14 @@ export function Home() {
     const lancamentosData: CriarLancamentoInput[] = lancamentos.map(l => ({
       tipo: l.tipo,
       nome: l.nome,
-      valor: l.valor!,
+      valor: l.isAgrupador ? 0 : l.valor!, // Grupo começa com valor 0
       mes: l.mes,
       concluido: false,
       data_prevista: l.diaPrevisto
         ? `${l.mes}-${String(l.diaPrevisto).padStart(2, '0')}`
         : null,
-      categoria_id: l.categoriaId || null,
+      categoria_id: l.categoriaId || undefined,
+      is_agrupador: l.isAgrupador || false,
     }))
 
     // Cria todos os lançamentos em uma única requisição
