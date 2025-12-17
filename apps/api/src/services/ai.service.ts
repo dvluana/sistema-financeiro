@@ -948,6 +948,21 @@ export class AIService {
       }
     }
     
+    // HEURÍSTICA: Nome próprio simples (uma palavra começando com maiúscula) geralmente é pagamento
+    // Ex: Rafael, João, Maria, Pedro, Clayton, Topfarm
+    const primeirasPalavras = textoOriginal.trim().split(/[\s\t]/)[0];
+    const ehNomeProprio = /^[A-Z][a-z]+$/.test(primeirasPalavras);
+    
+    if (ehNomeProprio) {
+      const valorMatch = textoOriginal.match(/(\d+(?:[.,]\d+)?)/);
+      if (valorMatch) {
+        const valor = parseFloat(valorMatch[1].replace(',', '.'));
+        if (valor >= 200) { // Nome próprio + valor >= 200 = provável recebimento
+          return "entrada";
+        }
+      }
+    }
+    
     // HEURÍSTICA FINAL: Se tem valor >= 1000 e parece nome de empresa, provável entrada
     const valorAltoMatch = textoOriginal.match(/(\d{4,}(?:[.,]\d+)?)/);
     if (valorAltoMatch && /^[A-Z]/.test(textoOriginal.trim())) {
@@ -1163,22 +1178,25 @@ export class AIService {
       if (!linhaTrim) continue;
 
       // Extrai valor monetário da linha - suporta diferentes formatos
-      // Procura por: R$ X.XXX,XX ou R$ XXX ou apenas XXX no final
-      let valorMatch = linhaTrim.match(/R?\$?\s*(\d+(?:\.\d+)?)\s*$/);
+      // Primeiro, tenta capturar formato brasileiro completo: R$ XXX,XX ou XXX,XX
+      let valorMatch = linhaTrim.match(/R\$?\s*(\d+(?:\.\d{3})*,\d{2})\s*$/);
+      let valor: number | null = null;
       
-      // Se não encontrou, tenta encontrar valor com vírgula (765,90)
-      if (!valorMatch) {
-        valorMatch = linhaTrim.match(/(\d+,\d{2})\s*$/);
+      if (valorMatch) {
+        // Formato brasileiro com vírgula: 597,00 ou 3.750,00
+        const valorStr = valorMatch[1].replace(/\./g, '').replace(',', '.');
+        valor = parseFloat(valorStr);
+      } else {
+        // Tenta formato com ponto decimal: 765.90 ou só números: 500
+        valorMatch = linhaTrim.match(/(\d+(?:\.\d{1,2})?)\s*$/);
         if (valorMatch) {
-          // Converte vírgula para ponto
-          valorMatch[1] = valorMatch[1].replace(',', '.');
+          valor = parseFloat(valorMatch[1]);
         }
       }
       
-      if (!valorMatch) continue;
+      if (!valor || isNaN(valor) || valor <= 0) continue;
 
-      const valor = parseFloat(valorMatch[1]);
-      if (isNaN(valor) || valor <= 0) continue;
+      // valor já foi processado acima
 
       // Extrai dia da linha ANTES de modificar (número de 1-2 dígitos entre nome e valor)
       // Padrão: nome [espaços/tabs] DIA [espaços/tabs] valor
@@ -1193,9 +1211,11 @@ export class AIService {
         }
       }
 
-      // Remove o valor e o dia (se existir) do final
+      // Remove o valor do final (suporta diferentes formatos)
       let resto = linhaTrim
-        .replace(/\s*(\d{1,2})?\s*(\d+(?:\.\d{1,2})?)\s*$/, "") // Remove dia + valor
+        .replace(/\s*R\$\s*\d+(?:\.\d{3})*,\d{2}\s*$/, "") // Remove R$ XXX,XX com espaços antes
+        .replace(/\s*R\$\s*\d+(?:\.\d{1,2})?\s*$/, "") // Remove R$ XXX.XX
+        .replace(/\s*\d+(?:\.\d{1,2})?\s*$/, "") // Remove valores simples
         .trim();
 
       // Remove tabs extras e espaços múltiplos
@@ -1232,7 +1252,8 @@ export class AIService {
 
       // Determina o tipo baseado na linha atual, não no texto completo
       // Isso permite processar múltiplas linhas com tipos diferentes
-      const tipo = this.determinarTipoSemIA(linhaTrim);
+      // Para nomes simples com valores, usa heurística especial
+      const tipo = this.determinarTipoSemIA(resto + " " + valor);
 
       // Categoriza por keywords
       const categoriaId = categorizarPorKeywords(nome, tipo);
