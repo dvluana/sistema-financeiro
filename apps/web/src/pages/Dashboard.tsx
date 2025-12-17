@@ -180,8 +180,8 @@ export function Dashboard({
             {/* Hero - Saudação e resumo do mês */}
             <HeroCard
               mesSelecionado={mesSelecionado}
-              totalEntradas={totais?.jaEntrou ?? 0}
-              totalSaidas={totais?.jaPaguei ?? 0}
+              totalEntradas={totais?.entradas ?? 0}
+              totalSaidas={totais?.saidas ?? 0}
               saldo={totais?.saldo ?? 0}
               onMesAnterior={navegarMesAnterior}
               onMesProximo={navegarMesProximo}
