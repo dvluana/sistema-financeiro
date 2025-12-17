@@ -23,27 +23,37 @@ interface RecentListProps {
   onAddSaida?: () => void
 }
 
-// Memoiza a função fora do componente para estabilidade
-function formatarDataRelativa(dataStr: string): string {
-  const data = new Date(dataStr)
-  const hoje = new Date()
-  const ontem = new Date()
-  ontem.setDate(ontem.getDate() - 1)
+// Formata a data do lançamento para exibição
+// Usa data_prevista se disponível, senão extrai do mês
+function formatarDataLancamento(lancamento: Lancamento): string {
+  // Se tem data_prevista, usa ela
+  if (lancamento.data_prevista) {
+    const [ano, mes, diaStr] = lancamento.data_prevista.split('-')
+    const data = new Date(parseInt(ano), parseInt(mes) - 1, parseInt(diaStr))
+    const hoje = new Date()
+    hoje.setHours(0, 0, 0, 0)
+    data.setHours(0, 0, 0, 0)
 
-  // Normaliza as datas para comparação
-  const dataFormatada = data.toDateString()
-  const hojeFormatada = hoje.toDateString()
-  const ontemFormatada = ontem.toDateString()
+    // Só mostra "Hoje" ou "Ontem" se for realmente no mês atual
+    const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`
+    const mesLancamento = lancamento.mes
 
-  if (dataFormatada === hojeFormatada) {
-    return 'Hoje'
+    if (mesAtual === mesLancamento) {
+      const diffDias = Math.ceil((data.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
+      if (diffDias === 0) return 'Hoje'
+      if (diffDias === -1) return 'Ontem'
+    }
+
+    // Formata como "12 jul"
+    return data.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' }).replace('.', '')
   }
-  if (dataFormatada === ontemFormatada) {
-    return 'Ontem'
-  }
 
-  // Formata como "12 nov"
-  return data.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' }).replace('.', '')
+  // Se não tem data_prevista, mostra apenas o mês
+  const [ano, mesNum] = lancamento.mes.split('-')
+  const nomeMes = new Date(parseInt(ano), parseInt(mesNum) - 1, 1)
+    .toLocaleDateString('pt-BR', { month: 'short' })
+    .replace('.', '')
+  return nomeMes
 }
 
 // Item individual memoizado
@@ -57,8 +67,8 @@ const RecentListItem = React.memo(function RecentListItem({
   onToggle: (id: string) => void
 }) {
   const dataFormatada = useMemo(
-    () => formatarDataRelativa(lancamento.created_at),
-    [lancamento.created_at]
+    () => formatarDataLancamento(lancamento),
+    [lancamento.data_prevista, lancamento.mes]
   )
 
   const handleToggle = useCallback(
