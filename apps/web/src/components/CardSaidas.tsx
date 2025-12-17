@@ -56,8 +56,10 @@ export function CardSaidas({
 }: CardSaidasProps) {
   const [expandido, setExpandido] = useState(false)
 
-  // Combina saídas normais e agrupadores
-  const todosItens = [...saidas, ...agrupadores].sort((a, b) => {
+  // Combina saídas normais (não agrupadores) com agrupadores
+  // Filtra saídas para não duplicar agrupadores que já estão na lista de agrupadores
+  const saidasNormais = saidas.filter(s => !s.is_agrupador)
+  const todosItens = [...saidasNormais, ...agrupadores].sort((a, b) => {
     if (a.data_prevista && b.data_prevista) {
       return a.data_prevista.localeCompare(b.data_prevista)
     }

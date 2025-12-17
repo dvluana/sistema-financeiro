@@ -123,6 +123,11 @@ export function LancamentoSheet({
   const [catError, setCatError] = useState<string | null>(null)
   const newCatInputRef = useRef<HTMLInputElement>(null)
 
+  // Refs para auto-scroll
+  const createCategoriaRef = useRef<HTMLDivElement>(null)
+  const createGrupoRef = useRef<HTMLDivElement>(null)
+  const repetirRef = useRef<HTMLDivElement>(null)
+
   // Carrega categorias
   useEffect(() => {
     async function loadCategorias() {
@@ -136,12 +141,33 @@ export function LancamentoSheet({
     loadCategorias()
   }, [])
 
-  // Foca no input de criar categoria quando expande
+  // Foca no input e faz scroll quando expande criar categoria
   useEffect(() => {
-    if (isCreatingCategoria && newCatInputRef.current) {
-      setTimeout(() => newCatInputRef.current?.focus(), 100)
+    if (isCreatingCategoria) {
+      setTimeout(() => {
+        newCatInputRef.current?.focus()
+        createCategoriaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      }, 200)
     }
   }, [isCreatingCategoria])
+
+  // Auto-scroll quando expande criar como grupo
+  useEffect(() => {
+    if (isAgrupador) {
+      setTimeout(() => {
+        createGrupoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      }, 200)
+    }
+  }, [isAgrupador])
+
+  // Auto-scroll quando expande repetir
+  useEffect(() => {
+    if (isRecorrente) {
+      setTimeout(() => {
+        repetirRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      }, 200)
+    }
+  }, [isRecorrente])
 
   // Inicializa campos quando abre ou muda o lançamento
   useEffect(() => {
@@ -432,7 +458,7 @@ export function LancamentoSheet({
                     transition={{ duration: 0.2 }}
                     className="overflow-hidden"
                   >
-                    <div className="mt-3 p-4 rounded-lg border bg-muted/30 space-y-3">
+                    <div ref={createCategoriaRef} className="mt-3 p-4 rounded-lg border bg-muted/30 space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-sm font-medium">
                           <Tag className="w-4 h-4 text-muted-foreground" />
@@ -605,7 +631,7 @@ export function LancamentoSheet({
                             exit={{ opacity: 0, height: 0 }}
                             className="overflow-hidden"
                           >
-                            <div className="mt-3 pt-3 border-t border-dashed space-y-2">
+                            <div ref={createGrupoRef} className="mt-3 pt-3 border-t border-dashed space-y-2">
                               <p className="text-xs text-muted-foreground">
                                 Como calcular o valor total?
                               </p>
@@ -684,7 +710,7 @@ export function LancamentoSheet({
                               exit={{ opacity: 0, height: 0 }}
                               className="overflow-hidden"
                             >
-                              <div className="mt-3 pt-3 border-t border-dashed space-y-3">
+                              <div ref={repetirRef} className="mt-3 pt-3 border-t border-dashed space-y-3">
                                 <div className="grid grid-cols-2 gap-2">
                                   <button
                                     type="button"

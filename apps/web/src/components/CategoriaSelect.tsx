@@ -5,7 +5,7 @@
  * A criação de categoria é feita no componente pai (LancamentoSheet).
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Check,
   ChevronDown,
@@ -68,6 +68,17 @@ export function CategoriaSelect({
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  // Handler para scroll com trackpad/mousewheel
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    const container = scrollRef.current
+    if (!container) return
+
+    // Permite scroll nativo dentro do container
+    e.stopPropagation()
+    container.scrollTop += e.deltaY
+  }
 
   // Usa categorias externas se fornecidas, senão carrega
   useEffect(() => {
@@ -173,24 +184,24 @@ export function CategoriaSelect({
           className="w-[280px] p-0"
           align="start"
           sideOffset={4}
+          onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          {/* Lista de categorias - scroll nativo */}
-          <div
-            className="max-h-[220px] overflow-y-auto"
-            style={{
-              WebkitOverflowScrolling: 'touch',
-              scrollbarWidth: 'thin',
-            }}
-          >
-            {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-              </div>
-            ) : categorias.length === 0 ? (
-              <div className="p-4 text-center text-sm text-muted-foreground">
-                Nenhuma categoria
-              </div>
-            ) : (
+          {/* Lista de categorias */}
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : categorias.length === 0 ? (
+            <div className="p-4 text-center text-sm text-muted-foreground">
+              Nenhuma categoria
+            </div>
+          ) : (
+            <div
+              ref={scrollRef}
+              onWheel={handleWheel}
+              className="max-h-[220px] overflow-y-auto scroll-smooth"
+              style={{ overscrollBehavior: 'contain' }}
+            >
               <div className="p-1.5">
                 {categorias.map((categoria) => (
                   <div
@@ -247,8 +258,8 @@ export function CategoriaSelect({
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+            </ScrollArea>
+          )}
 
           {/* Botão criar nova */}
           {onCreateNew && (
