@@ -560,6 +560,7 @@ export interface CalendarEvent {
   isAllDay: boolean
   meetLink?: string
   htmlLink?: string
+  responseStatus?: 'accepted' | 'tentative' | 'needsAction'
 }
 
 export interface GoogleCalendarStatus {
@@ -595,9 +596,10 @@ export const googleCalendarApi = {
    * Busca eventos próximos do calendário
    * @param maxResults - Número máximo de eventos (default: 10)
    * @param daysAhead - Dias à frente para buscar (default: 7)
+   * @param includeTentative - Incluir eventos "talvez" (default: true)
    */
-  getEvents: (maxResults = 10, daysAhead = 7): Promise<{ events: CalendarEvent[] }> =>
-    request(`/api/google-calendar/events?maxResults=${maxResults}&daysAhead=${daysAhead}`),
+  getEvents: (maxResults = 10, daysAhead = 7, includeTentative = true): Promise<{ events: CalendarEvent[] }> =>
+    request(`/api/google-calendar/events?maxResults=${maxResults}&daysAhead=${daysAhead}&includeTentative=${includeTentative}`),
 }
 
 /**

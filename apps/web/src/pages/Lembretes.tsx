@@ -5,15 +5,56 @@
  * Mostra eventos próximos com tempo restante até cada compromisso.
  */
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Bell, Calendar, Clock, MapPin, Link2, Unlink, Loader2, RefreshCw, Settings, Video, ExternalLink, X } from 'lucide-react'
+import { Bell, Calendar, Clock, MapPin, Link2, Unlink, Loader2, RefreshCw, Settings, Video, ExternalLink, X, HelpCircle, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { googleCalendarApi, type CalendarEvent } from '@/lib/api'
 import { useAuthStore } from '@/stores/useAuthStore'
 
 // Limite de caracteres para descrição truncada
 const DESCRIPTION_CHAR_LIMIT = 150
+
+// Intervalo de atualização do timeUntil (1 minuto)
+const TIME_UPDATE_INTERVAL = 60 * 1000
+
+/**
+ * Calcula tempo até o evento (recalculado em tempo real)
+ */
+function calculateTimeUntil(startTime: string, isAllDay: boolean): string {
+  const now = new Date()
+
+  if (isAllDay) {
+    // Para eventos de dia inteiro
+    const [year, month, day] = startTime.split('-').map(Number)
+    const start = new Date(year, month - 1, day, 0, 0, 0)
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const diffDays = Math.floor((start.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24))
+
+    if (diffDays < 0) return 'Passou'
+    if (diffDays === 0) return 'Hoje'
+    if (diffDays === 1) return 'Amanhã'
+    return `Em ${diffDays} dias`
+  }
+
+  // Para eventos com hora específica
+  const start = new Date(startTime)
+  const diffMs = start.getTime() - now.getTime()
+  const diffMins = Math.round(diffMs / 60000)
+
+  if (diffMins < 0) return 'Agora'
+  if (diffMins === 0) return 'Agora'
+  if (diffMins === 1) return 'Em 1 minuto'
+  if (diffMins < 60) return `Em ${diffMins} minutos`
+
+  const diffHours = Math.round(diffMins / 60)
+  if (diffHours === 1) return 'Em 1 hora'
+  if (diffHours < 24) return `Em ${diffHours} horas`
+
+  const diffDays = Math.round(diffHours / 24)
+  if (diffDays === 1) return 'Amanhã'
+  return `Em ${diffDays} dias`
+}
 
 /**
  * Remove tags HTML e converte entidades HTML para texto
@@ -36,11 +77,22 @@ function stripHtml(html: string): string {
 }
 
 /**
- * Extrai URLs de um texto HTML ou plain text
+ * Extrai URLs válidas de um texto HTML ou plain text
+ * Usa try-catch para evitar crash com URLs malformadas
  */
 function extractUrls(text: string): string[] {
   const urlRegex = /https?:\/\/[^\s<>"]+/g
-  return text.match(urlRegex) || []
+  const matches = text.match(urlRegex) || []
+
+  // Filtra apenas URLs válidas
+  return matches.filter(url => {
+    try {
+      new URL(url)
+      return true
+    } catch {
+      return false
+    }
+  })
 }
 
 interface LembretesProps {
@@ -56,9 +108,29 @@ export function Lembretes({ onOpenConfig }: LembretesProps) {
   const [isConnecting, setIsConnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
+  const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false)
+  const [includeTentative, setIncludeTentative] = useState(true)
+  const [tokenRevoked, setTokenRevoked] = useState(false)
+  const [, setTimeUpdateTick] = useState(0) // Força re-render para atualizar timeUntil
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Extrai nome do usuário (primeiro nome apenas)
   const primeiroNome = usuario?.nome?.split(' ')[0] || 'Usuário'
+
+  // Timer para atualizar timeUntil a cada minuto
+  useEffect(() => {
+    if (events.length > 0 && isConnected) {
+      timerRef.current = setInterval(() => {
+        setTimeUpdateTick(t => t + 1)
+      }, TIME_UPDATE_INTERVAL)
+
+      return () => {
+        if (timerRef.current) {
+          clearInterval(timerRef.current)
+        }
+      }
+    }
+  }, [events.length, isConnected])
 
   // Verifica status da conexão
   const checkStatus = useCallback(async () => {
@@ -66,6 +138,7 @@ export function Lembretes({ onOpenConfig }: LembretesProps) {
       const status = await googleCalendarApi.getStatus()
       setIsConfigured(status.configured)
       setIsConnected(status.connected)
+      setTokenRevoked(false)
       return status.connected
     } catch {
       setIsConfigured(false)
@@ -78,15 +151,33 @@ export function Lembretes({ onOpenConfig }: LembretesProps) {
   const fetchEvents = useCallback(async () => {
     setIsLoading(true)
     setError(null)
+    setTokenRevoked(false)
     try {
-      const { events } = await googleCalendarApi.getEvents(20, 7)
+      const { events } = await googleCalendarApi.getEvents(20, 7, includeTentative)
       setEvents(events)
-    } catch (err) {
-      setError('Não foi possível carregar os eventos')
+    } catch (err: unknown) {
+      const error = err as { message?: string; error?: string }
+      // Detecta erro de token revogado
+      if (error.error === 'TOKEN_REVOKED' || error.message?.includes('TOKEN_REVOKED')) {
+        setTokenRevoked(true)
+        setIsConnected(false)
+        setEvents([])
+        setError('Sua conexão com o Google Calendar expirou.')
+      } else {
+        setError('Não foi possível carregar os eventos')
+      }
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [includeTentative])
+
+  // Recarrega quando muda a opção de tentative
+  useEffect(() => {
+    if (isConnected && !isLoading) {
+      fetchEvents()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [includeTentative])
 
   // Inicializa verificando status e buscando eventos se conectado
   useEffect(() => {
@@ -128,13 +219,20 @@ export function Lembretes({ onOpenConfig }: LembretesProps) {
     }
   }
 
+  // Confirma desconexão
+  const confirmDisconnect = () => {
+    setShowDisconnectConfirm(true)
+  }
+
   // Desconecta do Google Calendar
   const handleDisconnect = async () => {
+    setShowDisconnectConfirm(false)
     setIsLoading(true)
     try {
       await googleCalendarApi.disconnect()
       setIsConnected(false)
       setEvents([])
+      setTokenRevoked(false)
     } catch {
       setError('Falha ao desconectar')
     } finally {
@@ -261,9 +359,11 @@ export function Lembretes({ onOpenConfig }: LembretesProps) {
         primeiroNome={primeiroNome}
         onOpenConfig={onOpenConfig}
         onRefresh={fetchEvents}
-        onDisconnect={handleDisconnect}
+        onDisconnect={confirmDisconnect}
         isLoading={isLoading}
         isConnected={isConnected}
+        includeTentative={includeTentative}
+        onToggleTentative={() => setIncludeTentative(!includeTentative)}
       />
 
       <main className="max-w-5xl mx-auto p-4 space-y-6">
@@ -338,6 +438,90 @@ export function Lembretes({ onOpenConfig }: LembretesProps) {
         event={selectedEvent}
         onClose={() => setSelectedEvent(null)}
       />
+
+      {/* Diálogo de confirmação de desconexão */}
+      <AnimatePresence>
+        {showDisconnectConfirm && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowDisconnectConfirm(false)}
+              className="fixed inset-0 bg-black/50 z-50"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[90%] max-w-sm bg-background rounded-2xl p-6 shadow-xl"
+            >
+              <div className="text-center space-y-4">
+                <div className="w-12 h-12 mx-auto bg-destructive/10 rounded-full flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6 text-destructive" />
+                </div>
+                <h3 className="text-corpo-medium font-semibold text-foreground">
+                  Desconectar Google Calendar?
+                </h3>
+                <p className="text-pequeno text-muted-foreground">
+                  Você não verá mais seus eventos aqui. Pode reconectar a qualquer momento.
+                </p>
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => setShowDisconnectConfirm(false)}
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-secondary text-foreground font-medium hover:bg-secondary/80 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleDisconnect}
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-destructive text-white font-medium hover:bg-destructive/90 transition-colors"
+                  >
+                    Desconectar
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Token revogado - prompt para reconectar */}
+      <AnimatePresence>
+        {tokenRevoked && !isConnected && !isLoading && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-24 left-4 right-4 z-40 max-w-lg mx-auto"
+          >
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 space-y-2">
+                <p className="text-corpo text-foreground font-medium">
+                  Conexão expirada
+                </p>
+                <p className="text-pequeno text-muted-foreground">
+                  Sua autorização com o Google Calendar expirou. Reconecte para ver seus eventos.
+                </p>
+                <button
+                  onClick={handleConnect}
+                  disabled={isConnecting}
+                  className="text-pequeno text-rosa font-medium hover:underline"
+                >
+                  {isConnecting ? 'Conectando...' : 'Reconectar agora'}
+                </button>
+              </div>
+              <button
+                onClick={() => setTokenRevoked(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -352,6 +536,11 @@ interface EventCardProps {
 }
 
 function EventCard({ event, groupIndex, eventIndex, formatDateTime, onShowDescription }: EventCardProps) {
+  // Recalcula timeUntil em tempo real (atualizado pelo timer do componente pai)
+  const timeUntil = useMemo(() => {
+    return calculateTimeUntil(event.startTime, event.isAllDay)
+  }, [event.startTime, event.isAllDay])
+
   const cleanDescription = useMemo(() => {
     if (!event.description) return null
     return stripHtml(event.description)
@@ -367,20 +556,33 @@ function EventCard({ event, groupIndex, eventIndex, formatDateTime, onShowDescri
     ? cleanDescription.substring(0, DESCRIPTION_CHAR_LIMIT) + '...'
     : cleanDescription
 
+  // Verifica se é evento "talvez"
+  const isTentative = event.responseStatus === 'tentative'
+
   return (
     <motion.div
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: groupIndex * 0.05 + eventIndex * 0.03 }}
-      className="bg-card border border-border rounded-xl p-4 space-y-3"
+      className={cn(
+        "bg-card border rounded-xl p-4 space-y-3",
+        isTentative ? "border-amber-500/30 bg-amber-500/5" : "border-border"
+      )}
     >
-      {/* Header: título + badge de tempo */}
+      {/* Header: título + badges */}
       <div className="flex items-start justify-between gap-3">
-        <h4 className="text-corpo font-medium text-foreground flex-1">
-          {event.title}
-        </h4>
+        <div className="flex-1 flex items-start gap-2">
+          <h4 className="text-corpo font-medium text-foreground">
+            {event.title}
+          </h4>
+          {isTentative && (
+            <span className="text-[10px] bg-amber-500/20 text-amber-600 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+              talvez
+            </span>
+          )}
+        </div>
         <span className="text-pequeno bg-rosa/10 text-rosa px-2.5 py-1 rounded-full whitespace-nowrap">
-          {event.timeUntil}
+          {timeUntil}
         </span>
       </div>
 
@@ -609,9 +811,13 @@ interface HeaderProps {
   onDisconnect?: () => void
   isLoading?: boolean
   isConnected?: boolean
+  includeTentative?: boolean
+  onToggleTentative?: () => void
 }
 
-function Header({ primeiroNome, onOpenConfig, onRefresh, onDisconnect, isLoading, isConnected }: HeaderProps) {
+function Header({ primeiroNome, onOpenConfig, onRefresh, onDisconnect, isLoading, isConnected, includeTentative, onToggleTentative }: HeaderProps) {
+  const [showMenu, setShowMenu] = useState(false)
+
   return (
     <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
       <div className="max-w-5xl mx-auto">
@@ -645,20 +851,81 @@ function Header({ primeiroNome, onOpenConfig, onRefresh, onDisconnect, isLoading
               </button>
             )}
 
-            {/* Botão de desconectar */}
-            {isConnected && onDisconnect && (
-              <button
-                type="button"
-                onClick={onDisconnect}
-                className={cn(
-                  'flex items-center justify-center w-10 h-10 rounded-xl',
-                  'text-muted-foreground hover:text-destructive hover:bg-destructive/10',
-                  'transition-colors active:scale-95'
-                )}
-                aria-label="Desconectar Google Calendar"
-              >
-                <Unlink className="w-5 h-5" />
-              </button>
+            {/* Menu de opções (filtro + desconectar) */}
+            {isConnected && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowMenu(!showMenu)}
+                  className={cn(
+                    'flex items-center justify-center w-10 h-10 rounded-xl',
+                    'text-muted-foreground hover:text-foreground hover:bg-accent',
+                    'transition-colors active:scale-95'
+                  )}
+                  aria-label="Opções"
+                >
+                  <HelpCircle className="w-5 h-5" />
+                </button>
+
+                <AnimatePresence>
+                  {showMenu && (
+                    <>
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setShowMenu(false)}
+                        className="fixed inset-0 z-10"
+                      />
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                        className="absolute right-0 top-12 w-56 bg-card border border-border rounded-xl shadow-lg z-20 overflow-hidden"
+                      >
+                        {/* Toggle eventos "talvez" */}
+                        {onToggleTentative && (
+                          <button
+                            onClick={() => {
+                              onToggleTentative()
+                              setShowMenu(false)
+                            }}
+                            className="w-full px-4 py-3 flex items-center justify-between hover:bg-accent transition-colors"
+                          >
+                            <span className="text-pequeno text-foreground">Mostrar "talvez"</span>
+                            <div className={cn(
+                              'w-9 h-5 rounded-full transition-colors relative',
+                              includeTentative ? 'bg-verde' : 'bg-muted'
+                            )}>
+                              <div className={cn(
+                                'absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform',
+                                includeTentative ? 'left-[18px]' : 'left-0.5'
+                              )} />
+                            </div>
+                          </button>
+                        )}
+
+                        {/* Separador */}
+                        <div className="border-t border-border" />
+
+                        {/* Desconectar */}
+                        {onDisconnect && (
+                          <button
+                            onClick={() => {
+                              onDisconnect()
+                              setShowMenu(false)
+                            }}
+                            className="w-full px-4 py-3 flex items-center gap-2 text-destructive hover:bg-destructive/10 transition-colors"
+                          >
+                            <Unlink className="w-4 h-4" />
+                            <span className="text-pequeno">Desconectar</span>
+                          </button>
+                        )}
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
             )}
 
             {/* Botão de configurações */}

@@ -171,6 +171,16 @@ export async function isConnected(usuarioId: string): Promise<boolean> {
 }
 
 /**
+ * Erro específico para token revogado
+ */
+export class TokenRevokedError extends Error {
+  constructor() {
+    super('TOKEN_REVOKED')
+    this.name = 'TokenRevokedError'
+  }
+}
+
+/**
  * Obtém access token válido, renovando se necessário
  */
 async function getValidAccessToken(usuarioId: string): Promise<string> {
@@ -193,21 +203,36 @@ async function getValidAccessToken(usuarioId: string): Promise<string> {
     refresh_token: tokens.refreshToken,
   })
 
-  const { credentials } = await oauth2Client.refreshAccessToken()
+  try {
+    const { credentials } = await oauth2Client.refreshAccessToken()
 
-  if (!credentials.access_token) {
-    throw new Error('Falha ao renovar token')
+    if (!credentials.access_token) {
+      throw new Error('Falha ao renovar token')
+    }
+
+    // Salvar novo access token
+    await saveTokens(
+      usuarioId,
+      credentials.access_token,
+      tokens.refreshToken,
+      credentials.expiry_date || Date.now() + 3600 * 1000
+    )
+
+    return credentials.access_token
+  } catch (error: unknown) {
+    // Detecta se o token foi revogado pelo usuário
+    const err = error as { message?: string; code?: number }
+    if (
+      err.message?.includes('invalid_grant') ||
+      err.message?.includes('Token has been expired or revoked') ||
+      err.code === 401
+    ) {
+      // Remove tokens inválidos do banco
+      await removeTokens(usuarioId)
+      throw new TokenRevokedError()
+    }
+    throw error
   }
-
-  // Salvar novo access token
-  await saveTokens(
-    usuarioId,
-    credentials.access_token,
-    tokens.refreshToken,
-    credentials.expiry_date || Date.now() + 3600 * 1000
-  )
-
-  return credentials.access_token
 }
 
 /**
@@ -224,6 +249,7 @@ export interface CalendarEvent {
   isAllDay: boolean
   meetLink?: string
   htmlLink?: string
+  responseStatus?: 'accepted' | 'tentative' | 'needsAction' // Status de resposta do usuário
 }
 
 /**
@@ -271,14 +297,24 @@ function calculateTimeUntil(eventStart: string, isAllDay: boolean): string {
 }
 
 /**
+ * Opções para busca de eventos
+ */
+export interface GetEventsOptions {
+  maxResults?: number
+  daysAhead?: number
+  includeTentative?: boolean // Se deve incluir eventos com resposta "talvez"
+}
+
+/**
  * Busca eventos do calendário do usuário
- * Filtra eventos que o usuário recusou (declined)
+ * Filtra eventos que o usuário recusou (declined) e eventos já passados
  */
 export async function getUpcomingEvents(
   usuarioId: string,
-  maxResults: number = 10,
-  daysAhead: number = 7
+  options: GetEventsOptions = {}
 ): Promise<CalendarEvent[]> {
+  const { maxResults = 10, daysAhead = 7, includeTentative = true } = options
+
   const accessToken = await getValidAccessToken(usuarioId)
 
   const oauth2Client = createOAuth2Client()
@@ -301,19 +337,42 @@ export async function getUpcomingEvents(
 
   const events = response.data.items || []
 
-  // Filtra eventos que o usuário recusou
+  // Filtra eventos
   const filteredEvents = events.filter((event: calendar_v3.Schema$Event) => {
-    // Se não tem attendees, é um evento próprio - mantém
+    // 1. Filtra eventos já passados (verifica endTime)
+    const eventEnd = event.end?.dateTime || event.end?.date
+    if (eventEnd) {
+      const endTime = event.end?.dateTime
+        ? new Date(eventEnd)
+        : (() => {
+            // Para eventos de dia inteiro, o end é o dia seguinte às 00:00
+            const [year, month, day] = eventEnd.split('-').map(Number)
+            return new Date(year, month - 1, day, 0, 0, 0)
+          })()
+
+      if (endTime < now) {
+        return false // Evento já terminou
+      }
+    }
+
+    // 2. Se não tem attendees, é um evento próprio - mantém
     if (!event.attendees || event.attendees.length === 0) {
       return true
     }
 
-    // Procura o status do usuário (self: true indica o próprio usuário)
+    // 3. Procura o status do usuário (self: true indica o próprio usuário)
     const selfAttendee = event.attendees.find(a => a.self === true)
 
-    // Se encontrou e o status é 'declined', remove o evento
-    if (selfAttendee && selfAttendee.responseStatus === 'declined') {
-      return false
+    if (selfAttendee) {
+      // Remove eventos recusados
+      if (selfAttendee.responseStatus === 'declined') {
+        return false
+      }
+
+      // Remove eventos "talvez" se a opção estiver desabilitada
+      if (!includeTentative && selfAttendee.responseStatus === 'tentative') {
+        return false
+      }
     }
 
     return true
@@ -332,6 +391,10 @@ export async function getUpcomingEvents(
       ep => ep.entryPointType === 'video'
     )?.uri || event.hangoutLink || undefined
 
+    // Verifica status de resposta do usuário
+    const selfAttendee = event.attendees?.find(a => a.self === true)
+    const responseStatus = selfAttendee?.responseStatus as 'accepted' | 'tentative' | 'needsAction' | undefined
+
     return {
       id: event.id || '',
       title: event.summary || 'Sem título',
@@ -343,6 +406,7 @@ export async function getUpcomingEvents(
       isAllDay,
       meetLink,
       htmlLink: event.htmlLink || undefined,
+      responseStatus, // Novo campo para indicar se é "talvez"
     }
   })
 }

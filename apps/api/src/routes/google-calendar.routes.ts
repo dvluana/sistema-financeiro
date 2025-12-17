@@ -8,6 +8,7 @@
 import { FastifyInstance } from 'fastify'
 import { requireAuth } from '../middleware/auth.middleware.js'
 import * as calendarService from '../services/google-calendar.service.js'
+import { TokenRevokedError } from '../services/google-calendar.service.js'
 
 // Regex para validar UUID
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -161,14 +162,16 @@ export async function googleCalendarRoutes(app: FastifyInstance) {
     }
 
     const usuarioId = request.usuario!.id
-    const { maxResults = '10', daysAhead = '7' } = request.query as {
+    const { maxResults = '10', daysAhead = '7', includeTentative = 'true' } = request.query as {
       maxResults?: string
       daysAhead?: string
+      includeTentative?: string
     }
 
     // Valida e limita parâmetros para prevenir DoS
     const maxResultsNum = parseInt(maxResults, 10)
     const daysAheadNum = parseInt(daysAhead, 10)
+    const includeTentativeBool = includeTentative !== 'false'
 
     if (!Number.isFinite(maxResultsNum) || maxResultsNum < 1 || maxResultsNum > 100) {
       return reply.status(400).send({ error: 'maxResults deve ser entre 1 e 100' })
@@ -178,16 +181,25 @@ export async function googleCalendarRoutes(app: FastifyInstance) {
     }
 
     try {
-      const events = await calendarService.getUpcomingEvents(
-        usuarioId,
-        maxResultsNum,
-        daysAheadNum
-      )
+      const events = await calendarService.getUpcomingEvents(usuarioId, {
+        maxResults: maxResultsNum,
+        daysAhead: daysAheadNum,
+        includeTentative: includeTentativeBool,
+      })
 
       return reply.send({ events })
     } catch (err: unknown) {
-      const error = err as Error
       request.log.error(err, 'Failed to fetch calendar events')
+
+      // Token foi revogado pelo usuário - retorna erro específico
+      if (err instanceof TokenRevokedError) {
+        return reply.status(401).send({
+          error: 'TOKEN_REVOKED',
+          message: 'Sua conexão com o Google Calendar expirou. Por favor, reconecte.',
+        })
+      }
+
+      const error = err as Error
 
       // Se token inválido, retornar status específico
       if (error.message?.includes('não conectado')) {
