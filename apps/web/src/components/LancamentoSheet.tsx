@@ -411,7 +411,7 @@ export function LancamentoSheet({
                 )}
 
                 {/* Atalhos de valores */}
-                <div className="flex flex-wrap gap-1.5">
+                <div className="grid grid-cols-5 gap-1.5">
                   {[50, 100, 200, 500, 1000].map((v) => (
                     <button
                       key={v}
@@ -421,14 +421,14 @@ export function LancamentoSheet({
                         if (errors.valor) setErrors(prev => ({ ...prev, valor: undefined }))
                       }}
                       className={cn(
-                        "px-3 py-1.5 text-xs font-medium rounded-lg transition-all",
+                        "py-1.5 text-xs font-medium rounded-lg transition-all",
                         "bg-secondary/60 hover:bg-secondary",
                         "text-muted-foreground hover:text-foreground",
                         "border border-transparent hover:border-border",
                         valor === v.toString() && "bg-primary/10 text-primary border-primary/30"
                       )}
                     >
-                      {v.toLocaleString('pt-BR')}
+                      R$ {v.toLocaleString('pt-BR')}
                     </button>
                   ))}
                 </div>
