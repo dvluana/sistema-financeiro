@@ -2,11 +2,11 @@
  * NavigationBar Component
  *
  * Barra de navegação responsiva:
- * - Desktop: Navbar horizontal no topo ou sidebar lateral
+ * - Desktop: Sidebar lateral com opção de colapsar
  * - Mobile: Bottom tab bar
  */
 
-import { Home, Bell, BarChart3, Settings } from 'lucide-react'
+import { Home, Bell, BarChart3, Settings, PanelLeftClose, PanelLeft } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -21,6 +21,10 @@ import {
 
 export type TabType = 'inicio' | 'lembretes' | 'relatorios'
 
+// Larguras do sidebar
+export const SIDEBAR_WIDTH_EXPANDED = 256 // w-64
+export const SIDEBAR_WIDTH_COLLAPSED = 72 // w-18
+
 interface Tab {
   id: TabType
   label: string
@@ -34,16 +38,20 @@ interface NavigationBarProps {
   onTabChange: (tab: TabType) => void
   pendingCount?: number
   onOpenSettings?: () => void
+  isCollapsed?: boolean
+  onToggleCollapse?: () => void
 }
 
-export function NavigationBar({ 
-  activeTab, 
-  onTabChange, 
+export function NavigationBar({
+  activeTab,
+  onTabChange,
   pendingCount = 0,
-  onOpenSettings 
+  onOpenSettings,
+  isCollapsed = false,
+  onToggleCollapse,
 }: NavigationBarProps) {
   const isDesktop = useIsDesktop()
-  
+
   const tabs: Tab[] = [
     {
       id: 'inicio',
@@ -66,43 +74,79 @@ export function NavigationBar({
     },
   ]
 
-  // Desktop: Sidebar lateral
+  // Desktop: Sidebar lateral com opção de colapsar
   if (isDesktop) {
     return (
-      <TooltipProvider>
+      <TooltipProvider delayDuration={0}>
         <motion.aside
           initial={{ x: -300 }}
-          animate={{ x: 0 }}
+          animate={{
+            x: 0,
+            width: isCollapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH_EXPANDED,
+          }}
+          transition={{
+            width: { type: "spring", stiffness: 300, damping: 30 },
+            x: { type: "spring", stiffness: 300, damping: 30 },
+          }}
           className={cn(
             "fixed left-0 top-0 h-full z-40",
-            "w-64 bg-card border-r border-border",
-            "flex flex-col"
+            "bg-card border-r border-border",
+            "flex flex-col overflow-hidden"
           )}
         >
           {/* Header da Sidebar */}
-          <div className="p-6 border-b border-border">
-            <h2 className="text-xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-              Sistema Financeiro
-            </h2>
+          <div className={cn(
+            "border-b border-border transition-all duration-200",
+            isCollapsed ? "p-4" : "p-6"
+          )}>
+            <div className="flex items-center gap-3">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" className="shrink-0">
+                <defs>
+                  <linearGradient id="favGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style={{ stopColor: '#FF385C', stopOpacity: 1 }} />
+                    <stop offset="100%" style={{ stopColor: '#E31C5F', stopOpacity: 1 }} />
+                  </linearGradient>
+                </defs>
+                <circle cx="16" cy="16" r="16" fill="url(#favGradient)"/>
+                <text x="16" y="22" fontFamily="system-ui, -apple-system, sans-serif" fontSize="18" fontWeight="700" fill="white" textAnchor="middle">F</text>
+              </svg>
+              <AnimatePresence mode="wait">
+                {!isCollapsed && (
+                  <motion.h2
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    transition={{ duration: 0.15 }}
+                    className="text-xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent whitespace-nowrap"
+                  >
+                    Financify
+                  </motion.h2>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
 
           {/* Navegação */}
-          <nav className="flex-1 p-4 space-y-2">
+          <nav className={cn(
+            "flex-1 space-y-2 transition-all duration-200",
+            isCollapsed ? "p-2" : "p-4"
+          )}>
             {tabs.map((tab) => {
               const Icon = tab.icon
               const isActive = activeTab === tab.id
-              
+
               return (
                 <Tooltip key={tab.id}>
                   <TooltipTrigger asChild>
                     <button
                       onClick={() => onTabChange(tab.id)}
                       className={cn(
-                        "relative w-full flex items-center gap-3 px-4 py-3 rounded-xl",
+                        "relative w-full flex items-center rounded-xl",
                         "transition-all duration-200",
                         "hover:bg-accent/50",
                         "group",
-                        isActive && "bg-primary/10 text-primary"
+                        isActive && "bg-primary/10 text-primary",
+                        isCollapsed ? "justify-center p-3" : "gap-3 px-4 py-3"
                       )}
                     >
                       {/* Indicador de ativo */}
@@ -119,21 +163,21 @@ export function NavigationBar({
                       </AnimatePresence>
 
                       {/* Ícone */}
-                      <div className="relative">
-                        <Icon 
+                      <div className="relative shrink-0">
+                        <Icon
                           className={cn(
                             "w-5 h-5 transition-all",
-                            isActive 
-                              ? "text-primary" 
+                            isActive
+                              ? "text-primary"
                               : "text-muted-foreground group-hover:text-foreground"
                           )}
                         />
-                        
+
                         {/* Badge */}
                         {tab.badge && (
                           <div className="absolute -top-1 -right-1">
-                            <Badge 
-                              variant="destructive" 
+                            <Badge
+                              variant="destructive"
                               className="h-4 min-w-[16px] px-1 text-[9px] font-medium"
                             >
                               {tab.badge > 9 ? '9+' : tab.badge}
@@ -142,49 +186,129 @@ export function NavigationBar({
                         )}
                       </div>
 
-                      {/* Label e descrição */}
-                      <div className="flex-1 text-left">
-                        <p className={cn(
-                          "font-medium text-sm",
-                          isActive 
-                            ? "text-primary" 
-                            : "text-foreground"
-                        )}>
-                          {tab.label}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {tab.description}
-                        </p>
-                      </div>
+                      {/* Label e descrição - só mostra quando expandido */}
+                      <AnimatePresence mode="wait">
+                        {!isCollapsed && (
+                          <motion.div
+                            initial={{ opacity: 0, width: 0 }}
+                            animate={{ opacity: 1, width: "auto" }}
+                            exit={{ opacity: 0, width: 0 }}
+                            transition={{ duration: 0.15 }}
+                            className="flex-1 text-left overflow-hidden"
+                          >
+                            <p className={cn(
+                              "font-medium text-sm whitespace-nowrap",
+                              isActive
+                                ? "text-primary"
+                                : "text-foreground"
+                            )}>
+                              {tab.label}
+                            </p>
+                            <p className="text-xs text-muted-foreground whitespace-nowrap">
+                              {tab.description}
+                            </p>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
 
-                      {/* Indicador visual de ativo */}
-                      {isActive && (
+                      {/* Indicador visual de ativo - só mostra quando expandido */}
+                      {isActive && !isCollapsed && (
                         <motion.div
                           initial={{ scale: 0 }}
                           animate={{ scale: 1 }}
-                          className="w-2 h-2 bg-primary rounded-full"
+                          className="w-2 h-2 bg-primary rounded-full shrink-0"
                         />
                       )}
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="right">
-                    {tab.description}
-                  </TooltipContent>
+                  {isCollapsed && (
+                    <TooltipContent side="right" sideOffset={8}>
+                      <p className="font-medium">{tab.label}</p>
+                      <p className="text-xs text-muted-foreground">{tab.description}</p>
+                    </TooltipContent>
+                  )}
                 </Tooltip>
               )
             })}
           </nav>
 
-          {/* Footer com configurações */}
-          <div className="p-4 border-t border-border">
-            <Button
-              variant="ghost"
-              onClick={onOpenSettings}
-              className="w-full justify-start gap-3"
-            >
-              <Settings className="w-5 h-5" />
-              <span className="text-sm font-medium">Configurações</span>
-            </Button>
+          {/* Footer com configurações e toggle */}
+          <div className={cn(
+            "border-t border-border space-y-2 transition-all duration-200",
+            isCollapsed ? "p-2" : "p-4"
+          )}>
+            {/* Botão de configurações */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  onClick={onOpenSettings}
+                  className={cn(
+                    "w-full",
+                    isCollapsed ? "justify-center px-3" : "justify-start gap-3"
+                  )}
+                >
+                  <Settings className="w-5 h-5 shrink-0" />
+                  <AnimatePresence mode="wait">
+                    {!isCollapsed && (
+                      <motion.span
+                        initial={{ opacity: 0, width: 0 }}
+                        animate={{ opacity: 1, width: "auto" }}
+                        exit={{ opacity: 0, width: 0 }}
+                        transition={{ duration: 0.15 }}
+                        className="text-sm font-medium whitespace-nowrap overflow-hidden"
+                      >
+                        Configurações
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </Button>
+              </TooltipTrigger>
+              {isCollapsed && (
+                <TooltipContent side="right" sideOffset={8}>
+                  Configurações
+                </TooltipContent>
+              )}
+            </Tooltip>
+
+            {/* Botão de toggle do menu */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onToggleCollapse}
+                  className={cn(
+                    "w-full text-muted-foreground hover:text-foreground",
+                    isCollapsed ? "justify-center px-3" : "justify-start gap-3"
+                  )}
+                >
+                  {isCollapsed ? (
+                    <PanelLeft className="w-5 h-5 shrink-0" />
+                  ) : (
+                    <PanelLeftClose className="w-5 h-5 shrink-0" />
+                  )}
+                  <AnimatePresence mode="wait">
+                    {!isCollapsed && (
+                      <motion.span
+                        initial={{ opacity: 0, width: 0 }}
+                        animate={{ opacity: 1, width: "auto" }}
+                        exit={{ opacity: 0, width: 0 }}
+                        transition={{ duration: 0.15 }}
+                        className="text-sm whitespace-nowrap overflow-hidden"
+                      >
+                        Recolher menu
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </Button>
+              </TooltipTrigger>
+              {isCollapsed && (
+                <TooltipContent side="right" sideOffset={8}>
+                  Expandir menu
+                </TooltipContent>
+              )}
+            </Tooltip>
           </div>
         </motion.aside>
       </TooltipProvider>

@@ -11,7 +11,9 @@ import { useState, useCallback, lazy, Suspense } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useFinanceiroStore } from '@/stores/useFinanceiroStore'
 import { useDashboardStore } from '@/stores/useDashboardStore'
-import { NavigationBar, type TabType } from '@/components/NavigationBar'
+import { NavigationBar, type TabType, SIDEBAR_WIDTH_EXPANDED, SIDEBAR_WIDTH_COLLAPSED } from '@/components/NavigationBar'
+import { useSidebarCollapsed } from '@/hooks/useSidebarCollapsed'
+import { useIsDesktop } from '@/hooks/useMediaQuery'
 import { Dashboard } from './Dashboard'
 import { Insights } from './Insights'
 import { Lembretes } from './Lembretes'
@@ -40,6 +42,10 @@ const FilhoSheet = lazy(() =>
 export function Home() {
   // Tab ativo
   const [activeTab, setActiveTab] = useState<TabType>('inicio')
+
+  // Estado do sidebar colapsado
+  const { isCollapsed, toggle: toggleSidebar } = useSidebarCollapsed()
+  const isDesktop = useIsDesktop()
 
   // Estado global financeiro
   const {
@@ -263,31 +269,55 @@ export function Home() {
 
   /**
    * Confirma lançamentos do Quick Input
-   * Usa endpoint batch para criar todos de uma vez (melhor performance)
+   * Separa recorrentes (endpoint individual) de normais (batch)
    */
   const handleQuickInputConfirm = async (lancamentos: ParsedLancamento[]) => {
-    // Prepara dados para o batch
-    const lancamentosData: CriarLancamentoInput[] = lancamentos.map(l => {
+    // Separa lançamentos com e sem recorrência
+    const comRecorrencia = lancamentos.filter(l => l.recorrencia)
+    const semRecorrencia = lancamentos.filter(l => !l.recorrencia)
+
+    // 1. Cria lançamentos normais em batch
+    if (semRecorrencia.length > 0) {
+      const lancamentosData: CriarLancamentoInput[] = semRecorrencia.map(l => {
+        const isAgrupador = l.isAgrupador || false
+        const valorModo = l.valorModo || 'soma'
+
+        return {
+          tipo: l.tipo,
+          nome: l.nome,
+          valor: isAgrupador && valorModo === 'soma' ? 0 : (l.valor ?? 0),
+          mes: l.mes,
+          concluido: l.concluido || false,
+          data_prevista: l.diaPrevisto
+            ? `${l.mes}-${String(l.diaPrevisto).padStart(2, '0')}`
+            : null,
+          categoria_id: l.categoriaId || undefined,
+          is_agrupador: isAgrupador,
+          valor_modo: valorModo,
+        }
+      })
+
+      await lancamentosApi.criarLote(lancamentosData)
+    }
+
+    // 2. Cria lançamentos recorrentes individualmente
+    for (const l of comRecorrencia) {
       const isAgrupador = l.isAgrupador || false
       const valorModo = l.valorModo || 'soma'
 
-      return {
+      await criarLancamentoRecorrente({
         tipo: l.tipo,
         nome: l.nome,
-        valor: isAgrupador && valorModo === 'soma' ? 0 : (l.valor ?? 0), // Grupo com soma começa com valor 0
-        mes: l.mes,
+        valor: isAgrupador && valorModo === 'soma' ? 0 : (l.valor ?? 0),
+        mes_inicial: l.mes,
+        dia_previsto: l.diaPrevisto,
         concluido: l.concluido || false,
-        data_prevista: l.diaPrevisto
-          ? `${l.mes}-${String(l.diaPrevisto).padStart(2, '0')}`
-          : null,
         categoria_id: l.categoriaId || undefined,
         is_agrupador: isAgrupador,
         valor_modo: valorModo,
-      }
-    })
-
-    // Cria todos os lançamentos em uma única requisição
-    await lancamentosApi.criarLote(lancamentosData)
+        recorrencia: l.recorrencia!,
+      })
+    }
 
     // Recarrega dados
     await carregarMes(mesSelecionado)
@@ -300,17 +330,30 @@ export function Home() {
     saida: Boolean(configuracoes.saidas_auto_pago),
   }
 
+  // Calcula a margem do conteúdo baseado no estado do sidebar
+  const sidebarMargin = isDesktop
+    ? isCollapsed
+      ? SIDEBAR_WIDTH_COLLAPSED
+      : SIDEBAR_WIDTH_EXPANDED
+    : 0
+
   return (
     <div className="min-h-screen flex">
       {/* Navegação - Sidebar no desktop, bottom bar no mobile */}
-      <NavigationBar 
-        activeTab={activeTab} 
+      <NavigationBar
+        activeTab={activeTab}
         onTabChange={setActiveTab}
         onOpenSettings={() => setConfigDrawerOpen(true)}
+        isCollapsed={isCollapsed}
+        onToggleCollapse={toggleSidebar}
       />
 
-      {/* Container principal com padding para sidebar no desktop */}
-      <div className="flex-1 lg:ml-64">
+      {/* Container principal com margem animada para sidebar */}
+      <motion.div
+        className="flex-1"
+        animate={{ marginLeft: sidebarMargin }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      >
         {/* Conteúdo das telas com crossfade */}
         <AnimatePresence mode="wait">
         {activeTab === 'inicio' && (

@@ -14,7 +14,6 @@ import {
   ChevronDown,
   Plus,
   Check,
-  MoreHorizontal,
   Pencil,
   Trash2,
   User,
@@ -69,7 +68,6 @@ interface WorkspaceSwitcherProps {
 
 export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingPerfil, setEditingPerfil] = useState<Perfil | null>(null)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
@@ -78,9 +76,12 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [editingInlineId, setEditingInlineId] = useState<string | null>(null)
+  const [editingName, setEditingName] = useState('')
+  const [isSavingName, setIsSavingName] = useState(false)
 
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   const {
     perfis,
@@ -88,6 +89,7 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
     carregarPerfis,
     selecionarPerfil,
     arquivarPerfil,
+    atualizarPerfil,
     isLoading,
   } = usePerfilStore()
 
@@ -108,13 +110,21 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
         !dropdownRef.current.contains(event.target as Node)
       ) {
         setIsOpen(false)
-        setMenuOpenId(null)
+        setEditingInlineId(null)
       }
     }
 
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  // Foca no input quando começar a editar
+  useEffect(() => {
+    if (editingInlineId && inputRef.current) {
+      inputRef.current.focus()
+      inputRef.current.select()
+    }
+  }, [editingInlineId])
 
   const handleSelectPerfil = async (perfilId: string) => {
     // Verifica se é o mesmo perfil
@@ -128,7 +138,7 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
 
     setIsSwitching(true)
     setIsOpen(false)
-    setMenuOpenId(null)
+    setEditingInlineId(null)
 
     try {
       // Seleciona o novo perfil
@@ -154,32 +164,64 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
     setIsOpen(false)
   }
 
-  const handleOpenEdit = (perfil: Perfil) => {
-    setEditingPerfil(perfil)
-    setDialogOpen(true)
-    setIsOpen(false)
-    setMenuOpenId(null)
+  const handleStartInlineEdit = (perfil: Perfil, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setEditingInlineId(perfil.id)
+    setEditingName(perfil.nome)
   }
 
-  const handleOpenDelete = (perfil: Perfil) => {
+  const handleSaveInlineName = async (perfilId: string) => {
+    const perfil = perfis.find(p => p.id === perfilId)
+    if (!perfil || isSavingName) return
+
+    const trimmedName = editingName.trim()
+    if (!trimmedName || trimmedName === perfil.nome) {
+      setEditingInlineId(null)
+      return
+    }
+
+    setIsSavingName(true)
+    try {
+      await atualizarPerfil(perfilId, { nome: trimmedName })
+      setToastMessage('Nome atualizado com sucesso!')
+      setEditingInlineId(null)
+    } catch {
+      setToastMessage('Erro ao atualizar nome')
+    } finally {
+      setIsSavingName(false)
+    }
+  }
+
+  const handleInlineKeyDown = (e: React.KeyboardEvent, perfilId: string) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleSaveInlineName(perfilId)
+    } else if (e.key === 'Escape') {
+      setEditingInlineId(null)
+    }
+  }
+
+  const handleOpenDelete = (perfil: Perfil, e: React.MouseEvent) => {
+    e.stopPropagation()
     setDeletingPerfil(perfil)
     setDeleteError(null)
     setDeleteConfirmOpen(true)
-    setIsOpen(false)
-    setMenuOpenId(null)
   }
 
   const handleConfirmDelete = async () => {
     if (!deletingPerfil || isDeleting) return
 
+    const perfilIdToDelete = deletingPerfil.id
+    const perfilName = deletingPerfil.nome
     setIsDeleting(true)
     setDeleteError(null)
+    setDeleteConfirmOpen(false)
 
     try {
-      const wasCurrentPerfil = deletingPerfil.id === perfilAtual?.id
-      await arquivarPerfil(deletingPerfil.id)
-      setDeleteConfirmOpen(false)
+      const wasCurrentPerfil = perfilIdToDelete === perfilAtual?.id
+      await arquivarPerfil(perfilIdToDelete)
       setDeletingPerfil(null)
+      setToastMessage(`Workspace "${perfilName}" excluído com sucesso!`)
 
       // Se arquivou o perfil atual, recarrega dados para o novo perfil
       if (wasCurrentPerfil) {
@@ -191,11 +233,12 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
         ])
       }
     } catch (error) {
-      setDeleteError(
+      setToastMessage(
         error instanceof Error
           ? error.message
-          : 'Erro ao excluir. O workspace pode já ter sido excluído.'
+          : 'Erro ao excluir workspace'
       )
+      setDeletingPerfil(null)
     } finally {
       setIsDeleting(false)
     }
@@ -286,92 +329,96 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
             >
               {/* Lista de workspaces */}
               <div className="py-1 max-h-[280px] overflow-y-auto">
-                {perfis.map((perfil) => (
-                  <div
-                    key={perfil.id}
-                    className="relative group"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => handleSelectPerfil(perfil.id)}
-                      className={cn(
-                        'w-full flex items-center gap-3 px-3 py-2.5',
-                        'hover:bg-accent transition-colors text-left',
-                        perfil.id === perfilAtual.id && 'bg-accent/50'
-                      )}
+                {perfis.map((perfil) => {
+                  const isDeletingThis = isDeleting && deletingPerfil?.id === perfil.id
+
+                  return (
+                    <div
+                      key={perfil.id}
+                      className="relative group"
                     >
-                      {renderIcon(perfil.icone, perfil.cor)}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-corpo font-medium text-foreground truncate">
-                          {perfil.nome}
-                        </p>
-                        {perfil.is_perfil_padrao && (
-                          <p className="text-micro text-muted-foreground">
-                            Workspace principal
-                          </p>
-                        )}
-                      </div>
-                      {perfil.id === perfilAtual.id && (
-                        <Check className="w-4 h-4 text-verde shrink-0" />
-                      )}
-                    </button>
-
-                    {/* Menu de contexto */}
-                    {!perfil.is_perfil_padrao && (
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setMenuOpenId(menuOpenId === perfil.id ? null : perfil.id)
-                          }}
-                          className={cn(
-                            'p-1.5 rounded-md opacity-0 group-hover:opacity-100',
-                            'hover:bg-background transition-all',
-                            menuOpenId === perfil.id && 'opacity-100 bg-background'
-                          )}
-                        >
-                          <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-                        </button>
-
-                        {/* Submenu */}
-                        <AnimatePresence>
-                          {menuOpenId === perfil.id && (
-                            <motion.div
-                              ref={menuRef}
-                              initial={{ opacity: 0, scale: 0.95 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              exit={{ opacity: 0, scale: 0.95 }}
-                              transition={{ duration: 0.1 }}
-                              className={cn(
-                                'absolute right-0 top-full mt-1 w-32',
-                                'bg-popover border border-border rounded-lg shadow-lg',
-                                'overflow-hidden z-50'
+                      {isDeletingThis ? (
+                        // Shimmer loading durante exclusão
+                        <div className="w-full flex items-center gap-3 px-3 py-2.5 animate-pulse">
+                          <div className="w-8 h-8 rounded-lg bg-muted" />
+                          <div className="flex-1 space-y-2">
+                            <div className="h-4 bg-muted rounded w-3/4" />
+                            <div className="h-3 bg-muted rounded w-1/2" />
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => editingInlineId !== perfil.id && handleSelectPerfil(perfil.id)}
+                            className={cn(
+                              'w-full flex items-center gap-3 px-3 py-2.5',
+                              'hover:bg-accent transition-colors text-left',
+                              perfil.id === perfilAtual.id && 'bg-accent/50',
+                              editingInlineId === perfil.id && 'cursor-default'
+                            )}
+                          >
+                            {renderIcon(perfil.icone, perfil.cor)}
+                            <div className="flex-1 min-w-0">
+                              {editingInlineId === perfil.id ? (
+                                <input
+                                  ref={inputRef}
+                                  type="text"
+                                  value={editingName}
+                                  onChange={(e) => setEditingName(e.target.value)}
+                                  onBlur={() => handleSaveInlineName(perfil.id)}
+                                  onKeyDown={(e) => handleInlineKeyDown(e, perfil.id)}
+                                  disabled={isSavingName}
+                                  className={cn(
+                                    'w-full text-corpo font-medium text-foreground',
+                                    'bg-background border border-border rounded px-2 py-0.5',
+                                    'focus:outline-none focus:ring-2 focus:ring-primary/50',
+                                    'disabled:opacity-50'
+                                  )}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              ) : (
+                                <p className="text-corpo font-medium text-foreground truncate">
+                                  {perfil.nome}
+                                </p>
                               )}
-                            >
+                              {perfil.is_perfil_padrao && (
+                                <p className="text-micro text-muted-foreground">
+                                  Workspace principal
+                                </p>
+                              )}
+                            </div>
+                            {perfil.id === perfilAtual.id && editingInlineId !== perfil.id && (
+                              <Check className="w-4 h-4 text-verde shrink-0" />
+                            )}
+                          </button>
+
+                          {/* Botões de editar e excluir */}
+                          {!perfil.is_perfil_padrao && editingInlineId !== perfil.id && (
+                            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button
                                 type="button"
-                                onClick={() => handleOpenEdit(perfil)}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-pequeno text-foreground hover:bg-accent"
+                                onClick={(e) => handleStartInlineEdit(perfil, e)}
+                                className="p-1.5 rounded-md hover:bg-background transition-colors"
+                                title="Editar nome"
                               >
-                                <Pencil className="w-3.5 h-3.5" />
-                                Editar
+                                <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
                               </button>
                               <button
                                 type="button"
-                                onClick={() => handleOpenDelete(perfil)}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-pequeno text-vermelho hover:bg-vermelho/5"
+                                onClick={(e) => handleOpenDelete(perfil, e)}
+                                className="p-1.5 rounded-md hover:bg-vermelho/10 transition-colors"
+                                title="Excluir"
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                Excluir
+                                <Trash2 className="w-3.5 h-3.5 text-vermelho" />
                               </button>
-                            </motion.div>
+                            </div>
                           )}
-                        </AnimatePresence>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                        </>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
 
               {/* Divisor */}
