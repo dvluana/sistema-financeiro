@@ -1,7 +1,7 @@
 /**
  * CategoriaSelect Component
  *
- * Seletor simples de categorias.
+ * Seletor simples de categorias com opção de deletar customizadas.
  * A criação de categoria é feita no componente pai (LancamentoSheet).
  */
 
@@ -12,6 +12,7 @@ import {
   Tag,
   Plus,
   Loader2,
+  Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -27,6 +28,7 @@ interface CategoriaSelectProps {
   value: string | null
   onChange: (value: string | null) => void
   onCreateNew?: () => void
+  onCategoriaDeleted?: (id: string) => void
   categorias?: Categoria[]
   className?: string
 }
@@ -58,12 +60,14 @@ export function CategoriaSelect({
   value,
   onChange,
   onCreateNew,
+  onCategoriaDeleted,
   categorias: categoriasExternas,
   className,
 }: CategoriaSelectProps) {
   const [open, setOpen] = useState(false)
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   // Usa categorias externas se fornecidas, senão carrega
   useEffect(() => {
@@ -99,6 +103,35 @@ export function CategoriaSelect({
   const handleCreateNew = () => {
     setOpen(false)
     onCreateNew?.()
+  }
+
+  const handleDelete = async (e: React.MouseEvent, categoria: Categoria) => {
+    e.stopPropagation()
+
+    if (categoria.is_default) return
+
+    setDeletingId(categoria.id)
+
+    try {
+      await categoriasApi.excluir(categoria.id)
+
+      // Se a categoria deletada estava selecionada, limpa a seleção
+      if (value === categoria.id) {
+        onChange(null)
+      }
+
+      // Notifica o pai para atualizar a lista
+      onCategoriaDeleted?.(categoria.id)
+
+      // Atualiza lista local se não usar externas
+      if (!categoriasExternas) {
+        setCategorias(prev => prev.filter(c => c.id !== categoria.id))
+      }
+    } catch (error) {
+      console.error('Erro ao deletar categoria:', error)
+    } finally {
+      setDeletingId(null)
+    }
   }
 
   return (
@@ -137,12 +170,18 @@ export function CategoriaSelect({
         </PopoverTrigger>
 
         <PopoverContent
-          className="w-[260px] p-0"
+          className="w-[280px] p-0"
           align="start"
           sideOffset={4}
         >
-          {/* Lista de categorias */}
-          <div className="max-h-[200px] overflow-y-auto overscroll-contain">
+          {/* Lista de categorias - scroll nativo */}
+          <div
+            className="max-h-[220px] overflow-y-auto"
+            style={{
+              WebkitOverflowScrolling: 'touch',
+              scrollbarWidth: 'thin',
+            }}
+          >
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -154,32 +193,58 @@ export function CategoriaSelect({
             ) : (
               <div className="p-1.5">
                 {categorias.map((categoria) => (
-                  <button
+                  <div
                     key={categoria.id}
-                    type="button"
-                    onClick={() => handleSelect(categoria.id)}
                     className={cn(
-                      "w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-colors",
-                      "hover:bg-accent active:bg-accent/80",
+                      "group flex items-center rounded-lg transition-colors",
+                      "hover:bg-accent",
                       value === categoria.id && "bg-accent"
                     )}
                   >
-                    <span className="text-base shrink-0">
-                      {getCategoryIcon(categoria.nome)}
-                    </span>
-                    <span className="flex-1 text-sm truncate">
-                      {categoria.nome}
-                    </span>
-                    {categoria.cor && (
-                      <div
-                        className="w-3 h-3 rounded-full shrink-0"
-                        style={{ backgroundColor: categoria.cor }}
-                      />
+                    <button
+                      type="button"
+                      onClick={() => handleSelect(categoria.id)}
+                      className="flex-1 flex items-center gap-2.5 px-3 py-2.5 text-left"
+                    >
+                      <span className="text-base shrink-0">
+                        {getCategoryIcon(categoria.nome)}
+                      </span>
+                      <span className="flex-1 text-sm truncate">
+                        {categoria.nome}
+                      </span>
+                      {categoria.cor && (
+                        <div
+                          className="w-3 h-3 rounded-full shrink-0"
+                          style={{ backgroundColor: categoria.cor }}
+                        />
+                      )}
+                      {value === categoria.id && (
+                        <Check className="h-4 w-4 text-primary shrink-0" />
+                      )}
+                    </button>
+
+                    {/* Botão deletar - apenas para categorias customizadas */}
+                    {!categoria.is_default && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleDelete(e, categoria)}
+                        disabled={deletingId === categoria.id}
+                        className={cn(
+                          "p-2 mr-1 rounded-md transition-all",
+                          "opacity-0 group-hover:opacity-100",
+                          "text-muted-foreground hover:text-destructive hover:bg-destructive/10",
+                          "disabled:opacity-50"
+                        )}
+                        title="Excluir categoria"
+                      >
+                        {deletingId === categoria.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5" />
+                        )}
+                      </button>
                     )}
-                    {value === categoria.id && (
-                      <Check className="h-4 w-4 text-primary shrink-0" />
-                    )}
-                  </button>
+                  </div>
                 ))}
               </div>
             )}

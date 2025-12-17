@@ -1,15 +1,14 @@
 /**
  * HeroCard Component
  *
- * Card principal compacto mostrando resumo financeiro do mês.
- * Layout otimizado para ocupar menos espaço vertical.
+ * Card principal mostrando resumo financeiro do mês.
+ * Estrutura: Navegação → Saldo → Entradas/Saídas → Barra de gastos
  */
 
 import { ChevronLeft, ChevronRight, Calendar, TrendingUp, TrendingDown } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { cn, formatarMes } from '@/lib/utils'
+import { cn, formatarMes, formatarMoeda } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Progress } from '@/components/ui/progress'
 
 interface HeroCardProps {
   mesSelecionado: string
@@ -40,6 +39,15 @@ export function HeroCard({
   // Status do saldo
   const saldoPositivo = saldo > 0
   const saldoNegativo = saldo < 0
+
+  // Cor da barra de gastos
+  const corBarra = percentualGasto > 100
+    ? "bg-vermelho"
+    : percentualGasto > 80
+      ? "bg-amber-500"
+      : percentualGasto > 60
+        ? "bg-yellow-500"
+        : "bg-verde"
 
   return (
     <motion.div
@@ -91,31 +99,29 @@ export function HeroCard({
         </Button>
       </div>
 
-      {/* Saldo principal - Compacto */}
+      {/* Saldo principal */}
       <div className="text-center mb-4">
-        <p className="text-xs text-muted-foreground mb-0.5">
-          {saldoPositivo ? 'Saldo positivo' : saldoNegativo ? 'Saldo negativo' : 'Saldo'}
-        </p>
+        <p className="text-xs text-muted-foreground mb-0.5">Saldo</p>
         <p className={cn(
-          "text-3xl font-bold",
+          "text-3xl font-bold tabular-nums",
           saldoPositivo && "text-verde",
           saldoNegativo && "text-vermelho"
         )}>
-          <span className="text-sm font-normal text-muted-foreground mr-1">R$</span>
-          {Math.abs(saldo || 0).toFixed(2).replace('.', ',')}
+          {saldoNegativo && "-"}
+          {formatarMoeda(Math.abs(saldo))}
         </p>
       </div>
 
-      {/* Grid: Entradas | Saídas | Proporção */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* Entradas e Saídas - Grid 2 colunas */}
+      <div className="grid grid-cols-2 gap-3 mb-3">
         {/* Entradas */}
         <div className="p-3 rounded-xl bg-verde/5 border border-verde/10">
           <div className="flex items-center gap-1.5 mb-1">
             <TrendingUp className="w-3.5 h-3.5 text-verde" />
             <span className="text-xs text-muted-foreground">Entradas</span>
           </div>
-          <p className="text-base font-semibold text-verde">
-            R$ {(totalEntradas || 0).toFixed(2).replace('.', ',')}
+          <p className="text-base font-semibold text-verde tabular-nums">
+            {formatarMoeda(totalEntradas)}
           </p>
         </div>
 
@@ -125,29 +131,41 @@ export function HeroCard({
             <TrendingDown className="w-3.5 h-3.5 text-rosa" />
             <span className="text-xs text-muted-foreground">Saídas</span>
           </div>
-          <p className="text-base font-semibold text-rosa">
-            R$ {(totalSaidas || 0).toFixed(2).replace('.', ',')}
+          <p className="text-base font-semibold text-rosa tabular-nums">
+            {formatarMoeda(totalSaidas)}
           </p>
         </div>
+      </div>
 
-        {/* Proporção de gastos */}
-        <div className="p-3 rounded-xl bg-muted/50 border border-border">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-muted-foreground">Gastos</span>
-            <span className="text-xs font-medium">{percentualGasto.toFixed(0)}%</span>
-          </div>
-          <Progress
-            value={percentualGasto}
-            className="h-2 mt-2"
-            indicatorClassName={cn(
-              "transition-all",
-              percentualGasto > 100 ? "bg-vermelho" :
-              percentualGasto > 80 ? "bg-amber-500" :
-              percentualGasto > 60 ? "bg-yellow-500" :
-              "bg-verde"
-            )}
+      {/* Barra de gastos - Embaixo, 100% largura */}
+      <div className="p-3 rounded-xl bg-muted/30">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs text-muted-foreground">
+            Gastos do mês
+          </span>
+          <span className={cn(
+            "text-xs font-semibold",
+            percentualGasto > 80 ? "text-vermelho" : "text-foreground"
+          )}>
+            {percentualGasto.toFixed(0)}%
+          </span>
+        </div>
+        <div className="h-2 bg-muted rounded-full overflow-hidden">
+          <motion.div
+            className={cn("h-full rounded-full", corBarra)}
+            initial={{ width: 0 }}
+            animate={{ width: `${percentualGasto}%` }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
           />
         </div>
+        {totalEntradas > 0 && (
+          <p className="text-[10px] text-muted-foreground mt-1.5 text-center">
+            {percentualGasto <= 60 && "Ótimo! Você está gastando pouco."}
+            {percentualGasto > 60 && percentualGasto <= 80 && "Atenção aos gastos."}
+            {percentualGasto > 80 && percentualGasto <= 100 && "Cuidado! Gastos elevados."}
+            {percentualGasto > 100 && "Alerta! Gastos excedem as entradas."}
+          </p>
+        )}
       </div>
     </motion.div>
   )

@@ -417,6 +417,9 @@ export function LancamentoSheet({
                 onChange={setCategoriaId}
                 categorias={categorias}
                 onCreateNew={() => setIsCreatingCategoria(true)}
+                onCategoriaDeleted={(id) => {
+                  setCategorias(prev => prev.filter(c => c.id !== id))
+                }}
               />
 
               {/* Criar nova categoria - inline expandível */}
