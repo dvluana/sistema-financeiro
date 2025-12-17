@@ -1,9 +1,11 @@
 import 'dotenv/config'
 import path from 'path'
+import fs from 'fs'
 import { fileURLToPath } from 'url'
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import compress from '@fastify/compress'
+import helmet from '@fastify/helmet'
 import rateLimit from '@fastify/rate-limit'
 import fastifyStatic from '@fastify/static'
 import { authRoutes } from './routes/auth.routes.js'
@@ -59,6 +61,21 @@ await app.register(cors, {
   credentials: true,
 })
 
+// Security headers - protects against common web vulnerabilities
+await app.register(helmet, {
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", 'data:', 'blob:'],
+      connectSrc: ["'self'", 'https://*.supabase.co'],
+    },
+  },
+  // Desabilita frameguard para permitir que SPA funcione
+  frameguard: process.env.NODE_ENV === 'production' ? { action: 'deny' } : false,
+})
+
 // Compressão HTTP, reduz tamanho das respostas em ~10x
 await app.register(compress, {
   threshold: 1024, // Comprimir respostas > 1KB
@@ -85,15 +102,35 @@ await app.register(dashboardRoutes)
 await app.register(aiRoutes)
 await app.register(googleCalendarRoutes)
 
-// Health check with service status
+// Health check - minimal in production, detailed in development
 app.get('/health', async () => {
+  const isProduction = process.env.NODE_ENV === 'production'
+
+  // Em produção, apenas verifica se o servidor está respondendo
+  // Não expõe detalhes de configuração ou status de serviços internos
+  if (isProduction) {
+    // Verifica apenas database (essencial)
+    let dbOk = true
+    try {
+      const { error } = await supabase.from('lancamentos').select('id').limit(1)
+      if (error) dbOk = false
+    } catch {
+      dbOk = false
+    }
+
+    return {
+      status: dbOk ? 'healthy' : 'degraded',
+      timestamp: new Date().toISOString(),
+    }
+  }
+
+  // Em desenvolvimento, retorna detalhes completos
   const checks: Record<string, 'ok' | 'error'> = {
     server: 'ok',
     database: 'ok',
     ai: 'ok',
   }
 
-  // Check database connection
   try {
     const { error } = await supabase.from('lancamentos').select('id').limit(1)
     if (error) checks.database = 'error'
@@ -101,7 +138,6 @@ app.get('/health', async () => {
     checks.database = 'error'
   }
 
-  // Check if AI key is configured
   if (!process.env.GEMINI_API_KEY) {
     checks.ai = 'error'
   }
@@ -115,21 +151,25 @@ app.get('/health', async () => {
   }
 })
 
-// Serve frontend static files in production
+// Serve frontend static files only if build exists (production)
 const clientDistPath = path.join(__dirname, 'web')
-await app.register(fastifyStatic, {
-  root: clientDistPath,
-  prefix: '/',
-})
+if (fs.existsSync(clientDistPath)) {
+  await app.register(fastifyStatic, {
+    root: clientDistPath,
+    prefix: '/',
+  })
 
-// SPA fallback - serve index.html for all non-API routes
-app.setNotFoundHandler((request, reply) => {
-  if (request.url.startsWith('/api') || request.url.startsWith('/auth')) {
-    reply.status(404).send({ error: 'Not found' })
-  } else {
-    reply.sendFile('index.html')
-  }
-})
+  // SPA fallback - serve index.html for all non-API routes
+  app.setNotFoundHandler((request, reply) => {
+    if (request.url.startsWith('/api') || request.url.startsWith('/auth')) {
+      reply.status(404).send({ error: 'Not found' })
+    } else {
+      reply.sendFile('index.html')
+    }
+  })
+} else {
+  app.log.warn(`Client dist not found at ${clientDistPath} - skipping static serve`)
+}
 
 const port = Number(process.env.PORT) || 3333
 

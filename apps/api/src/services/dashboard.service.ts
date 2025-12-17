@@ -24,12 +24,16 @@ function getMesAtual(): string {
 
 /**
  * Gera lista dos últimos N meses incluindo o atual
+ * @param quantidade - Número de meses (1-24, default 6)
  */
-function getUltimosMeses(quantidade: number): string[] {
+function getUltimosMeses(quantidade: number = 6): string[] {
+  // Validação de segurança: limita range para evitar loops infinitos
+  const qtdSafe = Math.max(1, Math.min(quantidade, 24))
+
   const meses: string[] = []
   const hoje = new Date()
 
-  for (let i = quantidade - 1; i >= 0; i--) {
+  for (let i = qtdSafe - 1; i >= 0; i--) {
     const data = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1)
     const year = data.getFullYear()
     const month = String(data.getMonth() + 1).padStart(2, '0')

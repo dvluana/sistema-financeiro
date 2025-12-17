@@ -258,7 +258,7 @@ export function QuickInputSheet({
 
   // Estado do input - texto local para feedback imediato
   const [textoLocal, setTextoLocal] = useState('')
-  const [texto, setTexto] = useState('')
+  const [_texto, setTexto] = useState('')
   const [lancamentos, setLancamentos] = useState<ParsedLancamento[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isParsing, setIsParsing] = useState(false)
@@ -375,15 +375,16 @@ export function QuickInputSheet({
    * Processa texto com IA
    */
   const handleProcess = useCallback(async () => {
-    if (!texto.trim()) return
+    const textoParaProcessar = textoLocal.trim()
+    if (!textoParaProcessar) return
 
     setIsParsing(true)
     setErro(null)
 
     try {
-      const mesGlobal = extrairMesGlobal(texto)
+      const mesGlobal = extrairMesGlobal(textoParaProcessar)
       const mesParaUsar = mesGlobal?.mes || mesAtual
-      const result = await aiApi.parseLancamentos(texto, mesParaUsar)
+      const result = await aiApi.parseLancamentos(textoParaProcessar, mesParaUsar)
 
       if (result.erro) {
         setErro(result.erro)
@@ -417,7 +418,7 @@ export function QuickInputSheet({
     } finally {
       setIsParsing(false)
     }
-  }, [texto, mesAtual])
+  }, [textoLocal, mesAtual])
 
   // Handlers para atualizar lançamentos
   const handleUpdateLancamento = useCallback(

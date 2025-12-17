@@ -47,7 +47,11 @@ export const lancamentoRepository = {
     if (countError) throw countError
 
     if (count && count > limit) {
-      console.warn(`[lancamentoRepository] Mês ${mes} tem ${count} lançamentos, excede limite de ${limit}. Retornando apenas ${limit} mais recentes.`)
+      // Log de aviso apenas em desenvolvimento
+      // Em produção, o limite é respeitado silenciosamente
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(`[lancamentoRepository] Mês ${mes} tem ${count} lançamentos, excede limite de ${limit}. Retornando apenas ${limit} mais recentes.`)
+      }
     }
 
     // Query atômica: busca pais (parent_id IS NULL) e filhos (parent_id IS NOT NULL)
@@ -211,8 +215,20 @@ export const lancamentoRepository = {
 
   /**
    * Cria múltiplos lançamentos de uma vez (batch insert)
+   *
+   * IMPORTANTE: Verifica que todos os registros foram inseridos.
+   * Se houver falha parcial, lança erro em vez de retornar sucesso falso.
    */
   async createMany(inputs: CriarLancamentoInput[], ctx: ContextoUsuario | string): Promise<{ criados: number }> {
+    if (inputs.length === 0) {
+      return { criados: 0 }
+    }
+
+    // Limite de segurança para batch insert
+    if (inputs.length > 100) {
+      throw new Error('Batch insert limitado a 100 registros por vez')
+    }
+
     const records = inputs.map(input => {
       if (typeof ctx === 'string') {
         return { ...input, user_id: ctx }
@@ -220,12 +236,21 @@ export const lancamentoRepository = {
       return { ...input, user_id: ctx.userId, perfil_id: ctx.perfilId }
     })
 
-    const { error } = await supabase
+    // Usa select() para retornar registros inseridos e verificar contagem
+    const { data, error } = await supabase
       .from('lancamentos')
       .insert(records)
+      .select('id')
 
     if (error) throw error
-    return { criados: records.length }
+
+    // Verifica se todos os registros foram inseridos
+    const insertedCount = data?.length ?? 0
+    if (insertedCount !== records.length) {
+      throw new Error(`Falha parcial no batch insert: esperado ${records.length}, inserido ${insertedCount}`)
+    }
+
+    return { criados: insertedCount }
   },
 
   /**

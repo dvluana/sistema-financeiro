@@ -9,7 +9,23 @@ import { FastifyInstance } from 'fastify'
 import { requireAuth } from '../middleware/auth.middleware.js'
 import * as calendarService from '../services/google-calendar.service.js'
 
+// Regex para validar UUID
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export async function googleCalendarRoutes(app: FastifyInstance) {
+  /**
+   * Obtém URL do frontend de variável de ambiente
+   */
+  const getFrontendUrl = (): string => {
+    // Primeiro tenta FRONTEND_URL, depois fallback baseado em NODE_ENV
+    if (process.env.FRONTEND_URL) {
+      return process.env.FRONTEND_URL
+    }
+    return process.env.NODE_ENV === 'production'
+      ? 'https://sistema-financeiro-31052bfaa1f9.herokuapp.com'
+      : 'http://localhost:5173'
+  }
+
   /**
    * Verifica se Google Calendar está configurado
    */
@@ -75,24 +91,30 @@ export async function googleCalendarRoutes(app: FastifyInstance) {
       error?: string
     }
 
-    // URL base do frontend
-    const frontendUrl = process.env.NODE_ENV === 'production'
-      ? 'https://sistema-financeiro-31052bfaa1f9.herokuapp.com'
-      : 'http://localhost:5173'
+    const frontendUrl = getFrontendUrl()
 
     // Se usuário cancelou ou houve erro
     if (error || !code || !state) {
       return reply.redirect(`${frontendUrl}?lembrit=error&reason=${error || 'missing_params'}`)
     }
 
+    // Decodifica e valida state com try-catch seguro
+    let usuarioId: string
     try {
-      // Decodifica state para obter usuarioId
-      const { usuarioId } = JSON.parse(Buffer.from(state, 'base64').toString())
+      const decoded = Buffer.from(state, 'base64').toString()
+      const parsed = JSON.parse(decoded)
+      usuarioId = parsed.usuarioId
 
-      if (!usuarioId) {
+      // Valida que é um UUID válido
+      if (!usuarioId || typeof usuarioId !== 'string' || !UUID_REGEX.test(usuarioId)) {
         return reply.redirect(`${frontendUrl}?lembrit=error&reason=invalid_state`)
       }
+    } catch {
+      // JSON parse falhou ou base64 inválido
+      return reply.redirect(`${frontendUrl}?lembrit=error&reason=invalid_state_format`)
+    }
 
+    try {
       // Troca código por tokens
       const { accessToken, refreshToken, expiryDate } = await calendarService.exchangeCodeForTokens(code)
 
@@ -102,7 +124,7 @@ export async function googleCalendarRoutes(app: FastifyInstance) {
       // Redireciona para o frontend com sucesso
       return reply.redirect(`${frontendUrl}?lembrit=success`)
     } catch (err) {
-      console.error('Erro no callback OAuth:', err)
+      request.log.error(err, 'OAuth callback token exchange failed')
       return reply.redirect(`${frontendUrl}?lembrit=error&reason=token_exchange_failed`)
     }
   })
@@ -120,7 +142,7 @@ export async function googleCalendarRoutes(app: FastifyInstance) {
       await calendarService.removeTokens(usuarioId)
       return reply.send({ success: true })
     } catch (err) {
-      console.error('Erro ao desconectar:', err)
+      request.log.error(err, 'Failed to disconnect Google Calendar')
       return reply.status(500).send({ error: 'Falha ao desconectar' })
     }
   })
@@ -144,17 +166,28 @@ export async function googleCalendarRoutes(app: FastifyInstance) {
       daysAhead?: string
     }
 
+    // Valida e limita parâmetros para prevenir DoS
+    const maxResultsNum = parseInt(maxResults, 10)
+    const daysAheadNum = parseInt(daysAhead, 10)
+
+    if (!Number.isFinite(maxResultsNum) || maxResultsNum < 1 || maxResultsNum > 100) {
+      return reply.status(400).send({ error: 'maxResults deve ser entre 1 e 100' })
+    }
+    if (!Number.isFinite(daysAheadNum) || daysAheadNum < 1 || daysAheadNum > 365) {
+      return reply.status(400).send({ error: 'daysAhead deve ser entre 1 e 365' })
+    }
+
     try {
       const events = await calendarService.getUpcomingEvents(
         usuarioId,
-        parseInt(maxResults, 10),
-        parseInt(daysAhead, 10)
+        maxResultsNum,
+        daysAheadNum
       )
 
       return reply.send({ events })
     } catch (err: unknown) {
       const error = err as Error
-      console.error('Erro ao buscar eventos:', error)
+      request.log.error(err, 'Failed to fetch calendar events')
 
       // Se token inválido, retornar status específico
       if (error.message?.includes('não conectado')) {

@@ -107,6 +107,7 @@ export const authRepository = {
 
   /**
    * Busca sessão por token e renova automaticamente se válida
+   * Limite absoluto: 180 dias desde a criação (segurança contra token roubado)
    */
   async findSessaoByToken(token: string): Promise<Sessao | null> {
     const { data, error } = await supabase
@@ -121,15 +122,30 @@ export const authRepository = {
       throw error
     }
 
-    // Renova a sessão para mais 90 dias a cada uso
-    // Isso evita que o usuário seja deslogado se estiver usando o sistema
     if (data) {
+      // Verifica idade máxima absoluta da sessão (180 dias)
+      const createdAt = new Date(data.created_at)
+      const maxAgeMs = 180 * 24 * 60 * 60 * 1000 // 180 dias em ms
+      const sessionAge = Date.now() - createdAt.getTime()
+
+      if (sessionAge > maxAgeMs) {
+        // Sessão muito antiga, invalida por segurança
+        await supabase.from('sessoes').delete().eq('token', token)
+        return null
+      }
+
+      // Renova a sessão para mais 90 dias a cada uso
+      // Mas respeita o limite absoluto de 180 dias
       const newExpiresAt = new Date()
       newExpiresAt.setDate(newExpiresAt.getDate() + 90)
 
+      // Não renovar além do limite absoluto
+      const absoluteMaxDate = new Date(createdAt.getTime() + maxAgeMs)
+      const finalExpiresAt = newExpiresAt > absoluteMaxDate ? absoluteMaxDate : newExpiresAt
+
       await supabase
         .from('sessoes')
-        .update({ expires_at: newExpiresAt.toISOString() })
+        .update({ expires_at: finalExpiresAt.toISOString() })
         .eq('token', token)
     }
 

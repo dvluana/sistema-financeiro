@@ -7,11 +7,13 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "health-check": "tsx src/scripts/health-check.ts"
+    "health-check": "tsx src/scripts/health-check.ts",
+    "test:lancamento-rapido": "tsx src/scripts/test-lancamento-rapido.ts"
   },
   "dependencies": {
     "@fastify/compress": "^7.0.3",
     "@fastify/cors": "^9.0.1",
+    "@fastify/helmet": "^13.0.2",
     "@fastify/rate-limit": "^9.1.0",
     "@fastify/static": "^7.0.4",
     "@google/genai": "^1.31.0",

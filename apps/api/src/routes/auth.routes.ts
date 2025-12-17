@@ -2,6 +2,7 @@
  * Rotas de Autenticação
  *
  * Endpoints para registro, login e logout de usuários.
+ * Rate limits específicos para prevenir brute force e abuso.
  */
 
 import { FastifyInstance } from 'fastify'
@@ -13,15 +14,27 @@ export async function authRoutes(app: FastifyInstance) {
   /**
    * POST /api/auth/register
    * Registra um novo usuário
+   * Rate limit: 5 requisições por 15 minutos por IP
    */
-  app.post('/api/auth/register', async (request, reply) => {
+  app.post('/api/auth/register', {
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: '15 minutes',
+      },
+    },
+  }, async (request, reply) => {
     try {
       const input = registrarUsuarioSchema.parse(request.body)
       const result = await authService.registrar(input)
       return reply.status(201).send(result)
     } catch (error) {
       if (error instanceof Error) {
+        // Em produção, não confirmar se email existe
         if (error.message === 'Este email já está cadastrado') {
+          if (process.env.NODE_ENV === 'production') {
+            return reply.status(400).send({ error: 'Não foi possível criar a conta' })
+          }
           return reply.status(409).send({ error: error.message })
         }
         return reply.status(400).send({ error: error.message })
@@ -33,8 +46,16 @@ export async function authRoutes(app: FastifyInstance) {
   /**
    * POST /api/auth/login
    * Realiza login do usuário
+   * Rate limit: 10 requisições por 15 minutos por IP
    */
-  app.post('/api/auth/login', async (request, reply) => {
+  app.post('/api/auth/login', {
+    config: {
+      rateLimit: {
+        max: 10,
+        timeWindow: '15 minutes',
+      },
+    },
+  }, async (request, reply) => {
     try {
       const input = loginSchema.parse(request.body)
       const result = await authService.login(input)
