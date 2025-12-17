@@ -173,6 +173,41 @@ if (fs.existsSync(clientDistPath)) {
 
 const port = Number(process.env.PORT) || 3333
 
+// Graceful shutdown handlers
+let isShuttingDown = false
+
+const shutdown = async (signal: string) => {
+  if (isShuttingDown) {
+    return
+  }
+  isShuttingDown = true
+
+  console.log(`\n${signal} received, shutting down gracefully...`)
+  try {
+    await app.close()
+    console.log('Server closed successfully')
+    process.exit(0)
+  } catch (err) {
+    console.error('Error during shutdown:', err)
+    process.exit(1)
+  }
+}
+
+// Handle termination signals
+process.on('SIGTERM', () => shutdown('SIGTERM'))
+process.on('SIGINT', () => shutdown('SIGINT'))
+
+// Handle uncaught errors
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err)
+  shutdown('uncaughtException')
+})
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled rejection at:', promise, 'reason:', reason)
+  shutdown('unhandledRejection')
+})
+
 try {
   await app.listen({ port, host: '0.0.0.0' })
   app.log.info(`Server running on http://localhost:${port}`)

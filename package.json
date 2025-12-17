@@ -9,11 +9,13 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "concurrently -n api,web -c blue,magenta \"npm run dev:api\" \"npm run dev:web\"",
+    "dev": "npm run kill-ports && concurrently -n api,web -c blue,magenta --kill-others-on-fail --kill-others --handle-input \"npm run dev:api\" \"npm run dev:web\"",
     "dev:all": "npm run preflight && npm run dev",
     "dev:api": "npm run dev --workspace=apps/api",
     "dev:web": "npm run dev --workspace=apps/web",
     "preflight": "npm run health-check --workspace=apps/api",
+    "kill-ports": "bash scripts/kill-ports.sh",
+    "cleanup": "npm run kill-ports && (pkill -f 'tsx watch' || true) && (pkill -f 'vite' || true) && echo '✨ Processos limpos'",
     "build": "npm run build:api && npm run build:web",
     "build:api": "npm run build --workspace=apps/api",
     "build:web": "npm run build --workspace=apps/web",
@@ -24,6 +26,7 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
+    "kill-port": "^2.0.1",
     "sharp": "^0.34.5"
   }
 }
