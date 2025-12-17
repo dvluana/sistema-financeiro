@@ -190,8 +190,8 @@ export function Home() {
           concluido: data.concluido,
           categoria_id: data.categoria_id,
         })
-      } else if (data.recorrencia && !data.is_agrupador) {
-        // Recorrência só para lançamentos normais (não agrupadores)
+      } else if (data.recorrencia) {
+        // Recorrência (suporta agrupadores também)
         const diaPrevisto = data.data_prevista
           ? parseInt(data.data_prevista.split('-')[2], 10)
           : null
@@ -203,6 +203,8 @@ export function Home() {
           dia_previsto: diaPrevisto,
           concluido: data.concluido,
           categoria_id: data.categoria_id,
+          is_agrupador: data.is_agrupador,
+          valor_modo: data.valor_modo,
           recorrencia: data.recorrencia,
         })
       } else {
@@ -215,6 +217,7 @@ export function Home() {
           data_prevista: data.data_prevista,
           categoria_id: data.categoria_id,
           is_agrupador: data.is_agrupador,
+          valor_modo: data.valor_modo,
         })
       }
       setLancamentoSheetOpen(false)

@@ -207,6 +207,11 @@ export const lancamentoService = {
   /**
    * Cria lançamentos recorrentes (mensal ou parcelas)
    * Otimizado: usa batch insert ao invés de N queries sequenciais
+   *
+   * SUPORTA AGRUPADORES:
+   * - Se is_agrupador=true, cria agrupadores vazios para cada mês
+   * - Se valor_modo='soma', valor inicial é 0 (calculado pelos filhos)
+   * - Se valor_modo='fixo', usa o valor informado
    */
   async criarRecorrente(
     input: {
@@ -217,6 +222,8 @@ export const lancamentoService = {
       dia_previsto?: number | null
       concluido?: boolean
       categoria_id?: string | null
+      is_agrupador?: boolean
+      valor_modo?: 'soma' | 'fixo'
       recorrencia: {
         tipo: 'mensal' | 'parcelas'
         quantidade: number
@@ -224,7 +231,7 @@ export const lancamentoService = {
     },
     ctx: Contexto
   ): Promise<{ criados: number }> {
-    const { tipo, nome, valor, mes_inicial, dia_previsto, concluido, categoria_id, recorrencia } = input
+    const { tipo, nome, valor, mes_inicial, dia_previsto, concluido, categoria_id, is_agrupador, valor_modo, recorrencia } = input
     const quantidade = recorrencia.quantidade
 
     // Gera lista de meses
@@ -240,6 +247,9 @@ export const lancamentoService = {
 
     // Prepara todos os lançamentos para batch insert
     const isParcelas = recorrencia.tipo === 'parcelas'
+    const isAgrupador = is_agrupador ?? false
+    const modoValor = valor_modo ?? 'soma'
+
     const lancamentos: CriarLancamentoInput[] = meses.map((mes, i) => {
       const nomeFinal = isParcelas
         ? `${nome} (${i + 1}/${quantidade})`
@@ -252,14 +262,24 @@ export const lancamentoService = {
         data_prevista = `${ano}-${mesNum}-${String(dia_previsto).padStart(2, '0')}`
       }
 
+      // Valor: se agrupador com modo soma, valor é 0 (calculado pelos filhos)
+      // Se agrupador com modo fixo ou parcelado, divide o valor total
+      let valorFinal = valor
+      if (isAgrupador && modoValor === 'soma') {
+        valorFinal = 0
+      } else if (isParcelas && !isAgrupador) {
+        // Mantém valor original para cada parcela (não divide)
+        valorFinal = valor
+      }
+
       return {
         tipo,
         nome: nomeFinal,
-        valor,
+        valor: valorFinal,
         mes,
         concluido: concluido ?? false,
-        is_agrupador: false,
-        valor_modo: 'soma' as const,
+        is_agrupador: isAgrupador,
+        valor_modo: modoValor,
         data_prevista,
         categoria_id: categoria_id ?? null,
       }

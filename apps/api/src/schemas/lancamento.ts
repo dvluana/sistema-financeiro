@@ -40,13 +40,15 @@ export const atualizarLancamentoSchema = z.object({
 })
 
 export const criarLancamentoRecorrenteSchema = z.object({
-  tipo: z.enum(['entrada', 'saida']), // Recorrente não suporta agrupador
+  tipo: z.enum(['entrada', 'saida']),
   nome: z.string().min(1, 'Nome é obrigatório').max(100, 'Nome muito longo'),
-  valor: z.number().positive('Valor deve ser maior que zero'),
+  valor: z.number().min(0, 'Valor deve ser zero ou maior'), // Permite 0 para agrupadores com soma
   mes_inicial: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Formato de mês inválido (YYYY-MM)'),
   dia_previsto: z.number().min(1).max(31).nullable().optional(),
   concluido: z.boolean().optional().default(false),
   categoria_id: optionalUuid,
+  is_agrupador: z.boolean().optional().default(false),
+  valor_modo: valorModo.optional().default('soma'),
   recorrencia: z.object({
     tipo: z.enum(['mensal', 'parcelas']),
     quantidade: z.number().min(2).max(60),

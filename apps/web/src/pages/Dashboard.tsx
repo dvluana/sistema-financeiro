@@ -251,6 +251,8 @@ export function Dashboard({
                     onToggle={handleToggleLancamento}
                     onVerTodos={() => {}}
                     showVerTodos={false}
+                    onAddEntrada={onAddEntrada}
+                    onAddSaida={onAddSaida}
                   />
                 </div>
               )}

@@ -180,18 +180,9 @@ export function LancamentoSheet({
 
     // Se for recorrente e não estiver editando
     if (isRecorrente && !isEditing) {
-      if (tipoRecorrencia === 'mensal') {
-        const meses: string[] = []
-        const [ano, mes] = mesAtual.split('-').map(Number)
-        for (let i = 0; i < 12; i++) {
-          const novoMes = mes + i
-          const novoAno = ano + Math.floor((novoMes - 1) / 12)
-          const mesFormatado = ((novoMes - 1) % 12) + 1
-          meses.push(`${novoAno}-${String(mesFormatado).padStart(2, '0')}`)
-        }
-        formData.meses = meses
-      } else {
-        formData.qtd_parcelas = parseInt(qtdParcelas)
+      formData.recorrencia = {
+        tipo: tipoRecorrencia,
+        quantidade: tipoRecorrencia === 'mensal' ? 12 : parseInt(qtdParcelas),
       }
     }
 
@@ -277,50 +268,67 @@ export function LancamentoSheet({
               )}
             </div>
 
-            {/* Valor + Categoria - Mesma linha */}
-            <div className="grid grid-cols-2 gap-3">
-              {/* Valor */}
-              {(!isAgrupador || valorModo === 'fixo') && (
-                <div className="space-y-2">
-                  <Label htmlFor="valor" className="text-sm font-medium">
-                    Valor
-                  </Label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                      R$
-                    </span>
-                    <Input
-                      id="valor"
-                      value={valor}
-                      onChange={(e) => {
-                        setValor(e.target.value.replace(/[^0-9,]/g, ''))
+            {/* Valor */}
+            {(!isAgrupador || valorModo === 'fixo') && (
+              <div className="space-y-3">
+                <Label htmlFor="valor" className="text-sm font-medium">
+                  Valor
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                    R$
+                  </span>
+                  <Input
+                    id="valor"
+                    value={valor}
+                    onChange={(e) => {
+                      setValor(e.target.value.replace(/[^0-9,]/g, ''))
+                      if (errors.valor) setErrors(prev => ({ ...prev, valor: undefined }))
+                    }}
+                    placeholder="0,00"
+                    className={cn(
+                      "pl-11 font-mono text-lg",
+                      errors.valor && "border-destructive focus:border-destructive"
+                    )}
+                  />
+                </div>
+                {errors.valor && (
+                  <p className="text-xs text-destructive">{errors.valor}</p>
+                )}
+
+                {/* Atalhos de valores */}
+                <div className="flex flex-wrap gap-1.5">
+                  {[50, 100, 200, 500, 1000].map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => {
+                        setValor(v.toString().replace('.', ','))
                         if (errors.valor) setErrors(prev => ({ ...prev, valor: undefined }))
                       }}
-                      placeholder="0,00"
                       className={cn(
-                        "pl-11 font-mono",
-                        errors.valor && "border-destructive focus:border-destructive"
+                        "px-3 py-1.5 text-xs font-medium rounded-lg transition-all",
+                        "bg-secondary/60 hover:bg-secondary",
+                        "text-muted-foreground hover:text-foreground",
+                        "border border-transparent hover:border-border",
+                        valor === v.toString() && "bg-primary/10 text-primary border-primary/30"
                       )}
-                    />
-                  </div>
-                  {errors.valor && (
-                    <p className="text-xs text-destructive">{errors.valor}</p>
-                  )}
+                    >
+                      {v.toLocaleString('pt-BR')}
+                    </button>
+                  ))}
                 </div>
-              )}
-
-              {/* Categoria */}
-              <div className={cn(
-                "space-y-2",
-                (isAgrupador && valorModo === 'soma') && "col-span-2"
-              )}>
-                <Label className="text-sm font-medium">Categoria</Label>
-                <CategoriaSelect
-                  tipo={tipo}
-                  value={categoriaId}
-                  onChange={setCategoriaId}
-                />
               </div>
+            )}
+
+            {/* Categoria */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Categoria</Label>
+              <CategoriaSelect
+                tipo={tipo}
+                value={categoriaId}
+                onChange={setCategoriaId}
+              />
             </div>
 
             {/* Datas - Mesma linha */}

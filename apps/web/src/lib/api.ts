@@ -170,6 +170,8 @@ export interface CriarLancamentoRecorrenteInput {
   dia_previsto?: number | null
   concluido?: boolean
   categoria_id?: string | null
+  is_agrupador?: boolean
+  valor_modo?: 'soma' | 'fixo'
   recorrencia: {
     tipo: 'mensal' | 'parcelas'
     quantidade: number

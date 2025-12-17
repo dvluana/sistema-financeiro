@@ -7,9 +7,9 @@
 
 import React, { useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Layers } from 'lucide-react'
+import { Layers, Plus, Inbox } from 'lucide-react'
 import { StatusCircle } from './StatusCircle'
-import { EmptyState } from './EmptyState'
+import { Button } from '@/components/ui/button'
 import { formatarMoeda, cn } from '@/lib/utils'
 import type { Lancamento } from '@/lib/api'
 
@@ -19,6 +19,8 @@ interface RecentListProps {
   onToggle: (id: string) => void
   onVerTodos?: () => void
   showVerTodos?: boolean
+  onAddEntrada?: () => void
+  onAddSaida?: () => void
 }
 
 // Memoiza a função fora do componente para estabilidade
@@ -132,9 +134,46 @@ export const RecentList = React.memo(function RecentList({
   onToggle,
   onVerTodos,
   showVerTodos = true,
+  onAddEntrada,
+  onAddSaida,
 }: RecentListProps) {
   if (lancamentos.length === 0) {
-    return <EmptyState variant="default" />
+    return (
+      <div className="py-10 px-4 text-center">
+        <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-muted mb-3">
+          <Inbox className="w-5 h-5 text-muted-foreground" />
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">
+          Nenhum lançamento neste mês
+        </p>
+        {(onAddEntrada || onAddSaida) && (
+          <div className="flex items-center justify-center gap-2">
+            {onAddEntrada && (
+              <Button
+                onClick={onAddEntrada}
+                size="sm"
+                variant="outline"
+                className="border-verde/30 text-verde hover:bg-verde/5"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Entrada
+              </Button>
+            )}
+            {onAddSaida && (
+              <Button
+                onClick={onAddSaida}
+                size="sm"
+                variant="outline"
+                className="border-rosa/30 text-rosa hover:bg-rosa/5"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Saída
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (

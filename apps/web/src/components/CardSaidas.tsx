@@ -20,7 +20,6 @@ import { cn, formatarMoeda } from '@/lib/utils'
 import { ItemListaWrapper } from './ItemListaWrapper'
 import { ItemListaAgrupado } from './ItemListaAgrupado'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Card,
@@ -167,18 +166,18 @@ export function CardSaidas({
 
         {/* Lista de saídas */}
         {todosItens.length === 0 ? (
-          <div className="p-8 text-center">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-rosa/10 mb-3">
-              <CreditCard className="w-6 h-6 text-rosa" />
+          <div className="py-10 px-4 text-center">
+            <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-muted mb-3">
+              <CreditCard className="w-5 h-5 text-muted-foreground" />
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground mb-4">
               Nenhuma saída neste mês
             </p>
             <Button
               onClick={onAdd}
               size="sm"
               variant="outline"
-              className="mt-3"
+              className="border-rosa/30 text-rosa hover:bg-rosa/5"
             >
               <Plus className="w-4 h-4 mr-1" />
               Adicionar saída
@@ -252,24 +251,24 @@ export function CardSaidas({
 
         {/* Indicadores de status */}
         {todosItens.length > 0 && (
-          <div className="px-4 py-3 border-t bg-muted/30 flex items-center justify-center gap-3 flex-wrap">
+          <div className="px-4 py-2.5 border-t bg-muted/20 flex items-center justify-center gap-3 flex-wrap">
             {itensPendentes.length > 0 && (
-              <Badge variant="outline" className="text-xs">
-                <Clock className="w-3 h-3 mr-1" />
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <Clock className="w-3 h-3" />
                 {itensPendentes.length} pendente{itensPendentes.length > 1 ? 's' : ''}
-              </Badge>
+              </span>
             )}
             {itensPagos.length > 0 && (
-              <Badge variant="outline" className="text-xs text-verde border-verde/30">
-                <Check className="w-3 h-3 mr-1" />
+              <span className="text-xs text-verde flex items-center gap-1">
+                <Check className="w-3 h-3" />
                 {itensPagos.length} paga{itensPagos.length > 1 ? 's' : ''}
-              </Badge>
+              </span>
             )}
             {totalAgrupadores > 0 && (
-              <Badge variant="default" className="text-xs bg-primary text-primary-foreground">
-                <Package className="w-3 h-3 mr-1" />
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <Package className="w-3 h-3" />
                 {totalAgrupadores} grupo{totalAgrupadores > 1 ? 's' : ''}
-              </Badge>
+              </span>
             )}
           </div>
         )}
