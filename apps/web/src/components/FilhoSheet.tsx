@@ -1,21 +1,45 @@
 /**
  * FilhoSheet Component
  *
- * Drawer/Bottomsheet para adicionar ou editar itens filhos de um agrupador.
- * Similar ao LancamentoSheet, mas simplificado (sem recorrência).
+ * Sheet moderno para adicionar ou editar itens filhos de um agrupador.
+ * Design atualizado com shadcn/ui para melhor UX.
  */
 
 import { useState, useEffect } from 'react'
-import { X, Loader2 } from 'lucide-react'
-import { Drawer as DrawerPrimitive } from 'vaul'
+import { 
+  DollarSign, 
+  Tag, 
+  Calendar, 
+  ChevronRight,
+  Trash2,
+  AlertCircle,
+  Package,
+  CheckCircle2
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+
+// Componentes shadcn/ui
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { Badge } from '@/components/ui/badge'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Separator } from '@/components/ui/separator'
+
+// Componentes internos
 import { InputMoeda } from '@/components/InputMoeda'
 import { CategoriaSelect } from '@/components/CategoriaSelect'
-import { useIsDesktop } from '@/hooks/useMediaQuery'
 import type { Lancamento } from '@/lib/api'
 
 export interface FilhoFormData {
@@ -45,7 +69,6 @@ export function FilhoSheet({
   onDelete,
   isLoading = false,
 }: FilhoSheetProps) {
-  const isDesktop = useIsDesktop()
   const isEditing = !!filho
 
   // Campos do formulário
@@ -79,25 +102,31 @@ export function FilhoSheet({
     setErrors({})
   }, [filho, open])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
+  const validateForm = () => {
     const newErrors: typeof errors = {}
 
     if (!nome.trim()) {
-      newErrors.nome = 'Adicione uma descrição para este item'
+      newErrors.nome = 'Nome é obrigatório'
     }
 
     const valorNumerico = parseFloat(valor.replace(',', '.'))
     if (!valor || isNaN(valorNumerico) || valorNumerico <= 0) {
-      newErrors.valor = 'Digite um valor válido (maior que R$ 0,00)'
+      newErrors.valor = 'Valor deve ser maior que zero'
     }
 
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors)
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!validateForm()) {
       return
     }
 
+    const valorNumerico = parseFloat(valor.replace(',', '.'))
+    
     await onSubmit({
       nome: nome.trim(),
       valor: valorNumerico,
@@ -107,154 +136,228 @@ export function FilhoSheet({
     })
   }
 
-  const sharedContent = (
-    <div className={cn(
-      'flex flex-col overflow-hidden',
-      isDesktop ? 'h-full p-6' : 'max-h-[calc(85vh-12px)] p-4'
-    )}>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4 shrink-0">
-        <div>
-          <DrawerPrimitive.Title className="text-titulo-card text-foreground">
-            {isEditing ? 'Editar item do grupo' : 'Novo item no grupo'}
-          </DrawerPrimitive.Title>
-          <p className="text-micro text-muted-foreground mt-0.5">
-            Adicionando em: {agrupador.nome}
-          </p>
-        </div>
-        <DrawerPrimitive.Close className="p-2 -mr-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
-          <X className="w-5 h-5" />
-        </DrawerPrimitive.Close>
-      </div>
+  const getDateLabel = () => {
+    if (!dataPrevista) return 'Selecionar data'
+    try {
+      return format(new Date(dataPrevista + 'T12:00:00'), "d 'de' MMMM", { locale: ptBR })
+    } catch {
+      return 'Data inválida'
+    }
+  }
 
-      {/* Formulário */}
-      <div
-        className="flex-1 overflow-y-auto min-h-0 overscroll-contain -mx-4 px-4"
-        data-vaul-no-drag
-      >
-        <form id="filho-form" onSubmit={handleSubmit} className="space-y-5 pb-4">
-          {/* Nome */}
-          <div className="space-y-2">
-            <Label htmlFor="nome">Descrição do item</Label>
-            <Input
-              id="nome"
-              value={nome}
-              onChange={(e) => {
-                setNome(e.target.value)
-                if (errors.nome) setErrors((prev) => ({ ...prev, nome: undefined }))
-              }}
-              placeholder="Ex: Compra no supermercado, Gasolina, Restaurante"
-              maxLength={100}
-              autoFocus
-            />
-            {errors.nome && (
-              <p className="text-pequeno text-vermelho">{errors.nome}</p>
-            )}
-          </div>
-
-          {/* Valor */}
-          <InputMoeda
-            label="Valor deste item"
-            value={valor}
-            onChange={(val) => {
-              setValor(val)
-              if (errors.valor) setErrors((prev) => ({ ...prev, valor: undefined }))
-            }}
-            error={errors.valor}
-          />
-
-          {/* Categoria */}
-          <CategoriaSelect
-            tipo="saida"
-            value={categoriaId}
-            onChange={setCategoriaId}
-          />
-
-          {/* Data prevista */}
-          <div className="space-y-2">
-            <Label htmlFor="dataPrevista">Data da compra</Label>
-            <Input
-              id="dataPrevista"
-              type="date"
-              value={dataPrevista}
-              onChange={(e) => setDataPrevista(e.target.value)}
-            />
-          </div>
-
-          {/* Toggle: Concluído */}
-          <div className="flex items-center justify-between min-h-touch">
-            <Label htmlFor="concluido" className="cursor-pointer">
-              Já foi pago
-            </Label>
-            <Switch
-              id="concluido"
-              checked={concluido}
-              onCheckedChange={setConcluido}
-            />
-          </div>
-        </form>
-      </div>
-
-      {/* Botões */}
-      <div className={cn(
-        'space-y-3 pt-4 border-t border-border shrink-0',
-        !isDesktop && 'pb-safe'
-      )}>
-        <Button
-          type="submit"
-          form="filho-form"
-          className="w-full"
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Salvando...
-            </>
-          ) : (
-            isEditing ? 'Salvar alterações' : 'Adicionar ao grupo'
-          )}
-        </Button>
-
-        {isEditing && onDelete && (
-          <Button
-            type="button"
-            variant="destructive"
-            className="w-full"
-            onClick={onDelete}
-            disabled={isLoading}
-          >
-            Remover item
-          </Button>
-        )}
-      </div>
-    </div>
-  )
+  // Informações do agrupador
+  const agrupadorInfo = {
+    tipo: agrupador.tipo,
+    valorTotal: agrupador.valor,
+    nome: agrupador.nome,
+  }
 
   return (
-    <DrawerPrimitive.Root
-      open={open}
-      onOpenChange={onOpenChange}
-      direction={isDesktop ? 'right' : 'bottom'}
-      shouldScaleBackground={!isDesktop}
-    >
-      <DrawerPrimitive.Portal>
-        <DrawerPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50" />
-        <DrawerPrimitive.Content
-          className={cn(
-            'fixed z-50 flex flex-col bg-card',
-            isDesktop
-              ? 'inset-y-0 right-0 h-full w-full max-w-md border-l border-border rounded-l-2xl shadow-xl'
-              : 'inset-x-0 bottom-0 rounded-t-2xl border-t border-border shadow-xl'
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent 
+        side="right" 
+        className="w-full sm:max-w-md p-0 flex flex-col h-full"
+      >
+        <SheetHeader className="px-6 py-5 space-y-3 border-b">
+          <div>
+            <SheetTitle className="text-xl font-semibold">
+              {isEditing ? 'Editar item' : 'Adicionar item'}
+            </SheetTitle>
+            <SheetDescription className="text-sm text-muted-foreground mt-1">
+              {isEditing 
+                ? 'Atualize as informações do item' 
+                : 'Adicione um novo item ao grupo'}
+            </SheetDescription>
+          </div>
+          
+          {/* Info do agrupador */}
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/30 border">
+            <Package className="w-4 h-4 text-muted-foreground" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">{agrupadorInfo.nome}</p>
+              <p className="text-xs text-muted-foreground">
+                Valor total: R$ {agrupadorInfo.valorTotal.toFixed(2).replace('.', ',')}
+              </p>
+            </div>
+            <Badge 
+              variant="outline" 
+              className={cn(
+                "text-xs",
+                agrupadorInfo.tipo === 'entrada' 
+                  ? "text-verde border-verde/30 bg-verde/5"
+                  : "text-rosa border-rosa/30 bg-rosa/5"
+              )}
+            >
+              {agrupadorInfo.tipo === 'entrada' ? 'Entrada' : 'Saída'}
+            </Badge>
+          </div>
+        </SheetHeader>
+
+        <ScrollArea className="flex-1 px-6 py-6">
+          <form id="filho-form" onSubmit={handleSubmit} className="space-y-6">
+            {/* Nome do item */}
+            <div className="space-y-2">
+              <Label htmlFor="nome" className="text-sm font-medium">
+                Nome do item
+              </Label>
+              <div className="relative">
+                <Input
+                  id="nome"
+                  value={nome}
+                  onChange={(e) => {
+                    setNome(e.target.value)
+                    if (errors.nome) setErrors(prev => ({ ...prev, nome: undefined }))
+                  }}
+                  placeholder="Ex: iFood, Netflix, Uber..."
+                  className={cn(
+                    "h-12",
+                    errors.nome && "border-destructive focus:ring-destructive"
+                  )}
+                  autoFocus
+                />
+              </div>
+              {errors.nome && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {errors.nome}
+                </p>
+              )}
+            </div>
+
+            {/* Valor */}
+            <div className="space-y-2">
+              <Label htmlFor="valor" className="text-sm font-medium">
+                Valor do item
+              </Label>
+              <div className="relative">
+                <InputMoeda
+                  value={valor}
+                  onChange={(val) => {
+                    setValor(val)
+                    if (errors.valor) setErrors(prev => ({ ...prev, valor: undefined }))
+                  }}
+                  error={errors.valor}
+                  className="h-12 pl-10"
+                />
+                <DollarSign className="absolute left-3 top-3.5 w-4 h-4 text-muted-foreground" />
+              </div>
+            </div>
+
+            {/* Categoria */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">
+                Categoria
+              </Label>
+              <div className="relative">
+                <CategoriaSelect
+                  tipo="saida"
+                  value={categoriaId}
+                  onChange={setCategoriaId}
+                />
+                <Tag className="absolute left-3 top-3.5 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Data */}
+            <div className="space-y-2">
+              <Label htmlFor="dataPrevista" className="text-sm font-medium">
+                Data do item
+              </Label>
+              <button
+                type="button"
+                onClick={() => {
+                  const input = document.getElementById('dataPrevista') as HTMLInputElement
+                  input?.showPicker?.()
+                }}
+                className={cn(
+                  "w-full h-12 px-3 rounded-lg border bg-background text-left flex items-center justify-between",
+                  "hover:bg-accent transition-colors",
+                  dataPrevista ? "text-foreground" : "text-muted-foreground"
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  {getDateLabel()}
+                </span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <input
+                id="dataPrevista"
+                type="date"
+                value={dataPrevista}
+                onChange={(e) => setDataPrevista(e.target.value)}
+                className="sr-only"
+              />
+              <p className="text-xs text-muted-foreground">
+                Data em que este item foi ou será pago/recebido
+              </p>
+            </div>
+
+            {/* Toggle: Concluído */}
+            <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border">
+              <div className="space-y-0.5">
+                <Label htmlFor="concluido" className="text-sm font-medium cursor-pointer flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-verde" />
+                  Já paguei
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Marcar este item como concluído
+                </p>
+              </div>
+              <Switch
+                id="concluido"
+                checked={concluido}
+                onCheckedChange={setConcluido}
+                className="data-[state=checked]:bg-verde"
+              />
+            </div>
+          </form>
+        </ScrollArea>
+
+        <SheetFooter className="px-6 py-4 border-t space-y-2 sm:space-y-0 sm:space-x-2">
+          {isEditing && onDelete && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={onDelete}
+              disabled={isLoading}
+              className="w-full sm:w-auto text-destructive hover:text-destructive hover:bg-destructive/10"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Excluir item
+            </Button>
           )}
-          style={!isDesktop ? { maxHeight: '85vh' } : undefined}
-        >
-          {!isDesktop && (
-            <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-border" />
-          )}
-          {sharedContent}
-        </DrawerPrimitive.Content>
-      </DrawerPrimitive.Portal>
-    </DrawerPrimitive.Root>
+          
+          <div className="flex gap-2 w-full sm:w-auto sm:ml-auto">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isLoading}
+              className="flex-1 sm:flex-initial"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              form="filho-form"
+              disabled={isLoading}
+              className="flex-1 sm:flex-initial bg-primary hover:bg-primary/90"
+            >
+              {isLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                  Salvando...
+                </>
+              ) : (
+                isEditing ? 'Salvar alterações' : 'Adicionar item'
+              )}
+            </Button>
+          </div>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   )
 }
