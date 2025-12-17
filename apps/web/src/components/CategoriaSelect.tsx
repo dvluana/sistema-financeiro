@@ -1,19 +1,17 @@
 /**
  * CategoriaSelect Component
  *
- * Seletor de categorias com criação inline.
- * Design moderno com boa UX/UI e scroll funcional.
+ * Seletor de categorias com criação inline expandível.
+ * Design consistente com o padrão "criar como grupo".
  */
 
 import { useState, useEffect, useRef } from 'react'
 import {
   Check,
   ChevronDown,
-  Search,
   Tag,
   Plus,
   Loader2,
-  X
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -23,6 +21,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { motion, AnimatePresence } from 'framer-motion'
 import { categoriasApi } from '@/lib/api'
 import type { Categoria } from '@/lib/api'
 
@@ -58,10 +57,8 @@ const getCategoryIcon = (nome: string) => {
 
 // Cores predefinidas para novas categorias
 const PRESET_COLORS = [
-  '#ef4444', '#f97316', '#f59e0b', '#eab308',
-  '#84cc16', '#22c55e', '#14b8a6', '#06b6d4',
-  '#0ea5e9', '#3b82f6', '#6366f1', '#8b5cf6',
-  '#a855f7', '#d946ef', '#ec4899', '#f43f5e',
+  '#ef4444', '#f97316', '#f59e0b', '#84cc16',
+  '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6',
 ]
 
 export function CategoriaSelect({
@@ -73,16 +70,14 @@ export function CategoriaSelect({
   const [open, setOpen] = useState(false)
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
 
-  // Estado para criar categoria
+  // Estado para criar categoria (inline, expandível)
   const [isCreating, setIsCreating] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
   const [newCategoryColor, setNewCategoryColor] = useState(PRESET_COLORS[0])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
 
-  const searchInputRef = useRef<HTMLInputElement>(null)
   const newCategoryInputRef = useRef<HTMLInputElement>(null)
 
   // Carrega categorias (todas, independente do tipo)
@@ -91,7 +86,6 @@ export function CategoriaSelect({
       try {
         setIsLoading(true)
         const data = await categoriasApi.listar()
-        // Não filtra por tipo - todas categorias disponíveis para entrada e saída
         setCategorias(data)
       } catch (error) {
         console.error('Erro ao carregar categorias:', error)
@@ -106,7 +100,6 @@ export function CategoriaSelect({
   // Limpa estados ao fechar
   useEffect(() => {
     if (!open) {
-      setSearchQuery('')
       setIsCreating(false)
       setNewCategoryName('')
       setNewCategoryColor(PRESET_COLORS[0])
@@ -114,17 +107,12 @@ export function CategoriaSelect({
     }
   }, [open])
 
-  // Foca no input de criar quando abre
+  // Foca no input de criar quando expande
   useEffect(() => {
     if (isCreating && newCategoryInputRef.current) {
-      newCategoryInputRef.current.focus()
+      setTimeout(() => newCategoryInputRef.current?.focus(), 100)
     }
   }, [isCreating])
-
-  // Filtra categorias
-  const filteredCategorias = categorias.filter(cat =>
-    cat.nome.toLowerCase().includes(searchQuery.toLowerCase())
-  )
 
   // Categoria selecionada
   const selectedCategoria = categorias.find(cat => cat.id === value)
@@ -134,23 +122,11 @@ export function CategoriaSelect({
     setOpen(false)
   }
 
-  const handleStartCreate = () => {
-    setIsCreating(true)
-    setNewCategoryName(searchQuery)
-    setCreateError(null)
-  }
-
-  const handleCancelCreate = () => {
-    setIsCreating(false)
-    setNewCategoryName('')
-    setCreateError(null)
-  }
-
   const handleCreateCategory = async () => {
     const trimmedName = newCategoryName.trim()
 
     if (!trimmedName) {
-      setCreateError('Digite um nome para a categoria')
+      setCreateError('Digite um nome')
       return
     }
 
@@ -159,7 +135,7 @@ export function CategoriaSelect({
       cat => cat.nome.toLowerCase() === trimmedName.toLowerCase()
     )
     if (exists) {
-      setCreateError('Já existe uma categoria com esse nome')
+      setCreateError('Já existe')
       return
     }
 
@@ -179,7 +155,7 @@ export function CategoriaSelect({
       setOpen(false)
     } catch (error) {
       console.error('Erro ao criar categoria:', error)
-      setCreateError('Erro ao criar categoria')
+      setCreateError('Erro ao criar')
     } finally {
       setIsSubmitting(false)
     }
@@ -221,199 +197,168 @@ export function CategoriaSelect({
         </PopoverTrigger>
 
         <PopoverContent
-          className="w-[300px] p-0"
+          className="w-[280px] p-0"
           align="start"
           sideOffset={4}
         >
-          {isCreating ? (
-            /* Modo criar categoria */
-            <div className="p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-medium">Nova categoria</h4>
-                <button
-                  type="button"
-                  onClick={handleCancelCreate}
-                  className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+          {/* Lista de categorias */}
+          <div className="max-h-[220px] overflow-y-auto overscroll-contain">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
               </div>
-
-              {/* Nome */}
-              <div className="space-y-2">
-                <label className="text-xs text-muted-foreground">
-                  Nome da categoria
-                </label>
-                <Input
-                  ref={newCategoryInputRef}
-                  value={newCategoryName}
-                  onChange={(e) => {
-                    setNewCategoryName(e.target.value)
-                    setCreateError(null)
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      handleCreateCategory()
-                    }
-                    if (e.key === 'Escape') {
-                      handleCancelCreate()
-                    }
-                  }}
-                  placeholder="Ex: Alimentação"
-                  className={cn(
-                    "h-10",
-                    createError && "border-destructive focus:border-destructive"
-                  )}
-                />
-                {createError && (
-                  <p className="text-xs text-destructive">{createError}</p>
-                )}
+            ) : categorias.length === 0 ? (
+              <div className="p-4 text-center text-sm text-muted-foreground">
+                Nenhuma categoria
               </div>
-
-              {/* Cor */}
-              <div className="space-y-2">
-                <label className="text-xs text-muted-foreground">
-                  Cor
-                </label>
-                <div className="grid grid-cols-8 gap-1.5">
-                  {PRESET_COLORS.map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      onClick={() => setNewCategoryColor(color)}
-                      className={cn(
-                        "w-7 h-7 rounded-md transition-all",
-                        newCategoryColor === color
-                          ? "ring-2 ring-offset-2 ring-offset-background ring-primary scale-110"
-                          : "hover:scale-105"
-                      )}
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Botões */}
-              <div className="flex gap-2 pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCancelCreate}
-                  className="flex-1"
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleCreateCategory}
-                  disabled={isSubmitting || !newCategoryName.trim()}
-                  className="flex-1"
-                >
-                  {isSubmitting ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    'Criar'
-                  )}
-                </Button>
-              </div>
-            </div>
-          ) : (
-            /* Modo seleção */
-            <>
-              {/* Campo de busca */}
-              <div className="p-3 border-b">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    ref={searchInputRef}
-                    placeholder="Buscar categoria..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="h-9 pl-9 pr-3"
-                  />
-                </div>
-              </div>
-
-              {/* Lista de categorias com scroll nativo */}
-              <div className="max-h-[200px] overflow-y-auto overscroll-contain">
-                {isLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                  </div>
-                ) : filteredCategorias.length === 0 ? (
-                  <div className="p-4 text-center">
-                    <p className="text-sm text-muted-foreground mb-3">
-                      {searchQuery
-                        ? `Nenhuma categoria "${searchQuery}"`
-                        : 'Nenhuma categoria'}
-                    </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleStartCreate}
-                      className="gap-1.5"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Criar "{searchQuery || 'nova'}"
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="p-1.5">
-                    {filteredCategorias.map((categoria) => (
-                      <button
-                        key={categoria.id}
-                        type="button"
-                        onClick={() => handleSelect(categoria.id)}
-                        className={cn(
-                          "w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-colors",
-                          "hover:bg-accent active:bg-accent/80",
-                          value === categoria.id && "bg-accent"
-                        )}
-                      >
-                        <span className="text-base shrink-0">
-                          {getCategoryIcon(categoria.nome)}
-                        </span>
-                        <span className="flex-1 text-sm truncate">
-                          {categoria.nome}
-                        </span>
-                        {categoria.cor && (
-                          <div
-                            className="w-3 h-3 rounded-full shrink-0"
-                            style={{ backgroundColor: categoria.cor }}
-                          />
-                        )}
-                        {value === categoria.id && (
-                          <Check className="h-4 w-4 text-primary shrink-0" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Footer com botão criar */}
-              {filteredCategorias.length > 0 && (
-                <div className="p-2 border-t">
+            ) : (
+              <div className="p-1.5">
+                {categorias.map((categoria) => (
                   <button
+                    key={categoria.id}
                     type="button"
-                    onClick={handleStartCreate}
+                    onClick={() => handleSelect(categoria.id)}
                     className={cn(
-                      "w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-left",
-                      "text-sm text-muted-foreground",
-                      "hover:bg-accent hover:text-foreground transition-colors"
+                      "w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-colors",
+                      "hover:bg-accent active:bg-accent/80",
+                      value === categoria.id && "bg-accent"
                     )}
                   >
-                    <Plus className="w-4 h-4" />
-                    <span>Criar nova categoria</span>
+                    <span className="text-base shrink-0">
+                      {getCategoryIcon(categoria.nome)}
+                    </span>
+                    <span className="flex-1 text-sm truncate">
+                      {categoria.nome}
+                    </span>
+                    {categoria.cor && (
+                      <div
+                        className="w-3 h-3 rounded-full shrink-0"
+                        style={{ backgroundColor: categoria.cor }}
+                      />
+                    )}
+                    {value === categoria.id && (
+                      <Check className="h-4 w-4 text-primary shrink-0" />
+                    )}
                   </button>
-                </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Seção criar categoria - estilo igual ao "criar como grupo" */}
+          <div className="border-t">
+            <button
+              type="button"
+              onClick={() => setIsCreating(!isCreating)}
+              className={cn(
+                "w-full flex items-center justify-between px-4 py-3",
+                "text-sm text-left transition-colors",
+                "hover:bg-accent",
+                isCreating && "bg-accent/50"
               )}
-            </>
-          )}
+            >
+              <div className="flex items-center gap-2">
+                <Plus className="w-4 h-4 text-muted-foreground" />
+                <span className={isCreating ? "text-foreground font-medium" : "text-muted-foreground"}>
+                  Criar nova categoria
+                </span>
+              </div>
+              <div className={cn(
+                "w-9 h-5 rounded-full transition-colors relative",
+                isCreating ? "bg-primary" : "bg-muted"
+              )}>
+                <div className={cn(
+                  "absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform",
+                  isCreating ? "left-[18px]" : "left-0.5"
+                )} />
+              </div>
+            </button>
+
+            {/* Campos de criação - expandível */}
+            <AnimatePresence>
+              {isCreating && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="px-4 pb-4 pt-2 space-y-3 border-t border-dashed">
+                    {/* Nome */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground">
+                        Nome
+                      </label>
+                      <Input
+                        ref={newCategoryInputRef}
+                        value={newCategoryName}
+                        onChange={(e) => {
+                          setNewCategoryName(e.target.value)
+                          setCreateError(null)
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            handleCreateCategory()
+                          }
+                        }}
+                        placeholder="Ex: Alimentação"
+                        className={cn(
+                          "h-9",
+                          createError && "border-destructive"
+                        )}
+                      />
+                      {createError && (
+                        <p className="text-xs text-destructive">{createError}</p>
+                      )}
+                    </div>
+
+                    {/* Cor */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground">
+                        Cor
+                      </label>
+                      <div className="flex gap-1.5">
+                        {PRESET_COLORS.map((color) => (
+                          <button
+                            key={color}
+                            type="button"
+                            onClick={() => setNewCategoryColor(color)}
+                            className={cn(
+                              "w-7 h-7 rounded-md transition-all",
+                              newCategoryColor === color
+                                ? "ring-2 ring-offset-1 ring-offset-background ring-primary scale-110"
+                                : "hover:scale-105 opacity-70 hover:opacity-100"
+                            )}
+                            style={{ backgroundColor: color }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Botão criar */}
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleCreateCategory}
+                      disabled={isSubmitting || !newCategoryName.trim()}
+                      className="w-full"
+                    >
+                      {isSubmitting ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4 mr-1.5" />
+                          Criar categoria
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </PopoverContent>
       </Popover>
     </div>
