@@ -11,6 +11,7 @@ import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { formatarMesAno } from '@/lib/utils'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { WorkspaceSwitcher } from './WorkspaceSwitcher'
 
 interface HeaderProps {
   mes: string
@@ -25,29 +26,19 @@ export function Header({
   onProximoMes,
   onOpenConfig,
 }: HeaderProps) {
-  const { usuario, logout } = useAuthStore()
+  const { logout } = useAuthStore()
 
   const handleLogout = async () => {
     await logout()
   }
 
-  // Extrai nome do usuário (primeiro nome apenas)
-  const primeiroNome = usuario?.nome?.split(' ')[0] || 'Usuário'
-
   return (
     <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
       <div className="max-w-[720px] mx-auto">
-        {/* Barra superior com usuário */}
+        {/* Barra superior com workspace switcher */}
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
-          <div className="flex items-center gap-2">
-            {/* Avatar com inicial */}
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-rosa to-rosa/80 text-white text-pequeno font-semibold">
-              {primeiroNome.charAt(0).toUpperCase()}
-            </div>
-            <span className="text-corpo text-foreground font-medium">
-              {primeiroNome}
-            </span>
-          </div>
+          {/* Workspace Switcher */}
+          <WorkspaceSwitcher />
 
           <div className="flex items-center gap-1">
             {/* Botão de configurações */}

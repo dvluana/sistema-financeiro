@@ -59,9 +59,9 @@ export const lancamentoRepository = {
       return acc
     }, {} as Record<string, Lancamento[]>)
 
-    // Anexa filhos aos agrupadores
+    // Anexa filhos aos agrupadores (is_agrupador=true)
     pais.forEach(l => {
-      if (l.tipo === 'agrupador') {
+      if (l.is_agrupador) {
         l.filhos = filhosPorPai[l.id] || []
       }
     })
@@ -231,14 +231,15 @@ export const lancamentoRepository = {
    *
    * DEFENSIVE VALIDATIONS (além dos triggers do banco):
    * 1. Valida que parent existe e pertence ao perfil
-   * 2. Valida que parent é tipo 'agrupador'
+   * 2. Valida que parent tem is_agrupador=true
    * 3. Valida que mes do filho = mes do parent
+   * 4. Valida que tipo do filho = tipo do parent
    *
    * Triggers do banco fornecem última linha de defesa,
    * mas validação aqui dá feedback melhor ao usuário.
    */
   async createFilho(parentId: string, input: CriarFilhoInput, mes: string, ctx: ContextoUsuario | string): Promise<Lancamento> {
-    // VALIDAÇÃO 1: Busca parent para validar ownership, tipo e mes
+    // VALIDAÇÃO 1: Busca parent para validar ownership, is_agrupador, tipo e mes
     const parent = await this.findById(parentId, ctx)
 
     if (!parent) {
@@ -246,13 +247,18 @@ export const lancamentoRepository = {
     }
 
     // VALIDAÇÃO 2: Parent deve ser agrupador
-    if (parent.tipo !== 'agrupador') {
-      throw new Error(`Parent lancamento ${parentId} is not an agrupador (tipo=${parent.tipo})`)
+    if (!parent.is_agrupador) {
+      throw new Error(`Parent lancamento ${parentId} is not an agrupador (is_agrupador=false)`)
     }
 
     // VALIDAÇÃO 3: Mes do filho deve ser igual ao mes do parent
     if (parent.mes !== mes) {
       throw new Error(`Child mes (${mes}) must match parent mes (${parent.mes})`)
+    }
+
+    // VALIDAÇÃO 4: Tipo do filho deve ser igual ao tipo do parent
+    if (input.tipo !== parent.tipo) {
+      throw new Error(`Child tipo (${input.tipo}) must match parent tipo (${parent.tipo})`)
     }
 
     // Todas validações OK, cria o filho
@@ -278,7 +284,7 @@ export const lancamentoRepository = {
    */
   async findAgrupadorComFilhos(id: string, ctx: ContextoUsuario | string): Promise<Lancamento | null> {
     const agrupador = await this.findById(id, ctx)
-    if (!agrupador || agrupador.tipo !== 'agrupador') return null
+    if (!agrupador || !agrupador.is_agrupador) return null
 
     const filhos = await this.findFilhos(id, ctx)
     agrupador.filhos = filhos

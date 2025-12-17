@@ -21,9 +21,36 @@ export interface Usuario {
   updated_at: string
 }
 
+export interface Perfil {
+  id: string
+  nome: string
+  descricao: string | null
+  cor: string
+  icone: string
+  usuario_id: string
+  is_perfil_padrao: boolean
+  ativo: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface PerfilBasico {
+  id: string
+  nome: string
+  cor: string
+  icone: string
+  is_perfil_padrao: boolean
+}
+
 export interface AuthResponse {
   usuario: Usuario
   token: string
+  perfil_padrao: PerfilBasico
+}
+
+export interface PerfisResponse {
+  perfis: Perfil[]
+  perfil_atual: Perfil | null
 }
 
 export interface Categoria {
@@ -502,6 +529,8 @@ export interface CalendarEvent {
   location?: string
   description?: string
   isAllDay: boolean
+  meetLink?: string
+  htmlLink?: string
 }
 
 export interface GoogleCalendarStatus {
@@ -540,4 +569,94 @@ export const googleCalendarApi = {
    */
   getEvents: (maxResults = 10, daysAhead = 7): Promise<{ events: CalendarEvent[] }> =>
     request(`/api/google-calendar/events?maxResults=${maxResults}&daysAhead=${daysAhead}`),
+}
+
+/**
+ * Tipos para Perfis/Workspaces
+ */
+export interface CriarPerfilInput {
+  nome: string
+  descricao?: string | null
+  cor?: string
+  icone?: string
+}
+
+export interface AtualizarPerfilInput {
+  nome?: string
+  descricao?: string | null
+  cor?: string
+  icone?: string
+  ativo?: boolean
+}
+
+/**
+ * API de Perfis/Workspaces
+ */
+export const perfisApi = {
+  /**
+   * Lista todos os perfis ativos do usuário
+   */
+  listar: (): Promise<PerfisResponse> =>
+    request('/api/perfis'),
+
+  /**
+   * Lista todos os perfis incluindo arquivados
+   */
+  listarTodos: (): Promise<{ perfis: Perfil[] }> =>
+    request('/api/perfis/todos'),
+
+  /**
+   * Busca o perfil padrão do usuário
+   */
+  buscarPadrao: (): Promise<Perfil> =>
+    request('/api/perfis/padrao'),
+
+  /**
+   * Busca um perfil específico
+   */
+  buscar: (id: string): Promise<Perfil> =>
+    request(`/api/perfis/${id}`),
+
+  /**
+   * Cria novo perfil
+   */
+  criar: (data: CriarPerfilInput): Promise<Perfil> =>
+    request('/api/perfis', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  /**
+   * Atualiza perfil existente
+   */
+  atualizar: (id: string, data: AtualizarPerfilInput): Promise<Perfil> =>
+    request(`/api/perfis/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  /**
+   * Arquiva perfil (soft delete)
+   */
+  arquivar: (id: string): Promise<Perfil> =>
+    request(`/api/perfis/${id}/arquivar`, {
+      method: 'PATCH',
+    }),
+
+  /**
+   * Reativa perfil arquivado
+   */
+  reativar: (id: string): Promise<Perfil> =>
+    request(`/api/perfis/${id}/reativar`, {
+      method: 'PATCH',
+    }),
+
+  /**
+   * Remove perfil permanentemente
+   * CUIDADO: Remove todos os dados do perfil!
+   */
+  excluir: (id: string): Promise<{ success: boolean; message: string }> =>
+    request(`/api/perfis/${id}`, {
+      method: 'DELETE',
+    }),
 }

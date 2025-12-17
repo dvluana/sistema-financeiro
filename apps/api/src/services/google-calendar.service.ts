@@ -222,6 +222,8 @@ export interface CalendarEvent {
   location?: string
   description?: string
   isAllDay: boolean
+  meetLink?: string
+  htmlLink?: string
 }
 
 /**
@@ -282,6 +284,11 @@ export async function getUpcomingEvents(
     const startTime = event.start?.dateTime || event.start?.date || ''
     const endTime = event.end?.dateTime || event.end?.date || ''
 
+    // Extrai link do Google Meet (conferenceData ou hangoutLink)
+    const meetLink = event.conferenceData?.entryPoints?.find(
+      ep => ep.entryPointType === 'video'
+    )?.uri || event.hangoutLink || undefined
+
     return {
       id: event.id || '',
       title: event.summary || 'Sem título',
@@ -291,6 +298,8 @@ export async function getUpcomingEvents(
       location: event.location || undefined,
       description: event.description || undefined,
       isAllDay,
+      meetLink,
+      htmlLink: event.htmlLink || undefined,
     }
   })
 }

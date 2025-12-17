@@ -9,20 +9,22 @@ import { lancamentoRepository } from '../repositories/lancamento.repository.js'
 import type { Lancamento, CriarLancamentoInput, AtualizarLancamentoInput, LancamentoResponse, CriarFilhoInput } from '../schemas/lancamento.js'
 
 /**
- * Calcula totalizadores a partir das listas de entradas, saídas e agrupadores
- * Agrupadores contam como saídas no cálculo do saldo
+ * Calcula totalizadores a partir das listas de entradas e saídas
+ *
+ * IMPORTANTE: Com a nova arquitetura, agrupadores NÃO são um tipo separado.
+ * - Entradas podem ser agrupadores (is_agrupador=true)
+ * - Saídas podem ser agrupadores (is_agrupador=true)
+ * - Todos os lançamentos raiz (parent_id=null) contam no saldo
  */
-function calcularTotais(entradas: Lancamento[], saidas: Lancamento[], agrupadores: Lancamento[]) {
+function calcularTotais(entradas: Lancamento[], saidas: Lancamento[]) {
   const totalEntradas = entradas.reduce((sum, e) => sum + Number(e.valor), 0)
   const jaEntrou = entradas
     .filter((e) => e.concluido)
     .reduce((sum, e) => sum + Number(e.valor), 0)
   const faltaEntrar = totalEntradas - jaEntrou
 
-  // Saídas incluem tanto saídas normais quanto agrupadores
-  const todasSaidas = [...saidas, ...agrupadores]
-  const totalSaidas = todasSaidas.reduce((sum, s) => sum + Number(s.valor), 0)
-  const jaPaguei = todasSaidas
+  const totalSaidas = saidas.reduce((sum, s) => sum + Number(s.valor), 0)
+  const jaPaguei = saidas
     .filter((s) => s.concluido)
     .reduce((sum, s) => sum + Number(s.valor), 0)
   const faltaPagar = totalSaidas - jaPaguei
@@ -41,15 +43,24 @@ function calcularTotais(entradas: Lancamento[], saidas: Lancamento[], agrupadore
 export const lancamentoService = {
   /**
    * Lista lançamentos de um mês com totalizadores
-   * Separa entradas, saídas e agrupadores
+   * Separa entradas e saídas
+   *
+   * NOVA ARQUITETURA:
+   * - Entradas podem ter is_agrupador=true (ex: grupo de freelances)
+   * - Saídas podem ter is_agrupador=true (ex: cartão de crédito)
+   * - Array 'agrupadores' é mantido para compatibilidade com frontend,
+   *   mas contém apenas lançamentos com is_agrupador=true
    */
   async listarPorMes(mes: string, userId: string): Promise<LancamentoResponse> {
     const lancamentos = await lancamentoRepository.findByMes(mes, userId)
 
     const entradas = lancamentos.filter((l) => l.tipo === 'entrada')
     const saidas = lancamentos.filter((l) => l.tipo === 'saida')
-    const agrupadores = lancamentos.filter((l) => l.tipo === 'agrupador')
-    const totais = calcularTotais(entradas, saidas, agrupadores)
+
+    // Agrupadores = todos com is_agrupador=true (para compatibilidade com frontend)
+    const agrupadores = lancamentos.filter((l) => l.is_agrupador)
+
+    const totais = calcularTotais(entradas, saidas)
 
     return {
       mes,

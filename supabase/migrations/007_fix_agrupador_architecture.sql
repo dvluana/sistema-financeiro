@@ -67,14 +67,20 @@ ALTER TABLE lancamentos DROP CONSTRAINT IF EXISTS chk_filho_nao_agrupador;
 -- ============================================================================
 -- PostgreSQL doesn't allow removing enum values, so we need to:
 -- 1. Create new enum without 'agrupador'
--- 2. Alter column to use new enum
+-- 2. Alter ALL columns that use the enum to use the new enum
 -- 3. Drop old enum
+-- 4. Rename new enum
 
 -- Create new enum
 CREATE TYPE tipo_lancamento_new AS ENUM ('entrada', 'saida');
 
--- Update column to use new enum (this is safe because we migrated data in STEP 2)
+-- Update lancamentos.tipo to use new enum (safe because we migrated data in STEP 2)
 ALTER TABLE lancamentos
+ALTER COLUMN tipo TYPE tipo_lancamento_new
+USING tipo::text::tipo_lancamento_new;
+
+-- Update categorias.tipo to use new enum (safe because categorias only has 'entrada'/'saida')
+ALTER TABLE categorias
 ALTER COLUMN tipo TYPE tipo_lancamento_new
 USING tipo::text::tipo_lancamento_new;
 
@@ -87,23 +93,14 @@ ALTER TYPE tipo_lancamento_new RENAME TO tipo_lancamento;
 -- ============================================================================
 
 -- Constraint 1: Only is_agrupador=true can have children
--- (Children records must have parent_id pointing to an agrupador)
-ALTER TABLE lancamentos
-ADD CONSTRAINT chk_only_agrupador_has_children
-CHECK (
-  parent_id IS NULL
-  OR
-  (
-    SELECT is_agrupador
-    FROM lancamentos parent
-    WHERE parent.id = parent_id
-  ) = true
-);
+-- NOTE: PostgreSQL doesn't allow subqueries in CHECK constraints,
+-- so this validation is handled by trigger (trg_validate_parent_is_agrupador)
 
 -- Constraint 2: Agrupador with children cannot be turned into non-agrupador
--- This is handled by trigger below (constraint would be too complex)
+-- This is handled by trigger (trg_prevent_agrupador_changes_with_filhos)
 
 -- Constraint 3: Children cannot be agrupadores (only 1 level nesting)
+-- This is a simple constraint without subquery - safe to use
 ALTER TABLE lancamentos
 ADD CONSTRAINT chk_filho_nao_agrupador
 CHECK (parent_id IS NULL OR is_agrupador = false);

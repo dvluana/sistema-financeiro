@@ -16,6 +16,7 @@ import {
   ApiError,
   type Usuario,
 } from '@/lib/api'
+import { usePerfilStore } from './usePerfilStore'
 
 interface AuthState {
   // Estado
@@ -47,6 +48,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const response = await authApi.login({ email, senha })
       setToken(response.token)
+
+      // Configura perfil padrão no store de perfis
+      if (response.perfil_padrao) {
+        usePerfilStore.getState().setPerfilInicial(response.perfil_padrao)
+      }
+
       set({
         usuario: response.usuario,
         isAuthenticated: true,
@@ -70,6 +77,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const response = await authApi.register({ nome, email, senha })
       setToken(response.token)
+
+      // Configura perfil padrão no store de perfis
+      if (response.perfil_padrao) {
+        usePerfilStore.getState().setPerfilInicial(response.perfil_padrao)
+      }
+
       set({
         usuario: response.usuario,
         isAuthenticated: true,
@@ -94,6 +107,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Ignora erro de logout (pode estar com token inválido)
     } finally {
       removeToken()
+      // Limpa store de perfis
+      usePerfilStore.getState().limpar()
       set({
         usuario: null,
         isAuthenticated: false,
@@ -115,6 +130,10 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     try {
       const usuario = await authApi.me()
+
+      // Carrega perfis do usuário
+      usePerfilStore.getState().carregarPerfis()
+
       set({
         usuario,
         isAuthenticated: true,

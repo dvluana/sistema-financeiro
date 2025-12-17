@@ -1,6 +1,8 @@
 import { z } from 'zod'
 
-export const tipoLancamento = z.enum(['entrada', 'saida', 'agrupador'])
+// Tipo de lançamento: apenas 'entrada' ou 'saida'
+// Agrupador NÃO é um tipo - é uma propriedade (is_agrupador)
+export const tipoLancamento = z.enum(['entrada', 'saida'])
 
 export const criarLancamentoSchema = z.object({
   tipo: tipoLancamento,
@@ -11,6 +13,7 @@ export const criarLancamentoSchema = z.object({
   data_prevista: z.string().nullable().optional(),
   categoria_id: z.string().uuid().nullable().optional(),
   parent_id: z.string().uuid().nullable().optional(),
+  is_agrupador: z.boolean().optional().default(false),
 })
 
 export const atualizarLancamentoSchema = z.object({
@@ -78,6 +81,7 @@ export interface Lancamento {
   mes: string
   categoria_id: string | null
   parent_id: string | null
+  is_agrupador: boolean
   categoria?: Categoria | null
   filhos?: Lancamento[]
   created_at: string
