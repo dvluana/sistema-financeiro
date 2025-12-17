@@ -8,7 +8,7 @@ import { FastifyInstance } from 'fastify'
 import { ZodError } from 'zod'
 import { categoriaService } from '../services/categoria.service.js'
 import { criarCategoriaSchema, atualizarCategoriaSchema, tipoLancamento } from '../schemas/categoria.js'
-import { requireAuth } from '../middleware/auth.middleware.js'
+import { requireAuth, getRequiredContext } from '../middleware/auth.middleware.js'
 
 export async function categoriaRoutes(app: FastifyInstance) {
   // Aplicar autenticação em todas as rotas
@@ -20,7 +20,7 @@ export async function categoriaRoutes(app: FastifyInstance) {
    */
   app.get('/', async (request, reply) => {
     try {
-      const ctx = request.contexto || request.usuario!.id
+      const ctx = getRequiredContext(request)
       const categorias = await categoriaService.listar(ctx)
       return reply.send(categorias)
     } catch (error) {
@@ -35,7 +35,7 @@ export async function categoriaRoutes(app: FastifyInstance) {
    */
   app.get('/tipo/:tipo', async (request, reply) => {
     try {
-      const ctx = request.contexto || request.usuario!.id
+      const ctx = getRequiredContext(request)
       const { tipo } = request.params as { tipo: string }
 
       // Valida o tipo
@@ -58,7 +58,7 @@ export async function categoriaRoutes(app: FastifyInstance) {
    */
   app.get('/:id', async (request, reply) => {
     try {
-      const ctx = request.contexto || request.usuario!.id
+      const ctx = getRequiredContext(request)
       const { id } = request.params as { id: string }
 
       const categoria = await categoriaService.buscarPorId(id, ctx)
@@ -79,7 +79,7 @@ export async function categoriaRoutes(app: FastifyInstance) {
    */
   app.post('/', async (request, reply) => {
     try {
-      const ctx = request.contexto || request.usuario!.id
+      const ctx = getRequiredContext(request)
       const input = criarCategoriaSchema.parse(request.body)
 
       const categoria = await categoriaService.criar(input, ctx)
@@ -102,7 +102,7 @@ export async function categoriaRoutes(app: FastifyInstance) {
    */
   app.put('/:id', async (request, reply) => {
     try {
-      const ctx = request.contexto || request.usuario!.id
+      const ctx = getRequiredContext(request)
       const { id } = request.params as { id: string }
       const input = atualizarCategoriaSchema.parse(request.body)
 
@@ -126,7 +126,7 @@ export async function categoriaRoutes(app: FastifyInstance) {
    */
   app.delete('/:id', async (request, reply) => {
     try {
-      const ctx = request.contexto || request.usuario!.id
+      const ctx = getRequiredContext(request)
       const { id } = request.params as { id: string }
 
       await categoriaService.excluir(id, ctx)

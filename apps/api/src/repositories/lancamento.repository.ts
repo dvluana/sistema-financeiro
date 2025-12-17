@@ -25,13 +25,30 @@ export const lancamentoRepository = {
    * IMPORTANTE: Usa query única para evitar race condition.
    * Busca pais e filhos atomicamente em vez de 2 queries separadas.
    *
+   * LIMITE: Máximo de 1000 registros por segurança.
+   * Se exceder, retorna os 1000 mais recentes e loga aviso.
+   *
    * @param mes - Mês no formato YYYY-MM
    * @param ctx - Contexto com userId e perfilId
+   * @param limit - Limite máximo de registros (default: 1000)
    */
-  async findByMes(mes: string, ctx: ContextoUsuario | string): Promise<Lancamento[]> {
+  async findByMes(mes: string, ctx: ContextoUsuario | string, limit: number = 1000): Promise<Lancamento[]> {
     // Compatibilidade: aceita string (userId antigo) ou ContextoUsuario
     const filterColumn = typeof ctx === 'string' ? 'user_id' : 'perfil_id'
     const filterValue = typeof ctx === 'string' ? ctx : ctx.perfilId
+
+    // Primeiro, conta total para verificar se excede limite
+    const { count, error: countError } = await supabase
+      .from('lancamentos')
+      .select('*', { count: 'exact', head: true })
+      .eq('mes', mes)
+      .eq(filterColumn, filterValue)
+
+    if (countError) throw countError
+
+    if (count && count > limit) {
+      console.warn(`[lancamentoRepository] Mês ${mes} tem ${count} lançamentos, excede limite de ${limit}. Retornando apenas ${limit} mais recentes.`)
+    }
 
     // Query atômica: busca pais (parent_id IS NULL) e filhos (parent_id IS NOT NULL)
     // em uma única query, garantindo snapshot consistente
@@ -43,14 +60,20 @@ export const lancamentoRepository = {
       `)
       .eq('mes', mes)
       .eq(filterColumn, filterValue)
-      .order('created_at', { ascending: true })
+      .order('created_at', { ascending: false }) // Mais recentes primeiro
+      .limit(limit)
 
     if (error) throw error
     if (!allRecords) return []
 
+    // Reordena para created_at ascendente após limitar
+    const sortedRecords = allRecords.sort((a, b) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    )
+
     // Separa pais (raiz) e filhos
-    const pais = allRecords.filter(l => l.parent_id === null)
-    const filhos = allRecords.filter(l => l.parent_id !== null)
+    const pais = sortedRecords.filter(l => l.parent_id === null)
+    const filhos = sortedRecords.filter(l => l.parent_id !== null)
 
     // Agrupa filhos por parent_id
     const filhosPorPai = filhos.reduce((acc, filho) => {

@@ -6,7 +6,7 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { dashboardService } from '../services/dashboard.service.js'
-import { requireAuth } from '../middleware/auth.middleware.js'
+import { requireAuth, getRequiredContext } from '../middleware/auth.middleware.js'
 
 export async function dashboardRoutes(app: FastifyInstance) {
   /**
@@ -19,8 +19,7 @@ export async function dashboardRoutes(app: FastifyInstance) {
     { preHandler: requireAuth },
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        // Usa contexto (perfil) se disponível, senão fallback para userId
-        const ctx = request.contexto || request.usuario!.id
+        const ctx = getRequiredContext(request)
         const mes = (request.query as { mes?: string }).mes
         const data = await dashboardService.getDashboard(ctx, mes)
         return reply.send(data)

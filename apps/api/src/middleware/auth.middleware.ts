@@ -3,10 +3,12 @@
  *
  * Valida token de sessão e adiciona usuário ao request.
  * Implementa cache em memória para evitar queries repetidas ao banco.
+ * Valida que x-perfil-id pertence ao usuário autenticado.
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify'
 import { authService } from '../services/auth.service.js'
+import { perfilRepository } from '../repositories/perfil.repository.js'
 import type { Usuario } from '../schemas/auth.js'
 
 // Contexto do usuário/perfil para uso nas rotas
@@ -37,12 +39,22 @@ const tokenCache = new Map<string, CachedSession>()
 const CACHE_TTL = 5 * 60 * 1000 // 5 minutos em ms
 const CACHE_CLEANUP_INTERVAL = 60 * 1000 // Limpar cache a cada 1 minuto
 
-// Limpar tokens expirados periodicamente
+// Cache de perfis válidos por usuário: Map<"userId:perfilId", expira>
+// Evita query ao banco em cada request para validar perfil
+const perfilCache = new Map<string, number>()
+const PERFIL_CACHE_TTL = 5 * 60 * 1000 // 5 minutos
+
+// Limpar tokens e perfis expirados periodicamente
 setInterval(() => {
   const now = Date.now()
   for (const [token, session] of tokenCache.entries()) {
     if (session.expira <= now) {
       tokenCache.delete(token)
+    }
+  }
+  for (const [key, expira] of perfilCache.entries()) {
+    if (expira <= now) {
+      perfilCache.delete(key)
     }
   }
 }, CACHE_CLEANUP_INTERVAL)
@@ -118,9 +130,50 @@ function extractPerfilId(request: FastifyRequest): string | null {
 }
 
 /**
+ * Valida que o perfilId pertence ao usuário (com cache)
+ * Retorna true se válido, false caso contrário
+ */
+async function validatePerfilOwnership(userId: string, perfilId: string): Promise<boolean> {
+  const cacheKey = `${userId}:${perfilId}`
+
+  // Verificar cache primeiro
+  const cached = perfilCache.get(cacheKey)
+  if (cached && cached > Date.now()) {
+    return true
+  }
+
+  // Validar no banco
+  try {
+    const perfil = await perfilRepository.findByIdAndUsuario(perfilId, userId)
+    if (perfil && perfil.ativo) {
+      // Cachear resultado válido
+      perfilCache.set(cacheKey, Date.now() + PERFIL_CACHE_TTL)
+      return true
+    }
+  } catch {
+    // Erro ao buscar = inválido
+  }
+
+  // Remover do cache se inválido
+  perfilCache.delete(cacheKey)
+  return false
+}
+
+/**
+ * Invalida cache de perfis de um usuário (usado quando perfis mudam)
+ */
+export function invalidateUserPerfilCache(userId: string): void {
+  for (const key of perfilCache.keys()) {
+    if (key.startsWith(`${userId}:`)) {
+      perfilCache.delete(key)
+    }
+  }
+}
+
+/**
  * Middleware que requer autenticação
  * Retorna 401 se não autenticado
- * Também extrai x-perfil-id do header e configura o contexto
+ * Valida que x-perfil-id pertence ao usuário antes de configurar contexto
  */
 export async function requireAuth(
   request: FastifyRequest,
@@ -140,9 +193,15 @@ export async function requireAuth(
 
   request.usuario = usuario
 
-  // Extrai perfilId do header
+  // Extrai e VALIDA perfilId do header
   const perfilId = extractPerfilId(request)
   if (perfilId) {
+    // SEGURANÇA: Valida que o perfil pertence ao usuário autenticado
+    const isValid = await validatePerfilOwnership(usuario.id, perfilId)
+    if (!isValid) {
+      return reply.status(403).send({ error: 'Perfil não autorizado' })
+    }
+
     request.perfilId = perfilId
     request.contexto = {
       userId: usuario.id,
@@ -167,4 +226,18 @@ export async function optionalAuth(
       request.usuario = usuario
     }
   }
+}
+
+/**
+ * Helper para obter contexto obrigatório em rotas de dados
+ * Retorna o contexto ou lança erro se x-perfil-id não foi enviado
+ * Uso: const ctx = getRequiredContext(request)
+ */
+export function getRequiredContext(request: FastifyRequest): ContextoRequest {
+  if (!request.contexto) {
+    const error = new Error('Header x-perfil-id é obrigatório')
+    ;(error as Error & { statusCode: number }).statusCode = 400
+    throw error
+  }
+  return request.contexto
 }

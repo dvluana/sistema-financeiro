@@ -56,45 +56,31 @@ export const dashboardRepository = {
   },
 
   /**
-   * Busca totais agregados por mês
+   * Busca totais agregados por mês usando função SQL otimizada
    */
   async getTotaisPorMes(meses: string[], ctx: ContextoUsuario | string): Promise<Array<{
     mes: string
     tipo: 'entrada' | 'saida'
     total: number
   }>> {
-    const filterColumn = typeof ctx === 'string' ? 'user_id' : 'perfil_id'
-    const filterValue = typeof ctx === 'string' ? ctx : ctx.perfilId
+    // Apenas suporta contexto com perfilId (não mais fallback para userId)
+    if (typeof ctx === 'string') {
+      throw new Error('getTotaisPorMes requer ContextoUsuario com perfilId')
+    }
 
     const { data, error } = await supabase
-      .from('lancamentos')
-      .select('mes, tipo, valor')
-      .in('mes', meses)
-      .eq(filterColumn, filterValue)
+      .rpc('get_totais_por_mes', {
+        p_perfil_id: ctx.perfilId,
+        p_meses: meses,
+      })
 
     if (error) throw error
 
-    // Agrupa manualmente (Supabase JS client não suporta GROUP BY direto)
-    const totais: Record<string, { entradas: number; saidas: number }> = {}
-
-    for (const item of data || []) {
-      if (!totais[item.mes]) {
-        totais[item.mes] = { entradas: 0, saidas: 0 }
-      }
-      if (item.tipo === 'entrada') {
-        totais[item.mes].entradas += Number(item.valor)
-      } else {
-        totais[item.mes].saidas += Number(item.valor)
-      }
-    }
-
-    const result: Array<{ mes: string; tipo: 'entrada' | 'saida'; total: number }> = []
-    for (const [mes, valores] of Object.entries(totais)) {
-      result.push({ mes, tipo: 'entrada', total: valores.entradas })
-      result.push({ mes, tipo: 'saida', total: valores.saidas })
-    }
-
-    return result
+    return (data || []).map((row: { mes: string; tipo: string; total: number }) => ({
+      mes: row.mes,
+      tipo: row.tipo as 'entrada' | 'saida',
+      total: Number(row.total),
+    }))
   },
 
   /**
@@ -168,7 +154,7 @@ export const dashboardRepository = {
   },
 
   /**
-   * Busca gastos agrupados por categoria nos últimos N meses
+   * Busca gastos agrupados por categoria usando função SQL otimizada
    */
   async getGastosPorCategoria(meses: string[], ctx: ContextoUsuario | string): Promise<Array<{
     categoria_id: string | null
@@ -177,73 +163,48 @@ export const dashboardRepository = {
     categoria_cor: string | null
     total: number
   }>> {
-    const filterColumn = typeof ctx === 'string' ? 'user_id' : 'perfil_id'
-    const filterValue = typeof ctx === 'string' ? ctx : ctx.perfilId
+    // Apenas suporta contexto com perfilId
+    if (typeof ctx === 'string') {
+      throw new Error('getGastosPorCategoria requer ContextoUsuario com perfilId')
+    }
 
     const { data, error } = await supabase
-      .from('lancamentos')
-      .select(`
-        valor,
-        categoria_id,
-        categoria:categorias(id, nome, icone, cor)
-      `)
-      .in('mes', meses)
-      .eq(filterColumn, filterValue)
-      .eq('tipo', 'saida')
+      .rpc('get_gastos_por_categoria', {
+        p_perfil_id: ctx.perfilId,
+        p_meses: meses,
+      })
 
     if (error) throw error
 
-    // Agrupa por categoria
-    const porCategoria: Record<string, {
+    // Processa resultado, verificando categorias padrão que podem não estar no banco
+    return (data || []).map((row: {
       categoria_id: string | null
       categoria_nome: string
       categoria_icone: string | null
       categoria_cor: string | null
       total: number
-    }> = {}
-
-    for (const item of data || []) {
-      const catId = item.categoria_id || 'sem-categoria'
-
-      // Tenta buscar categoria do banco ou das padrão (do código)
-      let catNome = 'Sem categoria'
-      let catIcone: string | null = null
-      let catCor: string | null = '#6B7280'
-
-      if (item.categoria_id) {
-        // Verifica se é categoria padrão (do código)
-        if (isCategoriaPadrao(item.categoria_id)) {
-          const catPadrao = getCategoriaPadraoById(item.categoria_id)
-          if (catPadrao) {
-            catNome = catPadrao.nome
-            catIcone = catPadrao.icone
-            catCor = catPadrao.cor
-          }
-        } else {
-          // Categoria do banco (pode vir como array ou objeto dependendo do Supabase)
-          const catData = item.categoria
-          const cat = Array.isArray(catData) ? catData[0] : catData
-          if (cat && typeof cat === 'object' && 'nome' in cat) {
-            catNome = cat.nome as string
-            catIcone = cat.icone as string | null
-            catCor = cat.cor as string | null
+    }) => {
+      // Se tem categoria_id mas nome está vazio, pode ser categoria padrão
+      if (row.categoria_id && isCategoriaPadrao(row.categoria_id)) {
+        const catPadrao = getCategoriaPadraoById(row.categoria_id)
+        if (catPadrao) {
+          return {
+            categoria_id: row.categoria_id,
+            categoria_nome: catPadrao.nome,
+            categoria_icone: catPadrao.icone,
+            categoria_cor: catPadrao.cor,
+            total: Number(row.total),
           }
         }
       }
 
-      if (!porCategoria[catId]) {
-        porCategoria[catId] = {
-          categoria_id: item.categoria_id,
-          categoria_nome: catNome,
-          categoria_icone: catIcone,
-          categoria_cor: catCor,
-          total: 0,
-        }
+      return {
+        categoria_id: row.categoria_id,
+        categoria_nome: row.categoria_nome,
+        categoria_icone: row.categoria_icone,
+        categoria_cor: row.categoria_cor,
+        total: Number(row.total),
       }
-      porCategoria[catId].total += Number(item.valor)
-    }
-
-    // Converte para array e ordena por valor (maior primeiro)
-    return Object.values(porCategoria).sort((a, b) => b.total - a.total)
+    })
   },
 }

@@ -8,7 +8,7 @@
 import { FastifyInstance } from 'fastify'
 import { configuracaoService } from '../services/configuracao.service.js'
 import { atualizarConfiguracaoSchema } from '../schemas/configuracao.js'
-import { requireAuth } from '../middleware/auth.middleware.js'
+import { requireAuth, getRequiredContext } from '../middleware/auth.middleware.js'
 
 export async function configuracaoRoutes(app: FastifyInstance) {
   // Aplica autenticação em todas as rotas
@@ -19,8 +19,7 @@ export async function configuracaoRoutes(app: FastifyInstance) {
    * Lista configurações do usuário/perfil
    */
   app.get('/api/configuracoes', async (request) => {
-    // Usa contexto (perfil) se disponível, senão fallback para userId
-    const ctx = request.contexto || request.usuario!.id
+    const ctx = getRequiredContext(request)
     return configuracaoService.listar(ctx)
   })
 
@@ -32,7 +31,7 @@ export async function configuracaoRoutes(app: FastifyInstance) {
     try {
       const { chave } = request.params
       const { valor } = atualizarConfiguracaoSchema.parse(request.body)
-      const ctx = request.contexto || request.usuario!.id
+      const ctx = getRequiredContext(request)
       const result = await configuracaoService.atualizar(chave, valor, ctx)
       return result
     } catch (error) {
