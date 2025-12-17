@@ -467,11 +467,11 @@ export function QuickInputSheet({
                   }
                   disabled={isParsing || isListening}
                   className={cn(
-                    "flex-1 border-0 bg-transparent text-sm h-auto py-0",
+                    "flex-1 text-sm h-auto min-h-0 py-0 px-0",
+                    "bg-transparent !border-0 rounded-none",
                     "placeholder:text-muted-foreground/60",
-                    "focus:outline-none focus:ring-0",
-                    "focus-visible:ring-0 focus-visible:ring-offset-0",
-                    "shadow-none"
+                    "focus:!border-0 focus:outline-none focus:ring-0",
+                    "focus-visible:ring-0 focus-visible:ring-offset-0"
                   )}
                   autoFocus
                 />
