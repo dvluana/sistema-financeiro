@@ -114,7 +114,7 @@ export function ConfiguracaoDrawer({
         side="right" 
         className="w-full sm:max-w-md p-0 flex flex-col"
       >
-        <SheetHeader className="px-6 py-5 border-b">
+        <SheetHeader className="px-4 sm:px-6 py-4 sm:py-5 border-b">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-primary/10">
               <Settings2 className="w-5 h-5 text-primary" />
@@ -131,7 +131,7 @@ export function ConfiguracaoDrawer({
         </SheetHeader>
 
         <ScrollArea className="flex-1">
-          <div className="px-6 py-6 space-y-8">
+          <div className="px-4 sm:px-6 py-4 sm:py-6 space-y-6 sm:space-y-8">
             {/* Seção: Aparência */}
             <div className="space-y-4">
               <div className="flex items-center gap-2">

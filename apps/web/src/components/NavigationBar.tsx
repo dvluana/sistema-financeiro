@@ -141,7 +141,7 @@ export function NavigationBar({
                     <button
                       onClick={() => onTabChange(tab.id)}
                       className={cn(
-                        "relative w-full flex items-center rounded-xl",
+                        "relative w-full flex items-center rounded-lg",
                         "transition-all duration-200",
                         "hover:bg-accent/50",
                         "group",
@@ -338,7 +338,7 @@ export function NavigationBar({
               onClick={() => onTabChange(tab.id)}
               className={cn(
                 "relative flex flex-col items-center justify-center",
-                "flex-1 py-2 px-2 rounded-xl",
+                "flex-1 py-2 px-2 rounded-lg",
                 "transition-all duration-200",
                 "hover:bg-accent/50",
                 "min-h-[52px]"
@@ -349,7 +349,7 @@ export function NavigationBar({
               {isActive && (
                 <motion.div
                   layoutId="activeTab"
-                  className="absolute inset-0 bg-primary/10 rounded-xl"
+                  className="absolute inset-0 bg-primary/10 rounded-lg"
                   transition={{
                     type: "spring",
                     stiffness: 500,
@@ -422,7 +422,7 @@ export function NavigationBar({
           onClick={onOpenSettings}
           className={cn(
             "relative flex flex-col items-center justify-center",
-            "py-2 px-3 rounded-xl",
+            "py-2 px-3 rounded-lg",
             "transition-all duration-200",
             "hover:bg-accent/50",
             "min-h-[52px]"

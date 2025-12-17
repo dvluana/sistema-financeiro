@@ -172,7 +172,7 @@ export function Dashboard({
       </header>
 
       {/* Conteúdo */}
-      <main className="w-full max-w-5xl mx-auto px-4 lg:px-6 py-4 space-y-6">
+      <main className="w-full max-w-5xl mx-auto px-3 sm:px-4 lg:px-6 py-4 space-y-4 sm:space-y-6">
         {isLoading && !totais ? (
           <LoadingSkeleton />
         ) : (
@@ -203,12 +203,12 @@ export function Dashboard({
                   Lançamentos
                 </h2>
               </div>
-              <div className="flex gap-2 p-1 bg-secondary rounded-xl">
+              <div className="flex gap-1.5 sm:gap-2 p-1 bg-secondary rounded-xl">
                 <button
                   type="button"
                   onClick={() => setLancamentoFilter('todos')}
                   className={cn(
-                    'flex-1 py-2 px-3 rounded-lg text-corpo font-medium transition-all',
+                    'flex-1 py-2 px-2 sm:px-3 rounded-lg text-sm font-medium transition-all',
                     lancamentoFilter === 'todos'
                       ? 'bg-card text-foreground shadow-sm'
                       : 'text-muted-foreground hover:text-foreground'
@@ -220,7 +220,7 @@ export function Dashboard({
                   type="button"
                   onClick={() => setLancamentoFilter('entradas')}
                   className={cn(
-                    'flex-1 py-2 px-3 rounded-lg text-corpo font-medium transition-all',
+                    'flex-1 py-2 px-2 sm:px-3 rounded-lg text-sm font-medium transition-all',
                     lancamentoFilter === 'entradas'
                       ? 'bg-verde text-white shadow-sm'
                       : 'text-muted-foreground hover:text-foreground'
@@ -232,7 +232,7 @@ export function Dashboard({
                   type="button"
                   onClick={() => setLancamentoFilter('saidas')}
                   className={cn(
-                    'flex-1 py-2 px-3 rounded-lg text-corpo font-medium transition-all',
+                    'flex-1 py-2 px-2 sm:px-3 rounded-lg text-sm font-medium transition-all',
                     lancamentoFilter === 'saidas'
                       ? 'bg-vermelho text-white shadow-sm'
                       : 'text-muted-foreground hover:text-foreground'

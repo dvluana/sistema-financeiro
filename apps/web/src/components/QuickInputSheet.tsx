@@ -758,7 +758,7 @@ export function QuickInputSheet({
             "p-0 flex flex-col",
             isDesktop
               ? "w-full sm:max-w-lg h-full"
-              : "h-[85vh] rounded-t-3xl"
+              : "h-[90vh] max-h-[600px] rounded-t-3xl"
           )}
         >
           {/* Header com gradiente */}
@@ -988,12 +988,12 @@ export function QuickInputSheet({
               </div>
 
               {/* Botões de ação */}
-              <SheetFooter className="px-6 py-4 border-t">
+              <SheetFooter className="px-4 sm:px-6 py-3 sm:py-4 border-t flex-col-reverse sm:flex-row gap-2">
                 <Button
                   variant="outline"
                   onClick={() => onOpenChange(false)}
                   disabled={isSubmitting}
-                  className="flex-1 sm:flex-initial"
+                  className="w-full sm:w-auto"
                 >
                   Cancelar
                 </Button>
@@ -1001,7 +1001,7 @@ export function QuickInputSheet({
                   onClick={handleConfirm}
                   disabled={isSubmitting || lancamentos.length === 0}
                   className={cn(
-                    "flex-1 sm:flex-initial",
+                    "w-full sm:w-auto",
                     "bg-gradient-to-r from-amber-500 to-orange-500",
                     "hover:from-amber-600 hover:to-orange-600",
                     "text-white shadow-md"

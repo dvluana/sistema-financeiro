@@ -316,7 +316,7 @@ export function FilhoSheet({
           </form>
         </ScrollArea>
 
-        <SheetFooter className="px-6 py-4 border-t space-y-2 sm:space-y-0 sm:space-x-2">
+        <SheetFooter className="px-4 sm:px-6 py-3 sm:py-4 border-t space-y-2 sm:space-y-0 sm:space-x-2">
           {isEditing && onDelete && (
             <Button
               type="button"

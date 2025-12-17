@@ -134,7 +134,7 @@ export function CardSaidas({
           <>
             <ScrollArea className={cn(
               "w-full",
-              expandido ? "max-h-[500px]" : "max-h-[360px]"
+              expandido ? "max-h-[350px] sm:max-h-[500px]" : "max-h-[280px] sm:max-h-[360px]"
             )}>
               <div className="divide-y divide-border">
                 <AnimatePresence mode="popLayout">

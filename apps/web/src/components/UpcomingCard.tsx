@@ -56,7 +56,7 @@ export function UpcomingCard({ vencimentos, onItemClick, onVerTodos, isLoading =
             Próximos vencimentos
           </h2>
         </div>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {[1, 2, 3, 4].map(i => (
             <div key={i} className="bg-card border border-border rounded-xl p-3">
               <div className="h-4 w-10 bg-muted rounded animate-pulse mb-2" />
@@ -98,8 +98,8 @@ export function UpcomingCard({ vencimentos, onItemClick, onVerTodos, isLoading =
         'grid gap-2',
         vencimentosExibidos.length === 1 && 'grid-cols-1',
         vencimentosExibidos.length === 2 && 'grid-cols-2',
-        vencimentosExibidos.length === 3 && 'grid-cols-3',
-        vencimentosExibidos.length >= 4 && 'grid-cols-4',
+        vencimentosExibidos.length === 3 && 'grid-cols-2 sm:grid-cols-3',
+        vencimentosExibidos.length >= 4 && 'grid-cols-2 sm:grid-cols-4',
       )}>
         {vencimentosExibidos.map((vencimento) => {
           const label = formatarData(vencimento.data_prevista)

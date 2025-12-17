@@ -477,7 +477,7 @@ export function Home() {
           />
         )}
       </Suspense>
-      </div>
+      </motion.div>
     </div>
   )
 }

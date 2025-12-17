@@ -411,7 +411,7 @@ export function LancamentoSheet({
                 )}
 
                 {/* Atalhos de valores */}
-                <div className="grid grid-cols-5 gap-1.5">
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
                   {[50, 100, 200, 500, 1000].map((v) => (
                     <button
                       key={v}

@@ -108,7 +108,7 @@ export const ItemLista = React.memo(function ItemLista({
   }), [tipo])
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 hover:bg-accent/50 transition-colors group">
+    <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 hover:bg-accent/50 transition-colors group">
       {/* Status Circle */}
       <StatusCircle 
         checked={concluido} 

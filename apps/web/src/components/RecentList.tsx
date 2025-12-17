@@ -91,9 +91,9 @@ const RecentListItem = React.memo(function RecentListItem({
         className="flex-1 flex justify-between items-center py-3 text-left min-h-touch"
         aria-label={`Editar ${lancamento.nome}, ${lancamento.tipo === 'entrada' ? 'entrada' : 'saída'} de ${formatarMoeda(lancamento.valor)}`}
       >
-        <div className={cn('flex flex-col', lancamento.concluido && 'opacity-50')}>
+        <div className={cn('flex flex-col min-w-0 flex-1', lancamento.concluido && 'opacity-50')}>
           <div className="flex items-center gap-1.5">
-            <span className="text-corpo text-foreground truncate">{lancamento.nome}</span>
+            <span className="text-corpo text-foreground truncate max-w-[140px] sm:max-w-[200px]">{lancamento.nome}</span>
             {lancamento.is_agrupador && (
               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-azul/10 text-azul border border-azul/20">
                 <Layers className="w-2.5 h-2.5" />
