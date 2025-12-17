@@ -249,4 +249,31 @@ export async function lancamentoRoutes(app: FastifyInstance) {
       throw error
     }
   })
+
+  /**
+   * PUT /api/lancamentos/:filhoId/mover/:novoParentId
+   * Move um filho para outro agrupador
+   *
+   * Permite reorganizar itens entre cartões/grupos do mesmo mês e tipo.
+   * Ex: Mover uma compra do Nubank para o Itaú.
+   */
+  app.put<{ Params: { filhoId: string; novoParentId: string } }>(
+    '/api/lancamentos/:filhoId/mover/:novoParentId',
+    async (request, reply) => {
+      try {
+        const { filhoId, novoParentId } = request.params
+        const ctx = request.contexto || request.usuario!.id
+        const result = await lancamentoService.moverFilho(filhoId, novoParentId, ctx)
+        return result
+      } catch (error) {
+        if (error instanceof Error) {
+          if (error.message.includes('não encontrado')) {
+            return reply.status(404).send({ error: error.message })
+          }
+          return reply.status(400).send({ error: error.message })
+        }
+        throw error
+      }
+    }
+  )
 }

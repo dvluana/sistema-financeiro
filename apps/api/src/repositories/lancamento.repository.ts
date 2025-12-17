@@ -299,6 +299,69 @@ export const lancamentoRepository = {
 
     return agrupador
   },
+
+  /**
+   * Move um filho para outro agrupador
+   *
+   * VALIDAÇÕES:
+   * 1. Filho existe e pertence ao perfil
+   * 2. Filho tem parent_id (é realmente um filho)
+   * 3. Novo parent existe e pertence ao perfil
+   * 4. Novo parent tem is_agrupador=true
+   * 5. Novo parent tem mesmo mês que o filho
+   * 6. Novo parent tem mesmo tipo que o filho
+   */
+  async moverFilho(filhoId: string, novoParentId: string, ctx: ContextoUsuario | string): Promise<Lancamento> {
+    // VALIDAÇÃO 1: Busca filho
+    const filho = await this.findById(filhoId, ctx)
+    if (!filho) {
+      throw new Error('Filho não encontrado')
+    }
+
+    // VALIDAÇÃO 2: Verifica que é realmente um filho
+    if (!filho.parent_id) {
+      throw new Error('Lançamento não é um filho (não tem parent_id)')
+    }
+
+    // VALIDAÇÃO 3: Busca novo parent
+    const novoParent = await this.findById(novoParentId, ctx)
+    if (!novoParent) {
+      throw new Error('Novo agrupador não encontrado')
+    }
+
+    // VALIDAÇÃO 4: Novo parent deve ser agrupador
+    if (!novoParent.is_agrupador) {
+      throw new Error('Destino não é um agrupador')
+    }
+
+    // VALIDAÇÃO 5: Mesmo mês
+    if (novoParent.mes !== filho.mes) {
+      throw new Error(`Não é possível mover para agrupador de outro mês. Filho: ${filho.mes}, Destino: ${novoParent.mes}`)
+    }
+
+    // VALIDAÇÃO 6: Mesmo tipo
+    if (novoParent.tipo !== filho.tipo) {
+      throw new Error(`Não é possível mover para agrupador de tipo diferente. Filho: ${filho.tipo}, Destino: ${novoParent.tipo}`)
+    }
+
+    // Todas validações OK, move o filho
+    const filterColumn = typeof ctx === 'string' ? 'user_id' : 'perfil_id'
+    const filterValue = typeof ctx === 'string' ? ctx : ctx.perfilId
+
+    const { data, error } = await supabase
+      .from('lancamentos')
+      .update({ parent_id: novoParentId })
+      .eq('id', filhoId)
+      .eq(filterColumn, filterValue)
+      .select(`
+        *,
+        categoria:categorias(id, nome, tipo, icone, cor, ordem, is_default)
+      `)
+      .single()
+
+    if (error) throw error
+    return data
+  },
 }
 
 // Exportar o tipo para uso em outros módulos

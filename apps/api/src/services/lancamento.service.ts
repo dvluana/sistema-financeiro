@@ -314,4 +314,18 @@ export const lancamentoService = {
 
     return agrupador
   },
+
+  /**
+   * Move um filho para outro agrupador
+   *
+   * Permite reorganizar itens entre cartões/grupos do mesmo mês e tipo.
+   * Ex: Mover uma compra do Nubank para o Itaú.
+   */
+  async moverFilho(filhoId: string, novoParentId: string, ctx: Contexto): Promise<LancamentoResponse> {
+    // Repository faz todas as validações e retorna o filho atualizado
+    const filhoAtualizado = await lancamentoRepository.moverFilho(filhoId, novoParentId, ctx)
+
+    // Retorna dados do mês para atualizar UI
+    return this.listarPorMes(filhoAtualizado.mes, ctx)
+  },
 }
