@@ -60,9 +60,6 @@ export function CardSaidas({
 }: CardSaidasProps) {
   const [expandido, setExpandido] = useState(false)
 
-  // Debug: verificar agrupadores
-  console.log('[CardSaidas] agrupadores:', agrupadores.length, agrupadores)
-  
   // Combina saídas normais e agrupadores
   const todosItens = [...saidas, ...agrupadores].sort((a, b) => {
     // Ordena por data prevista, depois por nome
