@@ -50,7 +50,6 @@ export function validateEnv(): Env {
 
   // Warn about optional but recommended variables
   if (!validatedEnv.GEMINI_API_KEY) {
-    console.warn('⚠️  GEMINI_API_KEY not set - AI parsing will use fallback')
   }
 
   return validatedEnv

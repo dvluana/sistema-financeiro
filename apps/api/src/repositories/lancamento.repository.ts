@@ -50,7 +50,6 @@ export const lancamentoRepository = {
       // Log de aviso apenas em desenvolvimento
       // Em produção, o limite é respeitado silenciosamente
       if (process.env.NODE_ENV !== 'production') {
-        console.warn(`[lancamentoRepository] Mês ${mes} tem ${count} lançamentos, excede limite de ${limit}. Retornando apenas ${limit} mais recentes.`)
       }
     }
 

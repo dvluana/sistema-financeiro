@@ -1,8 +1,8 @@
 /**
  * LancamentoSheet Component
  *
- * Sheet moderno para adicionar e editar lançamentos financeiros.
- * Design atualizado com shadcn/ui para melhor UX.
+ * Sheet para adicionar e editar lançamentos financeiros.
+ * Design corrigido e melhorado com melhor UX.
  */
 
 import { useState, useEffect } from 'react'
@@ -11,12 +11,12 @@ import {
   DollarSign, 
   Tag, 
   Repeat, 
-  ChevronRight, 
   Hash,
-  CalendarDays,
   Trash2,
   AlertCircle,
-  Sparkles
+  TrendingUp,
+  TrendingDown,
+  ChevronDown
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
@@ -37,12 +37,18 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Alert,
   AlertDescription,
 } from '@/components/ui/alert'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 // Componentes internos
 import { InputMoeda } from '@/components/InputMoeda'
@@ -137,6 +143,13 @@ export function LancamentoSheet({
     setErrors({})
   }, [lancamento, tipoInicial, autoMarcarConcluido, open])
 
+  // Atualiza concluído quando muda o tipo
+  useEffect(() => {
+    if (!isEditing && !lancamento) {
+      setConcluido(autoMarcarConcluido[tipo])
+    }
+  }, [tipo, autoMarcarConcluido, isEditing, lancamento])
+
   const validateForm = () => {
     const newErrors: typeof errors = {}
 
@@ -178,7 +191,7 @@ export function LancamentoSheet({
       data_prevista: dataPrevista || null,
       data_vencimento: tipo === 'saida' ? (dataVencimento || null) : null,
       concluido,
-      categoria_id: tipo === 'saida' ? categoriaId : null,
+      categoria_id: categoriaId,
     }
 
     // Se for recorrente e não estiver editando
@@ -216,54 +229,61 @@ export function LancamentoSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent 
         side="right" 
-        className="w-full sm:max-w-lg p-0 flex flex-col h-full"
+        className="w-full sm:max-w-md p-0 flex flex-col h-full"
       >
-        <SheetHeader className="px-6 py-5 space-y-1 border-b">
-          <SheetTitle className="text-xl font-semibold">
+        <SheetHeader className="px-6 py-4 border-b">
+          <SheetTitle className="text-lg font-semibold">
             {isEditing ? 'Editar lançamento' : 'Novo lançamento'}
           </SheetTitle>
           <SheetDescription className="text-sm text-muted-foreground">
             {isEditing 
-              ? 'Atualize as informações do lançamento' 
-              : 'Adicione um novo lançamento financeiro'}
+              ? 'Atualize as informações' 
+              : 'Preencha os dados do lançamento'}
           </SheetDescription>
         </SheetHeader>
 
-        <ScrollArea className="flex-1 px-6 py-6">
-          <form id="lancamento-form" onSubmit={handleSubmit} className="space-y-6">
-            {/* Tipo: Entrada ou Saída */}
-            {!isEditing && (
-              <div className="space-y-3">
-                <Label className="text-sm font-medium">Tipo de lançamento</Label>
-                <Tabs value={tipo} onValueChange={(v) => setTipo(v as 'entrada' | 'saida')}>
-                  <TabsList className="grid w-full grid-cols-2 h-12">
-                    <TabsTrigger 
-                      value="entrada" 
-                      className="data-[state=active]:bg-verde/10 data-[state=active]:text-verde font-medium"
-                    >
-                      <DollarSign className="w-4 h-4 mr-2" />
-                      Entrada
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      value="saida"
-                      className="data-[state=active]:bg-rosa/10 data-[state=active]:text-rosa font-medium"
-                    >
-                      <DollarSign className="w-4 h-4 mr-2" />
-                      Saída
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
+        <ScrollArea className="flex-1">
+          <form id="lancamento-form" onSubmit={handleSubmit} className="p-6 space-y-5">
+            {/* Grid responsivo para tipo e nome */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              {/* Tipo de lançamento - Select estilizado */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Tipo</Label>
+                <Select 
+                  value={tipo} 
+                  onValueChange={(v) => setTipo(v as 'entrada' | 'saida')}
+                  disabled={isEditing}
+                >
+                  <SelectTrigger className={cn(
+                    "h-11",
+                    tipo === 'entrada' 
+                      ? "text-verde [&>svg]:text-verde" 
+                      : "text-rosa [&>svg]:text-rosa"
+                  )}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="entrada">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4 text-verde" />
+                        <span className="font-medium">Entrada</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="saida">
+                      <div className="flex items-center gap-2">
+                        <TrendingDown className="w-4 h-4 text-rosa" />
+                        <span className="font-medium">Saída</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            )}
 
-            <Separator />
-
-            {/* Nome do lançamento */}
-            <div className="space-y-2">
-              <Label htmlFor="nome" className="text-sm font-medium">
-                {tipo === 'entrada' ? 'Origem do dinheiro' : 'Para onde foi o dinheiro?'}
-              </Label>
-              <div className="relative">
+              {/* Nome do lançamento */}
+              <div className="space-y-2">
+                <Label htmlFor="nome" className="text-sm font-medium">
+                  Descrição
+                </Label>
                 <Input
                   id="nome"
                   value={nome}
@@ -272,30 +292,30 @@ export function LancamentoSheet({
                     if (errors.nome) setErrors(prev => ({ ...prev, nome: undefined }))
                   }}
                   placeholder={tipo === 'entrada' 
-                    ? 'Ex: Salário, Freelance, Vendas...'
-                    : 'Ex: Supermercado, Netflix, Conta de luz...'}
+                    ? 'Ex: Salário, Freelance...'
+                    : 'Ex: Mercado, Netflix...'}
                   className={cn(
-                    "h-12 pl-10",
+                    "h-11",
                     errors.nome && "border-destructive focus:ring-destructive"
                   )}
-                  autoFocus
+                  autoFocus={!isEditing}
                 />
-                <Sparkles className="absolute left-3 top-3.5 w-4 h-4 text-muted-foreground" />
+                {errors.nome && (
+                  <p className="text-xs text-destructive flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {errors.nome}
+                  </p>
+                )}
               </div>
-              {errors.nome && (
-                <p className="text-xs text-destructive flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3" />
-                  {errors.nome}
-                </p>
-              )}
             </div>
 
-            {/* Valor */}
-            <div className="space-y-2">
-              <Label htmlFor="valor" className="text-sm font-medium">
-                Valor
-              </Label>
-              <div className="relative">
+            {/* Grid para valor e categoria */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              {/* Valor */}
+              <div className="space-y-2">
+                <Label htmlFor="valor" className="text-sm font-medium">
+                  Valor
+                </Label>
                 <InputMoeda
                   value={valor}
                   onChange={(val) => {
@@ -303,77 +323,57 @@ export function LancamentoSheet({
                     if (errors.valor) setErrors(prev => ({ ...prev, valor: undefined }))
                   }}
                   error={errors.valor}
-                  className="h-12 pl-10"
+                  className="h-11"
+                  tipo={tipo}
+                  showTrend={false}
                 />
-                <DollarSign className="absolute left-3 top-3.5 w-4 h-4 text-muted-foreground" />
               </div>
-            </div>
 
-            {/* Categoria (apenas para saídas) */}
-            {tipo === 'saida' && (
+              {/* Categoria */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">
                   Categoria
                 </Label>
-                <div className="relative">
-                  <CategoriaSelect
-                    tipo="saida"
-                    value={categoriaId}
-                    onChange={setCategoriaId}
-                  />
-                  <Tag className="absolute left-3 top-3.5 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
-                </div>
+                <CategoriaSelect
+                  tipo={tipo}
+                  value={categoriaId}
+                  onChange={setCategoriaId}
+                />
               </div>
-            )}
+            </div>
 
-            {/* Datas */}
-            <div className="space-y-4">
+            {/* Grid para datas */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              {/* Data prevista */}
               <div className="space-y-2">
                 <Label htmlFor="dataPrevista" className="text-sm font-medium">
-                  {tipo === 'entrada' ? 'Data de recebimento' : 'Data de pagamento'}
+                  {tipo === 'entrada' ? 'Data recebimento' : 'Data pagamento'}
                 </Label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    // Aqui você pode adicionar um date picker mais sofisticado
-                    const input = document.getElementById('dataPrevista') as HTMLInputElement
-                    input?.showPicker?.()
-                  }}
-                  className={cn(
-                    "w-full h-12 px-3 rounded-lg border bg-background text-left flex items-center justify-between",
-                    "hover:bg-accent transition-colors",
-                    dataPrevista ? "text-foreground" : "text-muted-foreground"
-                  )}
-                >
-                  <span className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    {getDateLabel()}
-                  </span>
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-                <input
-                  id="dataPrevista"
-                  type="date"
-                  value={dataPrevista}
-                  onChange={(e) => setDataPrevista(e.target.value)}
-                  className="sr-only"
-                />
+                <div className="relative">
+                  <Input
+                    id="dataPrevista"
+                    type="date"
+                    value={dataPrevista}
+                    onChange={(e) => setDataPrevista(e.target.value)}
+                    className="h-11 pl-10"
+                  />
+                  <Calendar className="absolute left-3 top-3 w-4 h-4 text-muted-foreground pointer-events-none" />
+                </div>
               </div>
 
               {/* Data de vencimento (apenas para saídas) */}
               {tipo === 'saida' && (
                 <div className="space-y-2">
-                  <Label htmlFor="dataVencimento" className="text-sm font-medium flex items-center gap-2">
-                    <CalendarDays className="w-4 h-4" />
-                    Data de vencimento
-                    <Badge variant="outline" className="text-xs">Opcional</Badge>
+                  <Label htmlFor="dataVencimento" className="text-sm font-medium">
+                    Vencimento
+                    <Badge variant="outline" className="ml-2 text-xs">Opcional</Badge>
                   </Label>
                   <Input
                     id="dataVencimento"
                     type="date"
                     value={dataVencimento}
                     onChange={(e) => setDataVencimento(e.target.value)}
-                    className="h-12"
+                    className="h-11"
                   />
                   {errors.data && (
                     <p className="text-xs text-destructive flex items-center gap-1">
@@ -383,10 +383,15 @@ export function LancamentoSheet({
                   )}
                 </div>
               )}
+
+              {/* Placeholder para manter grid alinhado */}
+              {tipo === 'entrada' && <div />}
             </div>
 
+            <Separator />
+
             {/* Toggle: Concluído */}
-            <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
               <div className="space-y-0.5">
                 <Label htmlFor="concluido" className="text-sm font-medium cursor-pointer">
                   {tipo === 'entrada' ? 'Já recebi' : 'Já paguei'}
@@ -414,11 +419,11 @@ export function LancamentoSheet({
                       <Label htmlFor="recorrente" className="text-sm font-medium cursor-pointer">
                         <span className="flex items-center gap-2">
                           <Repeat className="w-4 h-4" />
-                          Lançamento recorrente
+                          Repetir lançamento
                         </span>
                       </Label>
                       <p className="text-xs text-muted-foreground">
-                        Repetir este lançamento
+                        Criar múltiplas ocorrências
                       </p>
                     </div>
                     <Switch
@@ -431,47 +436,44 @@ export function LancamentoSheet({
                   {isRecorrente && (
                     <Alert className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950">
                       <AlertDescription className="text-sm">
-                        <div className="space-y-4">
-                          <div className="space-y-2">
-                            <Label className="text-sm font-medium">Tipo de recorrência</Label>
-                            <div className="grid grid-cols-2 gap-2">
-                              <button
-                                type="button"
-                                onClick={() => setTipoRecorrencia('mensal')}
-                                className={cn(
-                                  "p-3 rounded-lg border-2 transition-all text-left",
-                                  tipoRecorrencia === 'mensal'
-                                    ? "border-blue-500 bg-blue-100 dark:bg-blue-900"
-                                    : "border-border hover:border-muted-foreground"
-                                )}
-                              >
-                                <div className="font-medium text-sm">Mensal</div>
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  Próximos 12 meses
-                                </div>
-                              </button>
-                              
-                              <button
-                                type="button"
-                                onClick={() => setTipoRecorrencia('parcelas')}
-                                className={cn(
-                                  "p-3 rounded-lg border-2 transition-all text-left",
-                                  tipoRecorrencia === 'parcelas'
-                                    ? "border-blue-500 bg-blue-100 dark:bg-blue-900"
-                                    : "border-border hover:border-muted-foreground"
-                                )}
-                              >
-                                <div className="font-medium text-sm">Parcelado</div>
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  Definir parcelas
-                                </div>
-                              </button>
-                            </div>
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setTipoRecorrencia('mensal')}
+                              className={cn(
+                                "p-2.5 rounded-lg border-2 transition-all text-left",
+                                tipoRecorrencia === 'mensal'
+                                  ? "border-blue-500 bg-blue-100 dark:bg-blue-900"
+                                  : "border-border hover:border-muted-foreground"
+                              )}
+                            >
+                              <div className="font-medium text-xs">Mensal</div>
+                              <div className="text-xs text-muted-foreground mt-0.5">
+                                12 meses
+                              </div>
+                            </button>
+                            
+                            <button
+                              type="button"
+                              onClick={() => setTipoRecorrencia('parcelas')}
+                              className={cn(
+                                "p-2.5 rounded-lg border-2 transition-all text-left",
+                                tipoRecorrencia === 'parcelas'
+                                  ? "border-blue-500 bg-blue-100 dark:bg-blue-900"
+                                  : "border-border hover:border-muted-foreground"
+                              )}
+                            >
+                              <div className="font-medium text-xs">Parcelado</div>
+                              <div className="text-xs text-muted-foreground mt-0.5">
+                                2-60x
+                              </div>
+                            </button>
                           </div>
 
                           {tipoRecorrencia === 'parcelas' && (
                             <div className="space-y-2">
-                              <Label htmlFor="parcelas" className="text-sm font-medium">
+                              <Label htmlFor="parcelas" className="text-xs font-medium">
                                 Número de parcelas
                               </Label>
                               <div className="relative">
@@ -488,11 +490,11 @@ export function LancamentoSheet({
                                     }
                                   }}
                                   className={cn(
-                                    "h-10 pl-10",
+                                    "h-9 pl-8",
                                     errors.parcelas && "border-destructive"
                                   )}
                                 />
-                                <Hash className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
+                                <Hash className="absolute left-2.5 top-2 w-4 h-4 text-muted-foreground" />
                               </div>
                               {errors.parcelas && (
                                 <p className="text-xs text-destructive">{errors.parcelas}</p>
@@ -509,50 +511,50 @@ export function LancamentoSheet({
           </form>
         </ScrollArea>
 
-        <SheetFooter className="px-6 py-4 border-t space-y-2 sm:space-y-0 sm:space-x-2">
-          {isEditing && onDelete && (
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={onDelete}
-              disabled={isLoading}
-              className="w-full sm:w-auto text-destructive hover:text-destructive hover:bg-destructive/10"
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Excluir
-            </Button>
-          )}
-          
-          <div className="flex gap-2 w-full sm:w-auto sm:ml-auto">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isLoading}
-              className="flex-1 sm:flex-initial"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              form="lancamento-form"
-              disabled={isLoading}
-              className={cn(
-                "flex-1 sm:flex-initial",
-                tipo === 'entrada' 
-                  ? "bg-verde hover:bg-verde/90" 
-                  : "bg-rosa hover:bg-rosa/90"
-              )}
-            >
-              {isLoading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                  Salvando...
-                </>
-              ) : (
-                isEditing ? 'Salvar alterações' : 'Adicionar lançamento'
-              )}
-            </Button>
+        <SheetFooter className="px-6 py-4 border-t">
+          <div className="flex gap-2 w-full">
+            {isEditing && onDelete && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={onDelete}
+                disabled={isLoading}
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Excluir
+              </Button>
+            )}
+            
+            <div className="flex gap-2 ml-auto">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isLoading}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                form="lancamento-form"
+                disabled={isLoading}
+                className={cn(
+                  tipo === 'entrada' 
+                    ? "bg-verde hover:bg-verde/90" 
+                    : "bg-rosa hover:bg-rosa/90"
+                )}
+              >
+                {isLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                    Salvando...
+                  </>
+                ) : (
+                  isEditing ? 'Salvar' : 'Adicionar'
+                )}
+              </Button>
+            </div>
           </div>
         </SheetFooter>
       </SheetContent>

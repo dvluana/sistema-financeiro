@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react'
-import { ChevronDown, Plus, Calculator } from 'lucide-react'
+import { ChevronDown, Plus, Calculator, Package2, Layers } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Badge } from '@/components/ui/badge'
 import { StatusCircle } from "./StatusCircle"
 import { formatarMoeda, cn } from "@/lib/utils"
 import type { Lancamento } from "@/lib/api"
@@ -52,9 +53,9 @@ export const ItemListaAgrupado = React.memo(function ItemListaAgrupado({
   const diferenca = valorModo === 'fixo' ? agrupador.valor - totalFilhos : 0
 
   return (
-    <div className="border-b border-border last:border-0">
-      {/* Linha do agrupador */}
-      <div className="flex items-center gap-2 min-h-[64px] px-1">
+    <div className="relative bg-gradient-to-br from-card via-card to-primary/5 rounded-xl border-2 border-primary/20 shadow-md hover:shadow-lg transition-all duration-200 overflow-hidden my-3">
+      {/* Cabeçalho do agrupador com destaque */}
+      <div className="flex items-center gap-2 min-h-[64px] px-3 py-2 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b border-primary/10">
         <StatusCircle checked={agrupador.concluido} onChange={onToggle} />
 
         {/* Botão expandir/colapsar */}
@@ -83,22 +84,37 @@ export const ItemListaAgrupado = React.memo(function ItemListaAgrupado({
             'flex items-center gap-2 min-w-0 flex-1',
             agrupador.concluido && mostrarConcluidosDiscretos && 'opacity-50'
           )}>
-            {/* Ícone da categoria */}
-            {CategoriaIcon && agrupador.categoria && (
-              <span
-                className="flex items-center justify-center w-6 h-6 rounded shrink-0"
-                style={{ backgroundColor: agrupador.categoria.cor || '#6B7280' }}
-                aria-hidden="true"
-              >
-                <CategoriaIcon className="w-3.5 h-3.5 text-white" />
-              </span>
-            )}
+            {/* Ícone da categoria com destaque */}
+            <div className="flex items-center justify-center w-10 h-10 rounded-lg shrink-0 bg-gradient-to-br from-primary/20 to-primary/10 border border-primary/20">
+              {agrupador.categoria && CategoriaIcon ? (
+                <CategoriaIcon 
+                  className="w-5 h-5" 
+                  style={{ color: agrupador.categoria.cor || 'var(--primary)' }}
+                />
+              ) : (
+                <Package2 className="w-5 h-5 text-primary" />
+              )}
+            </div>
 
             <div className="flex flex-col min-w-0 flex-1 gap-0.5">
-              <span className="text-corpo text-foreground truncate">{agrupador.nome}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-corpo font-semibold text-foreground truncate">{agrupador.nome}</span>
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-primary/10 text-primary border-primary/30">
+                  <Layers className="w-3 h-3 mr-0.5" />
+                  GRUPO
+                </Badge>
+              </div>
               <div className="flex items-center gap-2 text-micro text-muted-foreground">
                 {agrupador.categoria && (
-                  <span>{agrupador.categoria.nome}</span>
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium">
+                    {agrupador.categoria.cor && (
+                      <span 
+                        className="w-2 h-2 rounded-full shrink-0" 
+                        style={{ backgroundColor: agrupador.categoria.cor }}
+                      />
+                    )}
+                    {agrupador.categoria.nome}
+                  </span>
                 )}
                 {temFilhos && (
                   <>
@@ -157,7 +173,7 @@ export const ItemListaAgrupado = React.memo(function ItemListaAgrupado({
             transition={{ duration: 0.2, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
-            <div className="pl-8 md:pl-10 pr-2 pb-2 space-y-1">
+            <div className="pl-12 md:pl-14 pr-4 py-3 space-y-2 bg-muted/10">
               {/* Resumo - modo soma automática */}
               {valorModo === 'soma' && temFilhos && (
                 <div className="flex justify-between items-center text-micro text-muted-foreground py-2 px-3 bg-azul/5 rounded-lg border border-azul/10">
@@ -251,16 +267,30 @@ const FilhoItem = React.memo(function FilhoItem({
           'flex items-center gap-2 min-w-0 flex-1',
           filho.concluido && mostrarConcluidosDiscretos && 'opacity-50'
         )}>
-          {CategoriaIcon && filho.categoria && (
+          {filho.categoria && (
             <span
-              className="flex items-center justify-center w-5 h-5 rounded shrink-0"
-              style={{ backgroundColor: filho.categoria.cor || '#6B7280' }}
+              className="flex items-center justify-center w-6 h-6 rounded-md shrink-0 bg-muted"
               aria-hidden="true"
             >
-              <CategoriaIcon className="w-3 h-3 text-white" />
+              {CategoriaIcon ? (
+                <CategoriaIcon 
+                  className="w-3.5 h-3.5" 
+                  style={{ color: filho.categoria.cor || 'var(--muted-foreground)' }}
+                />
+              ) : (
+                <span 
+                  className="w-2 h-2 rounded-full" 
+                  style={{ backgroundColor: filho.categoria.cor || 'var(--muted-foreground)' }}
+                />
+              )}
             </span>
           )}
-          <span className="text-micro text-foreground truncate">{filho.nome}</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-foreground truncate">{filho.nome}</p>
+            {filho.categoria && (
+              <p className="text-xs text-muted-foreground truncate">{filho.categoria.nome}</p>
+            )}
+          </div>
         </div>
 
         <span className={cn(

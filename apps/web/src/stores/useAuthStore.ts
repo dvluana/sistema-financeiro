@@ -130,12 +130,9 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     try {
       const usuario = await authApi.me()
-      console.log('[AuthStore] checkAuth - usuario:', usuario)
 
       // Carrega perfis do usuário (aguarda para garantir que perfilAtual seja definido)
-      console.log('[AuthStore] checkAuth - chamando carregarPerfis')
       await usePerfilStore.getState().carregarPerfis()
-      console.log('[AuthStore] checkAuth - carregarPerfis concluído, perfilAtual:', usePerfilStore.getState().perfilAtual)
 
       set({
         usuario,
@@ -143,7 +140,6 @@ export const useAuthStore = create<AuthState>((set) => ({
         isLoading: false,
       })
     } catch (error) {
-      console.error('[AuthStore] checkAuth error:', error)
       // Só remove o token se for erro de autenticação (401/403)
       // Erros de rede ou servidor não devem deslogar o usuário
       const isAuthError = error instanceof ApiError &&

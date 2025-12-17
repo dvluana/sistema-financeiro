@@ -1,280 +1,241 @@
 /**
  * QuickInputSheet Component
- *
- * Input moderno para lançamento rápido com IA.
- * Design clean e minimalista com UX clara que é powered by AI.
+ * 
+ * Sheet modernizado para entrada rápida de múltiplos lançamentos.
+ * Design atualizado com melhor UX, animações fluidas e feedback visual aprimorado.
  */
 
-import React, {
-  useState,
-  useCallback,
-  useEffect,
-  useRef,
-  useMemo,
-} from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useRef } from 'react'
 import {
-  TrendingUp,
-  TrendingDown,
-  X,
-  Loader2,
-  Sparkles,
   Mic,
   MicOff,
-  Check,
-  ChevronDown,
-  ChevronUp,
+  Sparkles,
   Repeat,
+  Calendar,
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  Edit3,
   Trash2,
-  Wand2,
-} from "lucide-react";
-import { Drawer as DrawerPrimitive } from "vaul";
-import { useDebouncedCallback } from "use-debounce";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui";
-import { useIsDesktop } from "@/hooks/useMediaQuery";
-import { aiApi, getCategoriasPadraoByTipo } from "@/lib/api";
-import {
-  formatarValor,
-  formatarMesExibicao,
-  gerarListaMeses,
-  extrairMesGlobal,
-  type ParsedLancamento,
-} from "@/lib/parser";
+  CheckCircle2,
+  Loader2,
+  Zap
+} from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { cn } from '@/lib/utils'
+import { type ParsedLancamento } from '@/lib/parser'
 
-// Props do card de lançamento compacto
-interface LancamentoItemProps {
-  item: ParsedLancamento;
-  onToggleTipo: (id: string) => void;
-  onUpdateLancamento: (
-    id: string,
-    campo: "valor" | "nome" | "mes",
-    valor: string
-  ) => void;
-  onUpdateRecorrencia: (
-    id: string,
-    recorrencia: ParsedLancamento["recorrencia"]
-  ) => void;
-  onUpdateCategoria: (id: string, categoriaId: string | null) => void;
-  onRemoveLancamento: (id: string) => void;
-  mesesDisponiveis: Array<{ value: string; label: string }>;
+// Componentes shadcn/ui
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from '@/components/ui/sheet'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  Alert,
+  AlertDescription,
+} from '@/components/ui/alert'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { Progress } from '@/components/ui/progress'
+
+interface QuickInputSheetProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  mesAtual: string
+  onConfirm: (lancamentos: ParsedLancamento[]) => Promise<void>
 }
 
-// Componente de item individual - ultra compacto
-const LancamentoItem = React.memo(function LancamentoItem({
-  item,
-  onToggleTipo,
-  onUpdateLancamento,
-  onUpdateRecorrencia,
-  onUpdateCategoria,
-  onRemoveLancamento,
-  mesesDisponiveis,
-}: LancamentoItemProps) {
-  const isEntrada = item.tipo === "entrada";
-  const temRecorrencia = !!item.recorrencia;
-  const [showOptions, setShowOptions] = useState(false);
+// Componente para cada item de lançamento
+const LancamentoItem = ({
+  lancamento,
+  index,
+  onEdit,
+  onRemove,
+  onToggleRecorrencia,
+}: {
+  lancamento: ParsedLancamento
+  index: number
+  onEdit: (index: number, campo: keyof ParsedLancamento, valor: any) => void
+  onRemove: (index: number) => void
+  onToggleRecorrencia: (index: number) => void
+}) => {
+  const [isEditing, setIsEditing] = useState(false)
+  const temRecorrencia = lancamento.recorrencia !== null
 
-  // Memoiza categorias por tipo para evitar recálculo
-  const categoriasDoTipo = useMemo(
-    () => getCategoriasPadraoByTipo(item.tipo),
-    [item.tipo]
-  );
-
-  // Formata valor para exibição
-  const valorFormatado =
-    item.valor !== null
-      ? item.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })
-      : "";
+  const handleValueEdit = (valor: string) => {
+    const numValue = parseFloat(valor.replace(',', '.'))
+    if (!isNaN(numValue)) {
+      onEdit(index, 'valor', numValue)
+    }
+  }
 
   return (
     <motion.div
-      layout="position"
-      initial={{ opacity: 0, y: -8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, x: -20, height: 0 }}
-      transition={{ duration: 0.15 }}
-      className="group"
+      layout
+      initial={{ opacity: 0, scale: 0.9, y: 20 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.9, x: -100 }}
+      transition={{ 
+        type: "spring",
+        stiffness: 300,
+        damping: 25,
+        delay: index * 0.05 
+      }}
+      className={cn(
+        "group relative p-4 rounded-xl border transition-all duration-200",
+        "hover:shadow-md hover:border-primary/30",
+        lancamento.tipo === 'entrada' 
+          ? "bg-gradient-to-r from-verde/5 to-transparent border-verde/20"
+          : "bg-gradient-to-r from-rosa/5 to-transparent border-rosa/20"
+      )}
     >
-      <div
+      {/* Badge de tipo no canto */}
+      <Badge 
+        variant="outline" 
         className={cn(
-          "flex items-center gap-2 py-2.5 px-3 rounded-xl",
-          "bg-secondary/50 border border-transparent",
-          "hover:border-border/50 transition-all"
+          "absolute -top-2 -right-2 text-xs px-1.5 py-0.5",
+          lancamento.tipo === 'entrada'
+            ? "text-verde border-verde/30 bg-verde/10"
+            : "text-rosa border-rosa/30 bg-rosa/10"
         )}
       >
-        {/* Indicador de tipo - clicável */}
-        <button
-          type="button"
-          onClick={() => onToggleTipo(item.id)}
-          className={cn(
-            "shrink-0 w-7 h-7 rounded-lg flex items-center justify-center",
-            "transition-all hover:scale-105 active:scale-95",
-            isEntrada
-              ? "bg-verde/15 text-verde"
-              : "bg-vermelho/15 text-vermelho"
-          )}
-          title={isEntrada ? "Entrada" : "Saída"}
-        >
-          {isEntrada ? (
-            <TrendingUp className="w-4 h-4" />
-          ) : (
-            <TrendingDown className="w-4 h-4" />
-          )}
-        </button>
+        {lancamento.tipo === 'entrada' ? (
+          <TrendingUp className="w-3 h-3 mr-0.5" />
+        ) : (
+          <TrendingDown className="w-3 h-3 mr-0.5" />
+        )}
+        {lancamento.tipo}
+      </Badge>
 
+      {/* Conteúdo principal */}
+      <div className="space-y-3">
         {/* Nome */}
-        <input
-          type="text"
-          value={item.nome}
-          onChange={(e) => onUpdateLancamento(item.id, "nome", e.target.value)}
-          placeholder="O que foi?"
-          className={cn(
-            "flex-1 min-w-0 bg-transparent text-corpo",
-            "focus:outline-none placeholder:text-muted-foreground/40"
-          )}
-        />
-
-        {/* Valor */}
-        <div
-          className={cn(
-            "shrink-0 flex items-center",
-            isEntrada ? "text-verde" : "text-vermelho"
-          )}
-        >
-          <span className="text-micro opacity-50 mr-0.5">R$</span>
-          <input
-            type="text"
-            inputMode="decimal"
-            value={valorFormatado}
-            onChange={(e) => {
-              const raw = e.target.value.replace(/[^\d.,]/g, "");
-              onUpdateLancamento(item.id, "valor", raw);
-            }}
-            placeholder="0,00"
-            className={cn(
-              "w-20 text-right bg-transparent text-corpo font-medium tabular-nums",
-              "focus:outline-none placeholder:text-current placeholder:opacity-30",
-              isEntrada ? "text-verde" : "text-vermelho"
+        <div className="flex items-start gap-3">
+          <div className={cn(
+            "p-2 rounded-lg shrink-0",
+            lancamento.tipo === 'entrada' 
+              ? "bg-verde/10 text-verde"
+              : "bg-rosa/10 text-rosa"
+          )}>
+            <DollarSign className="w-4 h-4" />
+          </div>
+          
+          <div className="flex-1 space-y-1">
+            {isEditing ? (
+              <Input
+                value={lancamento.nome}
+                onChange={(e) => onEdit(index, 'nome', e.target.value)}
+                onBlur={() => setIsEditing(false)}
+                className="h-8 text-sm font-medium"
+                autoFocus
+              />
+            ) : (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="text-left w-full group/edit"
+              >
+                <p className="font-medium text-sm flex items-center gap-1">
+                  {lancamento.nome}
+                  <Edit3 className="w-3 h-3 opacity-0 group-hover/edit:opacity-50 transition-opacity" />
+                </p>
+              </button>
             )}
-          />
+            
+            {/* Categoria */}
+            {lancamento.categoriaId && (
+              <p className="text-xs text-muted-foreground">
+                Categoria definida
+              </p>
+            )}
+          </div>
+
+          {/* Valor */}
+          <div className="text-right">
+            <Input
+              value={(lancamento.valor || 0).toFixed(2).replace('.', ',')}
+              onChange={(e) => handleValueEdit(e.target.value)}
+              className={cn(
+                "h-8 w-24 text-sm font-bold text-right",
+                lancamento.tipo === 'entrada' ? "text-verde" : "text-rosa"
+              )}
+            />
+          </div>
         </div>
 
-        {/* Mais opções */}
-        <button
-          type="button"
-          onClick={() => setShowOptions(!showOptions)}
-          className={cn(
-            "shrink-0 p-1.5 rounded-lg transition-colors",
-            showOptions
-              ? "bg-accent text-foreground"
-              : "text-muted-foreground/40 hover:text-muted-foreground"
-          )}
-        >
-          {showOptions ? (
-            <ChevronUp className="w-4 h-4" />
-          ) : (
-            <ChevronDown className="w-4 h-4" />
-          )}
-        </button>
+        {/* Informações adicionais */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Data */}
+            {lancamento.diaPrevisto && (
+              <Badge variant="secondary" className="text-xs">
+                <Calendar className="w-3 h-3 mr-1" />
+                Dia {lancamento.diaPrevisto}
+              </Badge>
+            )}
 
-        {/* Remover */}
-        <button
-          type="button"
-          onClick={() => onRemoveLancamento(item.id)}
-          className={cn(
-            "shrink-0 p-1.5 rounded-lg transition-colors",
-            "text-muted-foreground/30 hover:text-vermelho hover:bg-vermelho/10"
-          )}
-        >
-          <X className="w-4 h-4" />
-        </button>
+            {/* Recorrência */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant={temRecorrencia ? "default" : "outline"}
+                  onClick={() => onToggleRecorrencia(index)}
+                  className={cn(
+                    "h-6 px-2 text-xs",
+                    temRecorrencia 
+                      ? "bg-blue-500 hover:bg-blue-600 text-white"
+                      : "hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200"
+                  )}
+                >
+                  <Repeat className="w-3 h-3 mr-1" />
+                  {temRecorrencia ? (
+                    lancamento.recorrencia === 'mensal' 
+                      ? '12 meses'
+                      : `${lancamento.qtdParcelas}x`
+                  ) : (
+                    'Repetir'
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {temRecorrencia 
+                  ? 'Clique para remover recorrência'
+                  : 'Adicionar recorrência'
+                }
+              </TooltipContent>
+            </Tooltip>
+          </div>
+
+          {/* Botão remover */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => onRemove(index)}
+                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Remover item</TooltipContent>
+          </Tooltip>
+        </div>
       </div>
-
-      {/* Opções expandidas */}
-      <AnimatePresence>
-        {showOptions && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.12 }}
-            className="overflow-hidden"
-          >
-            <div className="flex flex-wrap items-center gap-2 px-3 py-2 mt-1 rounded-xl bg-accent/30">
-              {/* Mês */}
-              <select
-                value={item.mes}
-                onChange={(e) =>
-                  onUpdateLancamento(item.id, "mes", e.target.value)
-                }
-                className={cn(
-                  "bg-card border border-border rounded-lg px-2 py-1",
-                  "text-micro text-foreground cursor-pointer focus:outline-none"
-                )}
-              >
-                {mesesDisponiveis.map((mes) => (
-                  <option key={mes.value} value={mes.value}>
-                    {formatarMesExibicao(mes.value)}
-                  </option>
-                ))}
-              </select>
-
-              {/* Categoria */}
-              <select
-                value={item.categoriaId || ""}
-                onChange={(e) =>
-                  onUpdateCategoria(item.id, e.target.value || null)
-                }
-                className={cn(
-                  "bg-card border border-border rounded-lg px-2 py-1",
-                  "text-micro text-foreground cursor-pointer focus:outline-none"
-                )}
-              >
-                <option value="">Sem categoria</option>
-                {categoriasDoTipo.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.nome}
-                  </option>
-                ))}
-              </select>
-
-              {/* Recorrência */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (temRecorrencia) {
-                    onUpdateRecorrencia(item.id, undefined);
-                  } else {
-                    onUpdateRecorrencia(item.id, {
-                      tipo: "mensal",
-                      quantidade: 12,
-                    });
-                  }
-                }}
-                className={cn(
-                  "inline-flex items-center gap-1 px-2 py-1 rounded-lg text-micro",
-                  "transition-colors",
-                  temRecorrencia
-                    ? "bg-rosa/15 text-rosa"
-                    : "bg-card border border-border text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Repeat className="w-3 h-3" />
-                {temRecorrencia ? "Mensal" : "Repetir"}
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.div>
-  );
-});
-
-interface QuickInputSheetProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  mesAtual: string;
-  onConfirm: (lancamentos: ParsedLancamento[]) => Promise<void>;
+  )
 }
 
 export function QuickInputSheet({
@@ -283,561 +244,414 @@ export function QuickInputSheet({
   mesAtual,
   onConfirm,
 }: QuickInputSheetProps) {
-  const isDesktop = useIsDesktop();
+  const [input, setInput] = useState('')
+  const [lancamentos, setLancamentos] = useState<ParsedLancamento[]>([])
+  const [isParsing, setIsParsing] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isListening, setIsListening] = useState(false)
+  const [showTips, setShowTips] = useState(true)
+  const recognitionRef = useRef<any>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  // Estado do input - texto local para feedback imediato
-  const [textoLocal, setTextoLocal] = useState("");
-  const [_texto, setTexto] = useState("");
-  const [lancamentos, setLancamentos] = useState<ParsedLancamento[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isParsing, setIsParsing] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
+  // Suporte a reconhecimento de voz
+  const speechSupported = typeof window !== 'undefined' && 
+    ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
 
-  // Debounce para atualização do texto (reduz re-renders)
-  const debouncedSetTexto = useDebouncedCallback(
-    (value: string) => setTexto(value),
-    150
-  );
-
-  // Handler otimizado para input
-  const handleTextoChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value;
-      setTextoLocal(value); // Atualiza imediatamente para feedback visual
-      debouncedSetTexto(value); // Propaga com debounce
-    },
-    [debouncedSetTexto]
-  );
-
-  // Estado do reconhecimento de voz
-  const [isListening, setIsListening] = useState(false);
-  const [speechSupported, setSpeechSupported] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-
-  // Ref para o input
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-
-  // Verifica suporte a Speech Recognition
-  useEffect(() => {
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
-    setSpeechSupported(!!SpeechRecognition);
-  }, []);
-
-  // Foca no input quando abre
-  useEffect(() => {
-    if (open && inputRef.current) {
-      setTimeout(() => inputRef.current?.focus(), 100);
-    }
-  }, [open]);
-
-  // Limpa estado quando fecha
+  // Limpa estado ao fechar
   useEffect(() => {
     if (!open) {
-      setTextoLocal("");
-      setTexto("");
-      setLancamentos([]);
-      setErro(null);
+      setInput('')
+      setLancamentos([])
+      setIsParsing(false)
+      setIsSubmitting(false)
+      setIsListening(false)
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
-        setIsListening(false);
+        recognitionRef.current.stop()
       }
     }
-  }, [open]);
+  }, [open])
 
-  /**
-   * Inicia/para reconhecimento de voz
-   */
-  const toggleVoiceRecognition = useCallback(() => {
-    if (!speechSupported) {
-      setErro("Navegador não suporta reconhecimento de voz");
-      return;
+  // Configura reconhecimento de voz
+  useEffect(() => {
+    if (!speechSupported) return
+
+    const SpeechRecognition = (window as any).SpeechRecognition || 
+                              (window as any).webkitSpeechRecognition
+    
+    const recognition = new SpeechRecognition()
+    recognition.continuous = true
+    recognition.interimResults = true
+    recognition.lang = 'pt-BR'
+
+    recognition.onresult = (event: any) => {
+      const transcript = Array.from(event.results)
+        .map((result: any) => result[0].transcript)
+        .join(' ')
+      
+      setInput(transcript)
     }
+
+    recognition.onerror = () => {
+      setIsListening(false)
+    }
+
+    recognition.onend = () => {
+      setIsListening(false)
+    }
+
+    recognitionRef.current = recognition
+  }, [speechSupported])
+
+  // Toggle reconhecimento de voz
+  const toggleVoiceRecognition = () => {
+    if (!recognitionRef.current) return
 
     if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-      return;
+      recognitionRef.current.stop()
+      setIsListening(false)
+    } else {
+      recognitionRef.current.start()
+      setIsListening(true)
     }
+  }
 
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
+  // Processa o input
+  const handleProcess = async () => {
+    if (!input.trim() || isParsing) return
 
-    recognition.lang = "pt-BR";
-    recognition.continuous = true;
-    recognition.interimResults = true;
+    setIsParsing(true)
+    
+    // Simula processamento com delay visual
+    await new Promise(resolve => setTimeout(resolve, 500))
+    
+    const parsed = parseMultipleEntries(input, mesAtual)
+    
+    setLancamentos(prev => [...prev, ...parsed])
+    setInput('')
+    setIsParsing(false)
+    setShowTips(false)
+    
+    // Foca no input novamente
+    inputRef.current?.focus()
+  }
 
-    recognition.onstart = () => {
-      setIsListening(true);
-      setErro(null);
-    };
+  // Edita um lançamento
+  const handleEdit = (index: number, campo: keyof ParsedLancamento, valor: any) => {
+    setLancamentos(prev => prev.map((l, i) => 
+      i === index ? { ...l, [campo]: valor } : l
+    ))
+  }
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let finalTranscript = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalTranscript += transcript;
-        }
+  // Remove um lançamento
+  const handleRemove = (index: number) => {
+    setLancamentos(prev => prev.filter((_, i) => i !== index))
+  }
+
+  // Toggle recorrência
+  const handleToggleRecorrencia = (index: number) => {
+    setLancamentos(prev => prev.map((l, i) => {
+      if (i !== index) return l
+      
+      if (l.recorrencia) {
+        return { ...l, recorrencia: null, qtdParcelas: undefined }
+      } else {
+        return { ...l, recorrencia: 'mensal', qtdParcelas: undefined }
       }
-      if (finalTranscript) {
-        const newValue = textoLocal
-          ? `${textoLocal} ${finalTranscript}`
-          : finalTranscript;
-        setTextoLocal(newValue);
-        setTexto(newValue);
-      }
-    };
+    }))
+  }
 
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      setIsListening(false);
-      if (event.error !== "no-speech" && event.error !== "aborted") {
-        setErro("Erro no microfone. Tente novamente.");
-      }
-    };
-
-    recognition.onend = () => setIsListening(false);
-
-    recognitionRef.current = recognition;
-    try {
-      recognition.start();
-    } catch {
-      setIsListening(false);
-    }
-  }, [speechSupported, isListening, textoLocal]);
-
-  /**
-   * Processa texto com IA
-   */
-  const handleProcess = useCallback(async () => {
-    const textoParaProcessar = textoLocal.trim();
-    if (!textoParaProcessar) return;
-
-    setIsParsing(true);
-    setErro(null);
-
-    try {
-      const mesGlobal = extrairMesGlobal(textoParaProcessar);
-      const mesParaUsar = mesGlobal?.mes || mesAtual;
-      const result = await aiApi.parseLancamentos(
-        textoParaProcessar,
-        mesParaUsar
-      );
-
-      if (result.erro) {
-        setErro(result.erro);
-        return;
-      }
-
-      if (result.lancamentos.length === 0) {
-        setErro(
-          'Não consegui identificar lançamentos. Tente incluir valores, como: "Almoço 45" ou "Recebido pagamento 1500"'
-        );
-        return;
-      }
-
-      const timestamp = Date.now();
-      const novos: ParsedLancamento[] = result.lancamentos.map((l, i) => ({
-        id: `ia-${timestamp}-${i}`,
-        tipo: l.tipo,
-        nome: l.nome,
-        valor: l.valor,
-        mes: mesParaUsar,
-        diaPrevisto: l.diaPrevisto,
-        categoriaId: l.categoriaId,
-        status: "completo" as const,
-        camposFaltantes: [],
-        groupId: `ia-${timestamp}-${i}`,
-      }));
-
-      setLancamentos((prev) => [...prev, ...novos]);
-      setTextoLocal("");
-      setTexto("");
-    } catch {
-      setErro("Erro ao processar. Tente novamente.");
-    } finally {
-      setIsParsing(false);
-    }
-  }, [textoLocal, mesAtual]);
-
-  // Handlers para atualizar lançamentos
-  const handleUpdateLancamento = useCallback(
-    (id: string, campo: "valor" | "nome" | "mes", valor: string) => {
-      setLancamentos((prev) =>
-        prev.map((l) => {
-          if (l.id !== id) return l;
-          const updated = { ...l };
-          if (campo === "valor") {
-            const num = parseFloat(
-              valor.replace(/[^\d.,]/g, "").replace(",", ".")
-            );
-            updated.valor = isNaN(num) ? null : num;
-          } else if (campo === "mes") {
-            updated.mes = valor;
-          } else {
-            updated.nome = valor;
-          }
-          return updated;
-        })
-      );
-    },
-    []
-  );
-
-  const handleToggleTipo = useCallback((id: string) => {
-    setLancamentos((prev) =>
-      prev.map((l) =>
-        l.id === id
-          ? { ...l, tipo: l.tipo === "entrada" ? "saida" : "entrada" }
-          : l
-      )
-    );
-  }, []);
-
-  const handleRemove = useCallback((id: string) => {
-    setLancamentos((prev) => prev.filter((l) => l.id !== id));
-  }, []);
-
-  const handleUpdateRecorrencia = useCallback(
-    (id: string, recorrencia: ParsedLancamento["recorrencia"]) => {
-      setLancamentos((prev) =>
-        prev.map((l) => (l.id === id ? { ...l, recorrencia } : l))
-      );
-    },
-    []
-  );
-
-  const handleUpdateCategoria = useCallback(
-    (id: string, categoriaId: string | null) => {
-      setLancamentos((prev) =>
-        prev.map((l) => (l.id === id ? { ...l, categoriaId } : l))
-      );
-    },
-    []
-  );
-
-  const handleClearAll = useCallback(() => {
-    setLancamentos([]);
-    setErro(null);
-  }, []);
-
-  /**
-   * Confirma lançamentos
-   */
+  // Confirma e salva
   const handleConfirm = async () => {
-    if (lancamentos.length === 0) return;
+    if (lancamentos.length === 0 || isSubmitting) return
 
-    const incompletos = lancamentos.filter((l) => !l.nome || !l.valor);
-    if (incompletos.length > 0) {
-      setErro("Preencha nome e valor de todos os itens");
-      return;
-    }
+    setIsSubmitting(true)
+    await onConfirm(lancamentos)
+    setIsSubmitting(false)
+    onOpenChange(false)
+  }
 
-    setIsLoading(true);
-    setErro(null);
+  // Calcula totais
+  const totais = lancamentos.reduce(
+    (acc, l) => {
+      const valor = l.tipo === 'entrada' ? l.valor : -l.valor
+      return {
+        ...acc,
+        total: acc.total + valor,
+        entradas: l.tipo === 'entrada' ? acc.entradas + l.valor : acc.entradas,
+        saidas: l.tipo === 'saida' ? acc.saidas + l.valor : acc.saidas,
+        quantidade: acc.quantidade + 1,
+      }
+    },
+    { total: 0, entradas: 0, saidas: 0, quantidade: 0 }
+  )
 
-    try {
-      await onConfirm(lancamentos);
-      onOpenChange(false);
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : "Erro ao salvar");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Lista de meses disponíveis
-  const mesesDisponiveis = useMemo(() => gerarListaMeses(), []);
-
-  // Totais
-  const totais = useMemo(() => {
-    const entradas = lancamentos
-      .filter((l) => l.tipo === "entrada" && l.valor)
-      .reduce((s, l) => s + (l.valor || 0), 0);
-    const saidas = lancamentos
-      .filter((l) => l.tipo === "saida" && l.valor)
-      .reduce((s, l) => s + (l.valor || 0), 0);
-    return { entradas, saidas };
-  }, [lancamentos]);
-
-  const podeConfirmar = lancamentos.length > 0 && !isLoading;
-
-  // Conteúdo do drawer
-  const content = (
-    <div className={cn("flex flex-col h-full", isDesktop ? "p-6" : "p-4")}>
-      {/* Header minimalista */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rosa via-rosa to-vermelho/80 flex items-center justify-center shadow-lg shadow-rosa/20">
-            <Wand2 className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <DrawerPrimitive.Title className="text-titulo-card text-foreground font-medium">
-              Adicionar com IA
-            </DrawerPrimitive.Title>
-            <p className="text-micro text-muted-foreground flex items-center gap-1">
-              <Sparkles className="w-3 h-3" />
-              Descreva seus gastos em linguagem natural
-            </p>
-          </div>
-        </div>
-        <DrawerPrimitive.Close className="p-2 -mr-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
-          <X className="w-5 h-5" />
-        </DrawerPrimitive.Close>
-      </div>
-
-      {/* Input principal - clean e moderno */}
-      <div className="relative mb-4">
-        <div
-          className={cn(
-            "flex items-center gap-3 rounded-2xl border-2 bg-card p-4",
-            "transition-all duration-200",
-            isListening
-              ? "border-rosa bg-rosa/5 shadow-lg shadow-rosa/10"
-              : isParsing
-              ? "border-rosa/50"
-              : "border-border focus-within:border-rosa focus-within:shadow-lg focus-within:shadow-rosa/10"
-          )}
-        >
-          {/* Input - mudado para textarea para suportar múltiplas linhas */}
-          <textarea
-            ref={inputRef}
-            value={textoLocal}
-            onChange={handleTextoChange}
-            onKeyDown={(e) => {
-              // Ctrl+Enter ou Cmd+Enter para processar
-              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-                e.preventDefault();
-                handleProcess();
-              }
-            }}
-            placeholder={
-              isListening
-                ? "Escutando você..."
-                : "Cole múltiplas linhas ou digite (Ctrl+Enter para processar)"
-            }
-            disabled={isParsing}
-            className={cn(
-              "flex-1 bg-transparent text-corpo text-foreground",
-              "placeholder:text-muted-foreground/50",
-              "focus:outline-none resize-none",
-              "min-h-[40px] max-h-[200px] overflow-y-auto"
-            )}
-            rows={1}
-          />
-
-          {/* Botões de ação */}
-          <div className="flex items-center gap-2">
-            {/* Microfone */}
-            {speechSupported && (
-              <button
-                type="button"
-                onClick={toggleVoiceRecognition}
-                disabled={isParsing}
-                className={cn(
-                  "p-2.5 rounded-xl transition-all",
-                  isListening
-                    ? "bg-rosa text-white animate-pulse"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                )}
-              >
-                {isListening ? (
-                  <MicOff className="w-5 h-5" />
-                ) : (
-                  <Mic className="w-5 h-5" />
-                )}
-              </button>
-            )}
-
-            {/* Processar */}
-            <button
-              type="button"
-              onClick={handleProcess}
-              disabled={!textoLocal.trim() || isParsing}
-              className={cn(
-                "p-2.5 rounded-xl transition-all",
-                textoLocal.trim() && !isParsing
-                  ? "bg-rosa text-white hover:bg-rosa/90 shadow-md shadow-rosa/20 active:scale-95"
-                  : "bg-muted text-muted-foreground cursor-not-allowed"
-              )}
-            >
-              {isParsing ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <Sparkles className="w-5 h-5" />
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Hint de IA */}
-        {lancamentos.length === 0 && !textoLocal && !isParsing && (
-          <p className="text-micro text-muted-foreground/60 mt-2 px-1">
-            💡 Dica: Digite vários itens de uma vez, separados por vírgula
-          </p>
-        )}
-      </div>
-
-      {/* Estado de processamento */}
-      <AnimatePresence>
-        {isParsing && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="mb-4"
-          >
-            <div className="flex items-center gap-3 p-4 rounded-xl bg-rosa/5 border border-rosa/20">
-              <div className="relative">
-                <Sparkles className="w-5 h-5 text-rosa animate-pulse" />
-              </div>
-              <div>
-                <p className="text-corpo font-medium text-foreground">
-                  Processando...
-                </p>
-                <p className="text-micro text-muted-foreground">
-                  Identificando valores, datas e categorias automaticamente
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Erro */}
-      <AnimatePresence>
-        {erro && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="mb-4 p-3 rounded-xl bg-vermelho/10 border border-vermelho/20 text-vermelho text-micro"
-          >
-            {erro}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Lista de lançamentos */}
-      <div
-        className={cn(
-          "flex-1 overflow-y-auto -mx-4 px-4",
-          isDesktop && "-mx-6 px-6"
-        )}
-      >
-        {lancamentos.length > 0 && (
-          <>
-            {/* Header da lista */}
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3 text-micro">
-                <span className="text-muted-foreground font-medium">
-                  {lancamentos.length}{" "}
-                  {lancamentos.length === 1 ? "item" : "itens"}
-                </span>
-                {totais.entradas > 0 && (
-                  <span className="text-verde">
-                    +{formatarValor(totais.entradas)}
-                  </span>
-                )}
-                {totais.saidas > 0 && (
-                  <span className="text-vermelho">
-                    -{formatarValor(totais.saidas)}
-                  </span>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={handleClearAll}
-                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-micro text-muted-foreground hover:text-vermelho hover:bg-vermelho/10 transition-colors"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Limpar
-              </button>
-            </div>
-
-            {/* Cards */}
-            <div className="space-y-2">
-              <AnimatePresence mode="sync">
-                {lancamentos.map((item) => (
-                  <LancamentoItem
-                    key={item.id}
-                    item={item}
-                    onToggleTipo={handleToggleTipo}
-                    onUpdateLancamento={handleUpdateLancamento}
-                    onUpdateRecorrencia={handleUpdateRecorrencia}
-                    onUpdateCategoria={handleUpdateCategoria}
-                    onRemoveLancamento={handleRemove}
-                    mesesDisponiveis={mesesDisponiveis}
-                  />
-                ))}
-              </AnimatePresence>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Footer com ações */}
-      <div
-        className={cn(
-          "flex gap-3 pt-4 mt-auto border-t border-border",
-          !isDesktop && "pb-safe"
-        )}
-      >
-        <Button
-          variant="secondary"
-          className="flex-1"
-          onClick={() => onOpenChange(false)}
-          disabled={isLoading}
-        >
-          Cancelar
-        </Button>
-        <Button
-          variant="default"
-          className="flex-1"
-          onClick={handleConfirm}
-          disabled={!podeConfirmar}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Salvando...
-            </>
-          ) : (
-            <>
-              <Check className="w-4 h-4 mr-2" />
-              Confirmar
-            </>
-          )}
-        </Button>
-      </div>
-    </div>
-  );
+  // Exemplos de entrada
+  const exemplos = [
+    "Salário 5000, Netflix 55,90",
+    "Mercado 350 dia 15, Aluguel 1200 dia 5",
+    "Uber 45,50, iFood 89,90, Spotify 19,90",
+  ]
 
   return (
-    <DrawerPrimitive.Root
-      open={open}
-      onOpenChange={onOpenChange}
-      direction={isDesktop ? "right" : "bottom"}
-      shouldScaleBackground={!isDesktop}
-    >
-      <DrawerPrimitive.Portal>
-        <DrawerPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50" />
-        <DrawerPrimitive.Content
-          className={cn(
-            "fixed z-50 flex flex-col bg-card",
-            isDesktop
-              ? "inset-y-0 right-0 h-full w-full max-w-md border-l border-border rounded-l-2xl shadow-xl"
-              : "inset-x-0 bottom-0 rounded-t-2xl border-t border-border shadow-xl"
-          )}
-          style={!isDesktop ? { maxHeight: "85vh" } : undefined}
+    <TooltipProvider>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent 
+          side="bottom" 
+          className="h-[85vh] p-0 rounded-t-3xl flex flex-col"
         >
-          {!isDesktop && (
-            <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-muted" />
+          {/* Header com gradiente */}
+          <div className="relative overflow-hidden border-b">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-blue-500/10" />
+            <SheetHeader className="relative px-6 py-5">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-lg">
+                  <Zap className="w-5 h-5" />
+                </div>
+                <div>
+                  <SheetTitle className="text-xl font-semibold">
+                    Entrada Rápida
+                  </SheetTitle>
+                  <SheetDescription className="text-sm">
+                    Adicione vários lançamentos de uma vez
+                  </SheetDescription>
+                </div>
+              </div>
+              
+              {/* Barra de progresso visual */}
+              {lancamentos.length > 0 && (
+                <div className="mt-3">
+                  <Progress 
+                    value={(lancamentos.length / 10) * 100} 
+                    className="h-1.5"
+                    indicatorClassName="bg-gradient-to-r from-amber-500 to-orange-500"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {lancamentos.length} {lancamentos.length === 1 ? 'item' : 'itens'} adicionado{lancamentos.length === 1 ? '' : 's'}
+                  </p>
+                </div>
+              )}
+            </SheetHeader>
+          </div>
+
+          {/* Input area com design melhorado */}
+          <div className="px-6 py-4 border-b bg-muted/30">
+            <div className={cn(
+              "relative rounded-xl border-2 transition-all duration-200",
+              "bg-background",
+              isListening 
+                ? "border-amber-500 shadow-lg shadow-amber-500/20" 
+                : isParsing
+                ? "border-blue-500 shadow-lg shadow-blue-500/20"
+                : "border-border hover:border-primary/50 focus-within:border-primary"
+            )}>
+              <div className="flex items-center gap-3 p-3">
+                <Input
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      handleProcess()
+                    }
+                  }}
+                  placeholder={
+                    isListening 
+                      ? "🎤 Ouvindo..." 
+                      : "Digite: Salário 5000, Netflix 55,90..."
+                  }
+                  disabled={isParsing || isListening}
+                  className={cn(
+                    "flex-1 border-0 bg-transparent text-sm",
+                    "placeholder:text-muted-foreground/60",
+                    "focus:outline-none focus:ring-0"
+                  )}
+                  autoFocus
+                />
+
+                {/* Botões de ação */}
+                <div className="flex items-center gap-1">
+                  {/* Microfone */}
+                  {speechSupported && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="icon"
+                          variant={isListening ? "default" : "ghost"}
+                          onClick={toggleVoiceRecognition}
+                          disabled={isParsing}
+                          className={cn(
+                            "h-9 w-9",
+                            isListening && "bg-amber-500 hover:bg-amber-600 animate-pulse"
+                          )}
+                        >
+                          {isListening ? (
+                            <MicOff className="w-4 h-4" />
+                          ) : (
+                            <Mic className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {isListening ? 'Parar gravação' : 'Usar microfone'}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+
+                  {/* Processar */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="icon"
+                        onClick={handleProcess}
+                        disabled={!input.trim() || isParsing}
+                        className={cn(
+                          "h-9 w-9",
+                          input.trim() && !isParsing 
+                            ? "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md"
+                            : ""
+                        )}
+                      >
+                        {isParsing ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Sparkles className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Processar entrada</TooltipContent>
+                  </Tooltip>
+                </div>
+              </div>
+            </div>
+
+            {/* Dicas e exemplos */}
+            <AnimatePresence>
+              {showTips && lancamentos.length === 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="mt-3 space-y-2"
+                >
+                  <p className="text-xs text-muted-foreground">
+                    💡 Exemplos de entrada:
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {exemplos.map((exemplo, i) => (
+                      <Button
+                        key={i}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setInput(exemplo)}
+                        className="text-xs h-7 px-2"
+                      >
+                        {exemplo}
+                      </Button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Lista de lançamentos */}
+          <ScrollArea className="flex-1 px-6 py-4">
+            {lancamentos.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                <div className="p-4 rounded-full bg-gradient-to-br from-amber-500/10 to-orange-500/10 mb-4">
+                  <Sparkles className="w-8 h-8 text-amber-500" />
+                </div>
+                <h3 className="text-lg font-medium mb-1">
+                  Comece a adicionar lançamentos
+                </h3>
+                <p className="text-sm text-muted-foreground max-w-sm">
+                  Digite múltiplos lançamentos separados por vírgula ou use o microfone para ditar
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <AnimatePresence mode="popLayout">
+                  {lancamentos.map((lancamento, index) => (
+                    <LancamentoItem
+                      key={`${lancamento.nome}-${index}`}
+                      lancamento={lancamento}
+                      index={index}
+                      onEdit={handleEdit}
+                      onRemove={handleRemove}
+                      onToggleRecorrencia={handleToggleRecorrencia}
+                    />
+                  ))}
+                </AnimatePresence>
+              </div>
+            )}
+          </ScrollArea>
+
+          {/* Footer com totais e ações */}
+          {lancamentos.length > 0 && (
+            <div className="border-t bg-muted/30">
+              {/* Resumo de valores */}
+              <div className="px-6 py-3 grid grid-cols-3 gap-3">
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground">Entradas</p>
+                  <p className="text-sm font-bold text-verde">
+                    R$ {totais.entradas.toFixed(2).replace('.', ',')}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground">Saídas</p>
+                  <p className="text-sm font-bold text-rosa">
+                    R$ {totais.saidas.toFixed(2).replace('.', ',')}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground">Saldo</p>
+                  <p className={cn(
+                    "text-sm font-bold",
+                    totais.total >= 0 ? "text-verde" : "text-vermelho"
+                  )}>
+                    R$ {Math.abs(totais.total).toFixed(2).replace('.', ',')}
+                  </p>
+                </div>
+              </div>
+
+              {/* Botões de ação */}
+              <SheetFooter className="px-6 py-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  disabled={isSubmitting}
+                  className="flex-1 sm:flex-initial"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleConfirm}
+                  disabled={isSubmitting || lancamentos.length === 0}
+                  className={cn(
+                    "flex-1 sm:flex-initial",
+                    "bg-gradient-to-r from-amber-500 to-orange-500",
+                    "hover:from-amber-600 hover:to-orange-600",
+                    "text-white shadow-md"
+                  )}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                      Confirmar {lancamentos.length} {lancamentos.length === 1 ? 'item' : 'itens'}
+                    </>
+                  )}
+                </Button>
+              </SheetFooter>
+            </div>
           )}
-          {content}
-        </DrawerPrimitive.Content>
-      </DrawerPrimitive.Portal>
-    </DrawerPrimitive.Root>
-  );
+        </SheetContent>
+      </Sheet>
+    </TooltipProvider>
+  )
 }

@@ -24,8 +24,16 @@ export async function lancamentoRoutes(app: FastifyInstance) {
   /**
    * GET /api/lancamentos?mes=YYYY-MM
    * Lista lançamentos do mês com totalizadores
+   * Rate limit: 100 requisições por minuto
    */
-  app.get('/api/lancamentos', async (request, reply) => {
+  app.get('/api/lancamentos', {
+    config: {
+      rateLimit: {
+        max: 100,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
     try {
       const query = mesQuerySchema.parse(request.query)
       const ctx = getRequiredContext(request)
@@ -42,8 +50,16 @@ export async function lancamentoRoutes(app: FastifyInstance) {
   /**
    * POST /api/lancamentos
    * Cria novo lançamento
+   * Rate limit: 60 requisições por minuto
    */
-  app.post('/api/lancamentos', async (request, reply) => {
+  app.post('/api/lancamentos', {
+    config: {
+      rateLimit: {
+        max: 60,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
     try {
       const input = criarLancamentoSchema.parse(request.body)
       const ctx = getRequiredContext(request)
@@ -60,8 +76,16 @@ export async function lancamentoRoutes(app: FastifyInstance) {
   /**
    * POST /api/lancamentos/batch
    * Cria múltiplos lançamentos em uma única requisição
+   * Rate limit: 30 requisições por minuto
    */
-  app.post('/api/lancamentos/batch', async (request, reply) => {
+  app.post('/api/lancamentos/batch', {
+    config: {
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
     try {
       const input = criarLancamentosBatchSchema.parse(request.body)
       const ctx = getRequiredContext(request)

@@ -11,7 +11,7 @@ import { useState, useCallback, lazy, Suspense } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useFinanceiroStore } from '@/stores/useFinanceiroStore'
 import { useDashboardStore } from '@/stores/useDashboardStore'
-import { BottomTabBar, type TabType } from '@/components/BottomTabBar'
+import { NavigationBar, type TabType } from '@/components/NavigationBar'
 import { Dashboard } from './Dashboard'
 import { Insights } from './Insights'
 import { Lembretes } from './Lembretes'
@@ -289,9 +289,18 @@ export function Home() {
   }
 
   return (
-    <div className="min-h-screen">
-      {/* Conteúdo das telas com crossfade */}
-      <AnimatePresence mode="wait">
+    <div className="min-h-screen flex">
+      {/* Navegação - Sidebar no desktop, bottom bar no mobile */}
+      <NavigationBar 
+        activeTab={activeTab} 
+        onTabChange={setActiveTab}
+        onOpenSettings={() => setConfigDrawerOpen(true)}
+      />
+
+      {/* Container principal com padding para sidebar no desktop */}
+      <div className="flex-1 lg:ml-64">
+        {/* Conteúdo das telas com crossfade */}
+        <AnimatePresence mode="wait">
         {activeTab === 'inicio' && (
           <motion.div
             key="dashboard"
@@ -333,12 +342,9 @@ export function Home() {
             <Insights onOpenConfig={() => setConfigDrawerOpen(true)} />
           </motion.div>
         )}
-      </AnimatePresence>
+        </AnimatePresence>
 
-      {/* Bottom Tab Bar */}
-      <BottomTabBar activeTab={activeTab} onTabChange={setActiveTab} />
-
-      {/* Drawer de lançamento manual - lazy loaded */}
+        {/* Drawer de lançamento manual - lazy loaded */}
       <Suspense fallback={null}>
         {lancamentoSheetOpen && (
           <LancamentoSheet
@@ -387,7 +393,7 @@ export function Home() {
       <AddFAB
         onQuickInput={() => setQuickInputOpen(true)}
         onManualInput={handleOpenManualInput}
-        className="bottom-24 right-4"
+        className="bottom-20 right-6 lg:bottom-8"
       />
 
       {/* Sheet de lançamento rápido - lazy loaded */}
@@ -416,6 +422,7 @@ export function Home() {
           />
         )}
       </Suspense>
+      </div>
     </div>
   )
 }

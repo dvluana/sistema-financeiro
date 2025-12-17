@@ -50,8 +50,6 @@ export function Dashboard({
   const {
     mesSelecionado,
     totais: dashboardTotais,
-    pendentesEntrada,
-    pendentesSaida,
     proximosVencimentos,
     isLoading: isDashboardLoading,
     carregarDashboard,
@@ -85,6 +83,11 @@ export function Dashboard({
 
   // Configuração para mostrar concluídos discretos
   const mostrarConcluidosDiscretos = Boolean(configuracoes.mostrar_concluidos_discretos)
+
+  // Wrappers para compatibilidade de tipos
+  const handleToggleLancamento = (lancamento: Lancamento) => {
+    toggleConcluido(lancamento.id)
+  }
 
   // Carrega dados iniciais
   useEffect(() => {
@@ -127,10 +130,10 @@ export function Dashboard({
   const nomeWorkspace = perfilAtual?.nome || 'Workspace'
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-background pb-20">
+    <div className="min-h-screen w-full bg-gradient-to-b from-background to-background pb-20 lg:pb-8">
       {/* Header moderno (mesmo padrão da MesView) */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
-        <div className="max-w-[720px] mx-auto">
+        <div className="w-full max-w-7xl mx-auto">
           <div className="flex items-center justify-between px-4 py-2.5">
             {/* Workspace Switcher */}
           <WorkspaceSwitcher />
@@ -169,25 +172,21 @@ export function Dashboard({
       </header>
 
       {/* Conteúdo */}
-      <main className="max-w-[720px] mx-auto p-4 space-y-6">
+      <main className="w-full max-w-7xl mx-auto px-4 lg:px-8 py-4 space-y-6">
         {isLoading && !totais ? (
           <LoadingSkeleton />
         ) : (
           <>
             {/* Hero - Saudação e resumo do mês */}
             <HeroCard
-              nome={nomeWorkspace}
               mesSelecionado={mesSelecionado}
+              totalEntradas={totais?.jaEntrou ?? 0}
+              totalSaidas={totais?.jaPaguei ?? 0}
               saldo={totais?.saldo ?? 0}
-              jaEntrou={totais?.jaEntrou ?? 0}
-              jaPaguei={totais?.jaPaguei ?? 0}
-              pendentesEntrada={pendentesEntrada}
-              pendentesSaida={pendentesSaida}
               onMesAnterior={navegarMesAnterior}
               onMesProximo={navegarMesProximo}
-              onIrParaHoje={irParaMesAtual}
+              onMesAtual={irParaMesAtual}
               podeAvancar={podeAvancar}
-              isLoading={isLoading}
             />
 
             {/* Próximos Vencimentos */}
@@ -249,7 +248,7 @@ export function Dashboard({
                   <RecentList
                     lancamentos={lancamentosOrdenados}
                     onItemClick={onEditLancamento}
-                    onToggle={toggleConcluido}
+                    onToggle={handleToggleLancamento}
                     onVerTodos={() => {}}
                     showVerTodos={false}
                   />
@@ -262,7 +261,7 @@ export function Dashboard({
                   jaEntrou={financeiroTotais?.jaEntrou ?? 0}
                   faltaEntrar={financeiroTotais?.faltaEntrar ?? 0}
                   mostrarConcluidosDiscretos={mostrarConcluidosDiscretos}
-                  onToggle={toggleConcluido}
+                  onToggle={handleToggleLancamento}
                   onEdit={onEditLancamento}
                   onAdd={onAddEntrada}
                 />
@@ -275,7 +274,7 @@ export function Dashboard({
                   jaPaguei={financeiroTotais?.jaPaguei ?? 0}
                   faltaPagar={financeiroTotais?.faltaPagar ?? 0}
                   mostrarConcluidosDiscretos={mostrarConcluidosDiscretos}
-                  onToggle={toggleConcluido}
+                  onToggle={handleToggleLancamento}
                   onEdit={onEditLancamento}
                   onAdd={onAddSaida}
                   onAddFilho={onAddFilho}

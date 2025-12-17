@@ -182,13 +182,10 @@ const shutdown = async (signal: string) => {
   }
   isShuttingDown = true
 
-  console.log(`\n${signal} received, shutting down gracefully...`)
   try {
     await app.close()
-    console.log('Server closed successfully')
     process.exit(0)
   } catch (err) {
-    console.error('Error during shutdown:', err)
     process.exit(1)
   }
 }
@@ -199,12 +196,10 @@ process.on('SIGINT', () => shutdown('SIGINT'))
 
 // Handle uncaught errors
 process.on('uncaughtException', (err) => {
-  console.error('Uncaught exception:', err)
   shutdown('uncaughtException')
 })
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled rejection at:', promise, 'reason:', reason)
   shutdown('unhandledRejection')
 })
 

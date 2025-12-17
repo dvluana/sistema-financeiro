@@ -17,8 +17,16 @@ export async function categoriaRoutes(app: FastifyInstance) {
   /**
    * GET /api/categorias
    * Lista todas as categorias do usuário/perfil
+   * Rate limit: 100 requisições por minuto
    */
-  app.get('/', async (request, reply) => {
+  app.get('/', {
+    config: {
+      rateLimit: {
+        max: 100,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
     try {
       const ctx = getRequiredContext(request)
       const categorias = await categoriaService.listar(ctx)
@@ -32,8 +40,16 @@ export async function categoriaRoutes(app: FastifyInstance) {
   /**
    * GET /api/categorias/tipo/:tipo
    * Lista categorias por tipo (entrada ou saida)
+   * Rate limit: 100 requisições por minuto
    */
-  app.get('/tipo/:tipo', async (request, reply) => {
+  app.get('/tipo/:tipo', {
+    config: {
+      rateLimit: {
+        max: 100,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
     try {
       const ctx = getRequiredContext(request)
       const { tipo } = request.params as { tipo: string }
@@ -55,8 +71,16 @@ export async function categoriaRoutes(app: FastifyInstance) {
   /**
    * GET /api/categorias/:id
    * Busca categoria por ID
+   * Rate limit: 100 requisições por minuto
    */
-  app.get('/:id', async (request, reply) => {
+  app.get('/:id', {
+    config: {
+      rateLimit: {
+        max: 100,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
     try {
       const ctx = getRequiredContext(request)
       const { id } = request.params as { id: string }

@@ -1146,7 +1146,6 @@ export class AIService {
       // Fallback silencioso para parsing básico quando Gemini falha
       // Log apenas em desenvolvimento para debug
       if (process.env.NODE_ENV !== "production") {
-        console.warn(
           "Erro ao chamar IA, usando fallback:",
           err instanceof Error ? err.message : err
         );

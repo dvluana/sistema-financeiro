@@ -42,6 +42,17 @@ Sistema de controle financeiro minimalista que substitui planilhas. O usuário v
 └── package.json                # Monorepo config
 ```
 
+## 📚 Documentação
+
+A documentação completa do projeto está organizada na pasta `docs/`:
+
+- 📐 **[Arquitetura e Especificações](./docs/architecture/ARCHITECTURE.md)** - Detalhes técnicos completos
+- 🚀 **[Features](./docs/features/)** - Documentação de funcionalidades
+- 🛠️ **[Desenvolvimento](./docs/development/)** - Guias e relatórios de desenvolvimento
+- 🗄️ **[Banco de Dados](./docs/database/)** - Migrations e segurança
+
+👉 **[Ver índice completo da documentação](./docs/README.md)**
+
 ## Como rodar
 
 ### 1. Instalar dependências

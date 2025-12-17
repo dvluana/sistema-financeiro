@@ -5,11 +5,12 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatarMoeda(valor: number): string {
+export function formatarMoeda(valor: number | undefined | null): string {
+  const safeValue = valor ?? 0
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
-  }).format(valor)
+  }).format(safeValue)
 }
 
 export function getMesAtual(): string {
@@ -27,6 +28,9 @@ export function formatarMesAno(mes: string): string {
   ]
   return `${meses[parseInt(month) - 1]} ${year}`
 }
+
+// Alias para compatibilidade
+export const formatarMes = formatarMesAno
 
 export function navegarMes(mesAtual: string, direcao: 'anterior' | 'proximo'): string {
   const [year, month] = mesAtual.split('-').map(Number)

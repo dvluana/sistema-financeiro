@@ -83,7 +83,6 @@ export function Lembretes({ onOpenConfig }: LembretesProps) {
       setEvents(events)
     } catch (err) {
       setError('Não foi possível carregar os eventos')
-      console.error('Erro ao buscar eventos:', err)
     } finally {
       setIsLoading(false)
     }

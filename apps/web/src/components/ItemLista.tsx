@@ -1,3 +1,10 @@
+/**
+ * ItemLista Component
+ * 
+ * Componente para exibir um item de lançamento em listas.
+ * Otimizado com React.memo para evitar re-renders desnecessários.
+ */
+
 import React, { useMemo } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -10,6 +17,19 @@ import {
   Heart,
   Gamepad2,
   CreditCard,
+  ShoppingBag,
+  Briefcase,
+  GraduationCap,
+  Activity,
+  Plane,
+  Coffee,
+  Gift,
+  Zap,
+  Wifi,
+  Smartphone,
+  Music,
+  Film,
+  Book,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { StatusCircle } from "./StatusCircle"
@@ -27,10 +47,23 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Heart,
   Gamepad2,
   CreditCard,
+  ShoppingBag,
+  Briefcase,
+  GraduationCap,
+  Activity,
+  Plane,
+  Coffee,
+  Gift,
+  Zap,
+  Wifi,
+  Smartphone,
+  Music,
+  Film,
+  Book,
 }
 
 // Função para obter o componente de ícone - O(1) lookup
-function getIconComponent(iconName: string | null): LucideIcon | null {
+function getIconComponent(iconName: string | null | undefined): LucideIcon | null {
   if (!iconName) return null
   return ICON_MAP[iconName] || null
 }
@@ -55,7 +88,7 @@ export const ItemLista = React.memo(function ItemLista({
   dataPrevista,
   concluido,
   categoria,
-  mostrarConcluidosDiscretos = true,
+  mostrarConcluidosDiscretos = false,
   onToggle,
   onEdit,
 }: ItemListaProps) {
@@ -66,77 +99,129 @@ export const ItemLista = React.memo(function ItemLista({
   )
 
   // Memoiza labels e cores para evitar recálculo
-  const { tagLabel, tagColor } = useMemo(() => ({
+  const { tagLabel, tagColor, valueColor } = useMemo(() => ({
     tagLabel: tipo === 'entrada' ? 'Recebido' : 'Pago',
     tagColor: tipo === 'entrada'
       ? 'bg-verde/10 text-verde border-verde/20'
-      : 'bg-vermelho/10 text-vermelho border-vermelho/20'
+      : 'bg-vermelho/10 text-vermelho border-vermelho/20',
+    valueColor: tipo === 'entrada' ? 'text-verde' : 'text-foreground'
   }), [tipo])
 
   return (
-    <div className="flex items-center gap-2 min-h-[64px] border-b border-border last:border-0">
-      <StatusCircle checked={concluido} onChange={onToggle} />
+    <div className="flex items-center gap-3 px-4 py-3 hover:bg-accent/50 transition-colors group">
+      {/* Status Circle */}
+      <StatusCircle 
+        checked={concluido} 
+        onChange={onToggle}
+      />
 
+      {/* Conteúdo Principal */}
       <button
         type="button"
         onClick={onEdit}
-        className="flex-1 flex justify-between items-center py-3 text-left min-h-touch"
+        className="flex-1 flex items-center gap-3 text-left"
       >
-        <div className={cn(
-          'flex items-center gap-2 min-w-0 flex-1',
-          concluido && mostrarConcluidosDiscretos && 'opacity-50'
-        )}>
-          {/* Ícone da categoria */}
-          {CategoriaIcon && categoria && (
-            <span
-              className="flex items-center justify-center w-6 h-6 rounded shrink-0"
-              style={{ backgroundColor: categoria.cor || '#6B7280' }}
-            >
-              <CategoriaIcon className="w-3.5 h-3.5 text-white" />
-            </span>
-          )}
+        {/* Ícone da categoria (desktop) */}
+        {categoria && CategoriaIcon && (
+          <div className={cn(
+            "hidden sm:flex items-center justify-center w-10 h-10 rounded-lg transition-colors",
+            categoria.cor ? '' : 'bg-muted',
+            "group-hover:bg-accent"
+          )} style={categoria.cor ? { backgroundColor: `${categoria.cor}20` } : undefined}>
+            <CategoriaIcon 
+              className="w-5 h-5 transition-colors" 
+              style={categoria.cor ? { color: categoria.cor } : undefined}
+            />
+          </div>
+        )}
 
-          <div className="flex flex-col min-w-0 flex-1">
-            <span className="text-corpo text-foreground truncate">{nome}</span>
-            <div className="flex items-center gap-2 text-micro text-muted-foreground">
-              {categoria && (
-                <span>{categoria.nome}</span>
-              )}
-              {categoria && dataPrevista && (
-                <span>•</span>
-              )}
+        {/* Nome e Categoria */}
+        <div className={cn(
+          "flex-1 min-w-0",
+          mostrarConcluidosDiscretos && concluido && 'opacity-50'
+        )}>
+          <p className={cn(
+            "text-sm font-medium truncate",
+            concluido && mostrarConcluidosDiscretos && "line-through text-muted-foreground"
+          )}>
+            {nome}
+          </p>
+          
+          {/* Categoria Badge */}
+          {categoria && (
+            <div className="flex items-center gap-2 mt-1">
+              <span 
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium",
+                  "bg-muted/50 text-muted-foreground",
+                  "transition-all group-hover:bg-muted"
+                )}
+              >
+                {/* Ícone mobile */}
+                {CategoriaIcon && (
+                  <CategoriaIcon 
+                    className="w-3 h-3 sm:hidden" 
+                    style={categoria.cor ? { color: categoria.cor } : undefined}
+                  />
+                )}
+                {/* Cor indicator */}
+                {categoria.cor && (
+                  <span 
+                    className="w-2 h-2 rounded-full" 
+                    style={{ backgroundColor: categoria.cor }}
+                  />
+                )}
+                {categoria.nome}
+              </span>
+              
+              {/* Data prevista */}
               {dataPrevista && (
-                <span>Dia {parseInt(dataPrevista.split('-')[2], 10)}</span>
+                <span className="text-xs text-muted-foreground">
+                  {new Date(dataPrevista + 'T12:00:00').toLocaleDateString('pt-BR', { 
+                    day: 'numeric',
+                    month: 'short' 
+                  })}
+                </span>
               )}
             </div>
-          </div>
+          )}
         </div>
 
-        <div className="flex items-center gap-2 shrink-0 ml-2">
-          {/* Tag Recebido/Pago com animação (sempre viva, sem opacity) */}
-          <AnimatePresence>
-            {concluido && (
+        {/* Valor e Status */}
+        <div className="flex items-center gap-3">
+          {/* Valor */}
+          <motion.div
+            animate={{
+              scale: concluido ? 1 : 1.02,
+              opacity: concluido && mostrarConcluidosDiscretos ? 0.5 : 1
+            }}
+            transition={{ duration: 0.2 }}
+          >
+            <p className={cn(
+              "text-sm font-semibold tabular-nums",
+              valueColor
+            )}>
+              {formatarMoeda(valor)}
+            </p>
+          </motion.div>
+
+          {/* Badge de status (apenas quando concluído) */}
+          {concluido && (
+            <AnimatePresence mode="popLayout">
               <motion.span
-                initial={{ opacity: 0, scale: 0.8, x: 10 }}
-                animate={{ opacity: 1, scale: 1, x: 0 }}
-                exit={{ opacity: 0, scale: 0.8, x: 10 }}
-                transition={{ duration: 0.2, ease: 'easeOut' }}
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
                 className={cn(
-                  'text-[10px] font-medium px-1.5 py-0.5 rounded border',
+                  "hidden sm:inline-flex px-2 py-0.5 text-xs font-medium rounded-full border",
                   tagColor
                 )}
               >
                 {tagLabel}
               </motion.span>
-            )}
-          </AnimatePresence>
-
-          <span className={cn(
-            'text-corpo-medium text-foreground',
-            concluido && mostrarConcluidosDiscretos && 'opacity-50'
-          )}>
-            {formatarMoeda(valor)}
-          </span>
+            </AnimatePresence>
+          )}
         </div>
       </button>
     </div>

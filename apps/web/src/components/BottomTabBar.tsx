@@ -5,7 +5,7 @@
  * Design atualizado com animações suaves e indicadores visuais.
  */
 
-import { Home, Receipt, ChartBar, Bell } from 'lucide-react'
+import { Home, Receipt, BarChart3, Bell } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -41,7 +41,7 @@ export function BottomTabBar({ activeTab, onTabChange, pendingCount = 0 }: Botto
     {
       id: 'relatorios',
       label: 'Relatórios',
-      icon: ChartBar,
+      icon: BarChart3,
     },
     {
       id: 'lancamentos',

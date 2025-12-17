@@ -176,7 +176,7 @@ export function FilhoSheet({
             <div className="flex-1">
               <p className="text-sm font-medium">{agrupadorInfo.nome}</p>
               <p className="text-xs text-muted-foreground">
-                Valor total: R$ {agrupadorInfo.valorTotal.toFixed(2).replace('.', ',')}
+                Valor total: R$ {(agrupadorInfo.valorTotal || 0).toFixed(2).replace('.', ',')}
               </p>
             </div>
             <Badge 

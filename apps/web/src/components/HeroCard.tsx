@@ -1,242 +1,264 @@
 /**
  * HeroCard Component
  *
- * Card principal da dashboard com saudação contextual,
- * valores de entradas/saídas e resumo do saldo.
+ * Card principal modernizado mostrando resumo financeiro do mês.
+ * Design atualizado com gradientes suaves e animações.
  */
 
-import { useState } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { formatarMoeda, cn } from '@/lib/utils'
+import { ChevronLeft, ChevronRight, Calendar, TrendingUp, TrendingDown } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { cn, formatarMes } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 
 interface HeroCardProps {
-  nome: string
   mesSelecionado: string
-  saldo: number
-  jaEntrou: number
-  jaPaguei: number
-  pendentesEntrada: number
-  pendentesSaida: number
+  totalEntradas?: number
+  totalSaidas?: number
+  saldo?: number
   onMesAnterior: () => void
   onMesProximo: () => void
-  onIrParaHoje: () => void
+  onMesAtual: () => void
   podeAvancar: boolean
-  isLoading?: boolean
-}
-
-/**
- * Retorna saudação baseada no horário
- */
-function getSaudacao(): { texto: string; emoji: string } {
-  const hora = new Date().getHours()
-
-  if (hora >= 5 && hora < 12) {
-    return { texto: 'Bom dia', emoji: '☕' }
-  } else if (hora >= 12 && hora < 18) {
-    return { texto: 'Boa tarde', emoji: '☀️' }
-  } else {
-    return { texto: 'Boa noite', emoji: '🌙' }
-  }
-}
-
-/**
- * Formata mês YYYY-MM para exibição "Dez 2025"
- */
-function formatarMes(mes: string): string {
-  const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
-  const [ano, mesNum] = mes.split('-')
-  return `${meses[parseInt(mesNum) - 1]} ${ano}`
-}
-
-/**
- * Retorna o mês atual no formato YYYY-MM
- */
-function getMesAtual(): string {
-  const hoje = new Date()
-  const ano = hoje.getFullYear()
-  const mes = String(hoje.getMonth() + 1).padStart(2, '0')
-  return `${ano}-${mes}`
 }
 
 export function HeroCard({
-  nome,
   mesSelecionado,
-  saldo,
-  jaEntrou,
-  jaPaguei,
-  pendentesEntrada,
-  pendentesSaida,
+  totalEntradas = 0,
+  totalSaidas = 0,
+  saldo = 0,
   onMesAnterior,
   onMesProximo,
-  onIrParaHoje,
+  onMesAtual,
   podeAvancar,
-  isLoading = false,
 }: HeroCardProps) {
-  const saudacao = getSaudacao()
-  const [hasInteracted, setHasInteracted] = useState(false)
-  const mesAtual = getMesAtual()
-  const mostrarBotaoHoje = mesSelecionado !== mesAtual
+  // Calcula porcentagem de gastos vs entradas
+  const percentualGasto = totalEntradas > 0 
+    ? Math.min((totalSaidas / totalEntradas) * 100, 100)
+    : 0
 
-  // Texto de pendentes para entradas
-  const getPendentesEntradaTexto = () => {
-    if (pendentesEntrada === 0) {
-      return jaEntrou > 0 ? '· tudo recebido' : null
-    }
-    return `· ${pendentesEntrada} pendente${pendentesEntrada > 1 ? 's' : ''}`
-  }
+  // Status do saldo
+  const saldoStatus = saldo > 0 ? 'positivo' : saldo < 0 ? 'negativo' : 'neutro'
+  
+  const saldoConfig = {
+    positivo: {
+      color: 'text-verde',
+      bgColor: 'bg-verde/10',
+      borderColor: 'border-verde/20',
+      icon: TrendingUp,
+      label: 'Saldo positivo',
+    },
+    negativo: {
+      color: 'text-vermelho',
+      bgColor: 'bg-vermelho/10',
+      borderColor: 'border-vermelho/20',
+      icon: TrendingDown,
+      label: 'Saldo negativo',
+    },
+    neutro: {
+      color: 'text-muted-foreground',
+      bgColor: 'bg-muted',
+      borderColor: 'border-border',
+      icon: Calendar,
+      label: 'Saldo zerado',
+    },
+  }[saldoStatus]
 
-  // Texto de pendentes para saídas
-  const getPendentesSaidaTexto = () => {
-    if (pendentesSaida === 0) {
-      return jaPaguei > 0 ? '· tudo pago' : null
-    }
-    return `· ${pendentesSaida} pendente${pendentesSaida > 1 ? 's' : ''}`
-  }
-
-  const pendentesEntradaTexto = getPendentesEntradaTexto()
-  const pendentesSaidaTexto = getPendentesSaidaTexto()
+  const StatusIcon = saldoConfig.icon
 
   return (
-    <div className="space-y-3">
-      {/* Header: Saudação à esquerda, Navegação de mês à direita */}
-      <div className="flex items-center justify-between px-1">
-        {/* Saudação */}
-        <div>
-          <p className="text-[11px] text-muted-foreground uppercase tracking-wider">
-            {saudacao.texto}
-          </p>
-          <p className="text-[20px] font-semibold text-foreground leading-tight">
-            {nome} {saudacao.emoji}
-          </p>
+    <TooltipProvider>
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className={cn(
+          "relative overflow-hidden",
+          "rounded-2xl border border-border",
+          "bg-gradient-to-br from-background via-background to-muted/30",
+          "p-6 shadow-sm"
+        )}
+      >
+        {/* Background decorativo */}
+        <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-primary/5 to-transparent rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-blue-500/5 to-transparent rounded-full blur-2xl" />
+
+        {/* Header com navegação de mês */}
+        <div className="relative flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onMesAnterior}
+                  className="h-8 w-8 rounded-lg hover:bg-primary/10"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Mês anterior</TooltipContent>
+            </Tooltip>
+
+            <motion.h2 
+              key={mesSelecionado}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-lg lg:text-xl font-semibold capitalize px-2"
+            >
+              {formatarMes(mesSelecionado)}
+            </motion.h2>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onMesProximo}
+                  disabled={!podeAvancar}
+                  className="h-8 w-8 rounded-lg hover:bg-primary/10"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {podeAvancar ? 'Próximo mês' : 'Não é possível avançar'}
+              </TooltipContent>
+            </Tooltip>
+          </div>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onMesAtual}
+                className="text-xs h-8 px-3"
+              >
+                <Calendar className="w-3 h-3 mr-1" />
+                Hoje
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Ir para o mês atual</TooltipContent>
+          </Tooltip>
         </div>
 
-        {/* Navegação de mês */}
-        <div className="flex items-center gap-1.5">
-          <AnimatePresence>
-            {mostrarBotaoHoje && (
-              <motion.button
-                type="button"
-                initial={{ opacity: 0, scale: 0.8, width: 0 }}
-                animate={{ opacity: 1, scale: 1, width: 'auto' }}
-                exit={{ opacity: 0, scale: 0.8, width: 0 }}
-                transition={{ duration: 0.15 }}
-                onClick={() => {
-                  setHasInteracted(true)
-                  onIrParaHoje()
-                }}
+        {/* Saldo principal */}
+        <div className="relative space-y-6">
+          <motion.div
+            key={`${mesSelecionado}-${saldo}`}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
+            className="text-center"
+          >
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Badge 
+                variant="outline" 
                 className={cn(
-                  'h-7 px-2 flex items-center justify-center rounded-md transition-all overflow-hidden',
-                  'bg-rosa/10 text-rosa hover:bg-rosa/20 active:scale-95 text-[11px] font-medium'
+                  "text-xs px-2 py-0.5",
+                  saldoConfig.bgColor,
+                  saldoConfig.borderColor,
+                  saldoConfig.color
                 )}
               >
-                Hoje
-              </motion.button>
-            )}
-          </AnimatePresence>
-          <button
-            type="button"
-            onClick={() => {
-              setHasInteracted(true)
-              onMesAnterior()
-            }}
-            className={cn(
-              'w-7 h-7 flex items-center justify-center rounded-md transition-all',
-              'bg-card border border-border hover:bg-accent active:scale-95 text-muted-foreground'
-            )}
-            aria-label="Mês anterior"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <div className="min-w-[70px] text-center overflow-hidden">
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.span
-                key={mesSelecionado}
-                initial={hasInteracted ? { opacity: 0, y: 8 } : false}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.1 }}
-                className="block text-pequeno font-medium text-foreground"
+                <StatusIcon className="w-3 h-3 mr-1" />
+                {saldoConfig.label}
+              </Badge>
+            </div>
+            
+            <div className="flex items-baseline justify-center gap-2">
+              <span className="text-sm text-muted-foreground">R$</span>
+              <motion.span 
+                className={cn(
+                  "text-4xl font-bold",
+                  saldoConfig.color
+                )}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.1 }}
               >
-                {formatarMes(mesSelecionado)}
+                {Math.abs(saldo || 0).toFixed(2).replace('.', ',')}
               </motion.span>
-            </AnimatePresence>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setHasInteracted(true)
-              onMesProximo()
-            }}
-            disabled={!podeAvancar}
-            className={cn(
-              'w-7 h-7 flex items-center justify-center rounded-md transition-all',
-              'bg-card border border-border active:scale-95',
-              podeAvancar ? 'text-muted-foreground hover:bg-accent' : 'text-muted-foreground/50 cursor-not-allowed opacity-50'
-            )}
-            aria-label="Próximo mês"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
+            </div>
+          </motion.div>
 
-      {/* Cards de valores - mesmo estilo dos vencimentos */}
-      <div className="grid grid-cols-3 gap-2">
-        {isLoading ? (
-          // Skeleton loading
-          <>
-            {[1, 2, 3].map(i => (
-              <div key={i} className="bg-card border border-border rounded-xl p-3">
-                <div className="h-5 w-12 bg-muted rounded animate-pulse mb-2" />
-                <div className="h-5 w-16 bg-muted rounded animate-pulse" />
+          {/* Cards de entradas e saídas */}
+          <div className="grid grid-cols-2 gap-3">
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              className={cn(
+                "p-4 rounded-xl",
+                "bg-gradient-to-br from-verde/5 to-verde/10",
+                "border border-verde/20"
+              )}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-verde">Entradas</span>
+                <TrendingUp className="w-4 h-4 text-verde/50" />
               </div>
-            ))}
-          </>
-        ) : (
-          <>
-            {/* Card Entrou */}
-            <div className="bg-card border border-border rounded-xl p-3">
-              <span className="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded bg-verde/10 text-verde mb-2">
-                Entrou
-              </span>
-              <p className="text-[17px] font-semibold text-foreground leading-none">
-                {formatarMoeda(jaEntrou)}
+              <p className="text-xl font-bold text-verde">
+                R$ {(totalEntradas || 0).toFixed(2).replace('.', ',')}
               </p>
-              {pendentesEntradaTexto && (
-                <p className="text-[10px] text-verde mt-1.5">
-                  {pendentesEntradaTexto}
-                </p>
-              )}
-            </div>
+            </motion.div>
 
-            {/* Card Saiu */}
-            <div className="bg-card border border-border rounded-xl p-3">
-              <span className="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded bg-vermelho/10 text-vermelho mb-2">
-                Saiu
-              </span>
-              <p className="text-[17px] font-semibold text-foreground leading-none">
-                {formatarMoeda(jaPaguei)}
-              </p>
-              {pendentesSaidaTexto && (
-                <p className="text-[10px] text-vermelho mt-1.5">
-                  {pendentesSaidaTexto}
-                </p>
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              className={cn(
+                "p-4 rounded-xl",
+                "bg-gradient-to-br from-rosa/5 to-rosa/10",
+                "border border-rosa/20"
               )}
-            </div>
-
-            {/* Card Sobrou/Faltou */}
-            <div className="bg-card border border-border rounded-xl p-3">
-              <span className={`inline-block text-[10px] font-medium px-1.5 py-0.5 rounded mb-2 ${saldo >= 0 ? 'bg-azul/10 text-azul' : 'bg-vermelho/10 text-vermelho'}`}>
-                {saldo >= 0 ? 'Sobrou' : 'Faltou'}
-              </span>
-              <p className="text-[17px] font-semibold leading-none text-foreground">
-                {formatarMoeda(Math.abs(saldo))}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-rosa">Saídas</span>
+                <TrendingDown className="w-4 h-4 text-rosa/50" />
+              </div>
+              <p className="text-xl font-bold text-rosa">
+                R$ {(totalSaidas || 0).toFixed(2).replace('.', ',')}
               </p>
+            </motion.div>
+          </div>
+
+          {/* Barra de progresso de gastos */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Proporção de gastos</span>
+              <span className="font-medium">
+                {percentualGasto.toFixed(0)}%
+              </span>
             </div>
-          </>
-        )}
-      </div>
-    </div>
+            <Progress 
+              value={percentualGasto} 
+              className="h-2"
+              indicatorClassName={cn(
+                "transition-all duration-500",
+                percentualGasto > 100 ? "bg-vermelho" :
+                percentualGasto > 80 ? "bg-amber-500" :
+                percentualGasto > 60 ? "bg-yellow-500" :
+                "bg-verde"
+              )}
+            />
+            <p className="text-xs text-muted-foreground text-center">
+              {percentualGasto > 100 
+                ? 'Gastos acima das entradas!'
+                : percentualGasto > 80
+                ? 'Atenção com os gastos'
+                : percentualGasto > 60
+                ? 'Gastos moderados'
+                : 'Gastos controlados'
+              }
+            </p>
+          </div>
+        </div>
+      </motion.div>
+    </TooltipProvider>
   )
 }

@@ -1,354 +1,290 @@
 /**
  * CategoriaSelect Component
  *
- * Componente para seleção de categoria de lançamentos.
- * Permite criar novas categorias diretamente do select.
- * Usa Select e Dialog do shadcn/ui com ícones do mapeamento centralizado.
+ * Seletor de categorias modernizado com shadcn/ui.
+ * Design atualizado com ícones e melhor visual.
  */
 
-import { useState, useEffect, useCallback } from 'react'
-import { Plus, Loader2, Check, X } from 'lucide-react'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { useState, useEffect } from 'react'
+import { 
+  Check, 
+  ChevronsUpDown, 
+  Search,
+  Tag,
+  Plus,
+  Sparkles
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { categoriasApi, type Categoria } from '@/lib/api'
-import { getIconComponent } from '@/lib/icons'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from '@/components/ui/command'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { categoriasApi } from '@/lib/api'
+import type { Categoria } from '@/lib/api'
 
 interface CategoriaSelectProps {
   tipo: 'entrada' | 'saida'
   value: string | null
-  onChange: (categoriaId: string | null) => void
+  onChange: (value: string | null) => void
   label?: string
+  required?: boolean
+  className?: string
 }
 
-// Ícones disponíveis para seleção (subset do ICON_MAP)
-const ICONES_DISPONIVEIS = [
-  'Wallet', 'CreditCard', 'Banknote', 'PiggyBank', 'Receipt',
-  'ShoppingBag', 'Car', 'Home', 'Utensils',
-  'Heart', 'GraduationCap', 'Briefcase',
-  'Plane', 'Gift', 'Gamepad2',
-  'Smartphone', 'Wifi', 'Zap', 'Droplets',
-  'TrendingUp', 'CircleDollarSign', 'HandCoins', 'Coins',
-]
-
-// Cores disponíveis para categorias
-const CORES_DISPONIVEIS = [
-  '#10B981', // verde
-  '#3B82F6', // azul
-  '#8B5CF6', // roxo
-  '#EC4899', // rosa
-  '#F59E0B', // amarelo
-  '#EF4444', // vermelho
-  '#6366F1', // indigo
-  '#14B8A6', // teal
-  '#F97316', // laranja
-  '#84CC16', // lime
-]
+// Ícones para categorias (mapeamento básico)
+const categoryIcons: Record<string, string> = {
+  // Saídas
+  'alimentacao': '🍽️',
+  'transporte': '🚗',
+  'moradia': '🏠',
+  'saude': '🏥',
+  'educacao': '📚',
+  'lazer': '🎮',
+  'compras': '🛍️',
+  'servicos': '🔧',
+  'outros': '📦',
+  // Entradas
+  'salario': '💰',
+  'freelance': '💻',
+  'investimento': '📈',
+  'vendas': '🏪',
+  'bonus': '🎁',
+}
 
 export function CategoriaSelect({
   tipo,
   value,
   onChange,
-  label = 'Categoria',
+  label,
+  required = false,
+  className,
 }: CategoriaSelectProps) {
+  const [open, setOpen] = useState(false)
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
 
-  // Estado do dialog de criação
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [novoNome, setNovoNome] = useState('')
-  const [novoIcone, setNovoIcone] = useState('Wallet')
-  const [novaCor, setNovaCor] = useState(CORES_DISPONIVEIS[0])
-  const [isSaving, setIsSaving] = useState(false)
-  const [erro, setErro] = useState<string | null>(null)
-
-  // Carrega categorias do tipo especificado
-  const loadCategorias = useCallback(async () => {
-    try {
-      setIsLoading(true)
-      const data = await categoriasApi.listarPorTipo(tipo)
-      setCategorias(data)
-    } catch {
-      // Silently handle error - categorias will remain empty
-      setCategorias([])
-    } finally {
-      setIsLoading(false)
+  // Carrega categorias
+  useEffect(() => {
+    async function loadCategorias() {
+      try {
+        setIsLoading(true)
+        const data = await categoriasApi.listar()
+        // Filtra pelo tipo localmente
+        const categoriasDoTipo = data.filter((cat: Categoria) => cat.tipo === tipo)
+        setCategorias(categoriasDoTipo)
+      } catch (error) {
+      } finally {
+        setIsLoading(false)
+      }
     }
+
+    loadCategorias()
   }, [tipo])
 
-  useEffect(() => {
-    loadCategorias()
-  }, [loadCategorias])
+  // Filtra categorias baseado na busca
+  const filteredCategorias = categorias.filter(cat =>
+    cat.nome.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
-  // Reset form quando abre o dialog
-  useEffect(() => {
-    if (dialogOpen) {
-      setNovoNome('')
-      setNovoIcone('Wallet')
-      setNovaCor(tipo === 'entrada' ? '#10B981' : '#EF4444')
-      setErro(null)
-    }
-  }, [dialogOpen, tipo])
+  // Categoria selecionada
+  const selectedCategoria = categorias.find(cat => cat.id === value)
 
-  // Cria nova categoria
-  const handleCriarCategoria = async () => {
-    if (!novoNome.trim()) {
-      setErro('Digite um nome para a categoria')
-      return
-    }
+  // Agrupa categorias por tipo (opcional, se houver subcategorias no futuro)
+  const categoriasComuns = filteredCategorias.slice(0, 5)
+  const outrasCategoria  = filteredCategorias.slice(5)
 
-    setIsSaving(true)
-    setErro(null)
-
-    try {
-      const novaCategoria = await categoriasApi.criar({
-        nome: novoNome.trim(),
-        tipo,
-        icone: novoIcone,
-        cor: novaCor,
-      })
-
-      // Adiciona à lista e seleciona
-      setCategorias(prev => [...prev, novaCategoria])
-      onChange(novaCategoria.id)
-      setDialogOpen(false)
-    } catch (error) {
-      setErro(error instanceof Error ? error.message : 'Não foi possível criar a categoria. Tente novamente')
-    } finally {
-      setIsSaving(false)
-    }
+  const getCategoryIcon = (nome: string) => {
+    const key = nome.toLowerCase().replace(/[^a-z]/g, '')
+    return categoryIcons[key] || '📁'
   }
 
-  // Encontra a categoria selecionada para exibir no trigger
-  const categoriaSelecionada = categorias.find(c => c.id === value)
-
   return (
-    <>
-      <div className="space-y-2">
-        <Label>{label}</Label>
-        <Select
-          value={value || 'sem-categoria'}
-          onValueChange={(val) => {
-            if (val === 'criar-nova') {
-              setDialogOpen(true)
-            } else {
-              onChange(val === 'sem-categoria' ? null : val)
-            }
-          }}
-          disabled={isLoading}
-        >
-          <SelectTrigger className="min-h-touch rounded-input border-border focus:border-2 focus:border-foreground">
-            <SelectValue placeholder="Escolha ou crie uma categoria">
-              {categoriaSelecionada ? (
-                <div className="flex items-center gap-2">
-                  {categoriaSelecionada.icone && (() => {
-                    const Icon = getIconComponent(categoriaSelecionada.icone)
-                    return Icon ? (
-                      <span
-                        className="flex items-center justify-center w-5 h-5 rounded"
-                        style={{ backgroundColor: categoriaSelecionada.cor || '#6B7280' }}
-                      >
-                        <Icon className="w-3 h-3 text-white" />
-                      </span>
-                    ) : null
-                  })()}
-                  <span>{categoriaSelecionada.nome}</span>
-                </div>
-              ) : (
-                <span className="text-muted-foreground">Nenhuma categoria</span>
-              )}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {/* Botão criar nova categoria */}
-            <SelectItem value="criar-nova" className="min-h-touch">
-              <div className="flex items-center gap-2 text-rosa font-medium">
-                <span className="flex items-center justify-center w-5 h-5 rounded bg-rosa/10">
-                  <Plus className="w-3.5 h-3.5" />
-                </span>
-                <span>Adicionar categoria</span>
-              </div>
-            </SelectItem>
+    <div className={cn("space-y-2", className)}>
+      {label && (
+        <Label className="text-sm font-medium flex items-center gap-1">
+          {label}
+          {required && <span className="text-destructive">*</span>}
+        </Label>
+      )}
 
-            <div className="h-px bg-border my-1" />
-
-            {/* Opção sem categoria */}
-            <SelectItem value="sem-categoria" className="min-h-touch">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className={cn(
+              "w-full h-12 justify-between pl-10",
+              "hover:bg-accent hover:border-foreground",
+              !value && "text-muted-foreground"
+            )}
+          >
+            {selectedCategoria ? (
               <div className="flex items-center gap-2">
-                <span className="flex items-center justify-center w-5 h-5 rounded bg-muted">
-                  <X className="w-3 h-3 text-muted-foreground" />
-                </span>
-                <span>Nenhuma categoria selecionada</span>
+                <span className="text-lg">{getCategoryIcon(selectedCategoria.nome)}</span>
+                <span className="font-medium">{selectedCategoria.nome}</span>
+                {selectedCategoria.cor && (
+                  <div 
+                    className="w-3 h-3 rounded-full" 
+                    style={{ backgroundColor: selectedCategoria.cor }}
+                  />
+                )}
               </div>
-            </SelectItem>
+            ) : (
+              <span className="flex items-center gap-2">
+                <Tag className="w-4 h-4" />
+                Selecionar categoria
+              </span>
+            )}
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
 
-            {/* Lista de categorias */}
-            {categorias.map((categoria) => {
-              const Icon = getIconComponent(categoria.icone)
-              return (
-                <SelectItem
-                  key={categoria.id}
-                  value={categoria.id}
-                  className="min-h-touch"
-                >
-                  <div className="flex items-center gap-2">
-                    {Icon && (
-                      <span
-                        className="flex items-center justify-center w-5 h-5 rounded"
-                        style={{ backgroundColor: categoria.cor || '#6B7280' }}
-                      >
-                        <Icon className="w-3 h-3 text-white" />
-                      </span>
-                    )}
-                    <span>{categoria.nome}</span>
-                  </div>
-                </SelectItem>
-              )
-            })}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Dialog de criação de categoria */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-[360px]">
-          <DialogHeader>
-            <DialogTitle>Criar categoria</DialogTitle>
-            <DialogDescription>
-              Organize melhor suas {tipo === 'entrada' ? 'receitas' : 'despesas'} criando categorias personalizadas.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            {/* Nome */}
-            <div className="space-y-2">
-              <Label htmlFor="nome-categoria">Nome da categoria</Label>
-              <Input
-                id="nome-categoria"
-                value={novoNome}
-                onChange={(e) => setNovoNome(e.target.value)}
-                placeholder={tipo === 'entrada' ? "Ex: Salário, Freelances" : "Ex: Alimentação, Transporte"}
-                maxLength={50}
+        <PopoverContent className="w-[280px] p-0" align="start">
+          <Command>
+            <div className="flex items-center border-b px-3 pb-2 pt-3">
+              <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+              <input
+                placeholder="Buscar categoria..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex h-8 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
               />
             </div>
 
-            {/* Ícone */}
-            <div className="space-y-2">
-              <Label>Escolha um ícone</Label>
-              <div className="grid grid-cols-5 gap-2">
-                {ICONES_DISPONIVEIS.map((iconeName) => {
-                  const Icon = getIconComponent(iconeName)
-                  const isSelected = novoIcone === iconeName
-                  return (
-                    <button
-                      key={iconeName}
-                      type="button"
-                      onClick={() => setNovoIcone(iconeName)}
-                      className={cn(
-                        'flex items-center justify-center w-10 h-10 rounded-lg border-2 transition-all',
-                        isSelected
-                          ? 'border-rosa bg-rosa/10'
-                          : 'border-border hover:border-muted-foreground'
-                      )}
-                    >
-                      {Icon && <Icon className="w-5 h-5 text-foreground" />}
-                    </button>
-                  )
-                })}
-              </div>
+            <ScrollArea className="h-[300px]">
+              <CommandList>
+                {isLoading ? (
+                  <div className="p-4 text-center text-sm text-muted-foreground">
+                    Carregando categorias...
+                  </div>
+                ) : filteredCategorias.length === 0 ? (
+                  <CommandEmpty className="p-4 text-center">
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">
+                        Nenhuma categoria encontrada
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mx-auto"
+                        onClick={() => {
+                          // Aqui você pode adicionar lógica para criar nova categoria
+                        }}
+                      >
+                        <Plus className="w-3 h-3 mr-1" />
+                        Criar categoria
+                      </Button>
+                    </div>
+                  </CommandEmpty>
+                ) : (
+                  <>
+                    {/* Categorias mais usadas */}
+                    {categoriasComuns.length > 0 && (
+                      <CommandGroup heading="Mais usadas">
+                        {categoriasComuns.map((categoria) => (
+                          <CommandItem
+                            key={categoria.id}
+                            value={categoria.id}
+                            onSelect={() => {
+                              onChange(categoria.id === value ? null : categoria.id)
+                              setOpen(false)
+                            }}
+                            className="flex items-center gap-2 p-2 cursor-pointer"
+                          >
+                            <span className="text-lg">
+                              {getCategoryIcon(categoria.nome)}
+                            </span>
+                            <span className="flex-1 font-medium">
+                              {categoria.nome}
+                            </span>
+                            {categoria.cor && (
+                              <div 
+                                className="w-3 h-3 rounded-full" 
+                                style={{ backgroundColor: categoria.cor }}
+                              />
+                            )}
+                            <Check
+                              className={cn(
+                                "h-4 w-4",
+                                value === categoria.id 
+                                  ? "opacity-100" 
+                                  : "opacity-0"
+                              )}
+                            />
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    )}
+
+                    {/* Outras categorias */}
+                    {outrasCategoria.length > 0 && (
+                      <>
+                        {categoriasComuns.length > 0 && <CommandSeparator />}
+                        <CommandGroup heading="Outras categorias">
+                          {outrasCategoria.map((categoria) => (
+                            <CommandItem
+                              key={categoria.id}
+                              value={categoria.id}
+                              onSelect={() => {
+                                onChange(categoria.id === value ? null : categoria.id)
+                                setOpen(false)
+                              }}
+                              className="flex items-center gap-2 p-2 cursor-pointer"
+                            >
+                              <span className="text-lg">
+                                {getCategoryIcon(categoria.nome)}
+                              </span>
+                              <span className="flex-1 font-medium">
+                                {categoria.nome}
+                              </span>
+                              {categoria.cor && (
+                                <div 
+                                  className="w-3 h-3 rounded-full" 
+                                  style={{ backgroundColor: categoria.cor }}
+                                />
+                              )}
+                              <Check
+                                className={cn(
+                                  "h-4 w-4",
+                                  value === categoria.id 
+                                    ? "opacity-100" 
+                                    : "opacity-0"
+                                )}
+                              />
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </>
+                    )}
+                  </>
+                )}
+              </CommandList>
+            </ScrollArea>
+
+            {/* Rodapé com dica */}
+            <div className="border-t p-3">
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Sparkles className="w-3 h-3" />
+                Selecione ou crie uma nova categoria
+              </p>
             </div>
-
-            {/* Cor */}
-            <div className="space-y-2">
-              <Label>Escolha uma cor</Label>
-              <div className="flex flex-wrap gap-2">
-                {CORES_DISPONIVEIS.map((cor) => {
-                  const isSelected = novaCor === cor
-                  return (
-                    <button
-                      key={cor}
-                      type="button"
-                      onClick={() => setNovaCor(cor)}
-                      className={cn(
-                        'flex items-center justify-center w-8 h-8 rounded-full transition-all',
-                        isSelected && 'ring-2 ring-offset-2 ring-muted-foreground'
-                      )}
-                      style={{ backgroundColor: cor }}
-                    >
-                      {isSelected && <Check className="w-4 h-4 text-white" />}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Preview */}
-            <div className="space-y-2">
-              <Label className="text-muted-foreground">Pré-visualização</Label>
-              <div className="flex items-center gap-3 p-3 bg-secondary rounded-lg">
-                {(() => {
-                  const Icon = getIconComponent(novoIcone)
-                  return Icon ? (
-                    <span
-                      className="flex items-center justify-center w-8 h-8 rounded-lg"
-                      style={{ backgroundColor: novaCor }}
-                    >
-                      <Icon className="w-4 h-4 text-white" />
-                    </span>
-                  ) : null
-                })()}
-                <span className="text-corpo-medium font-medium text-foreground">
-                  {novoNome || 'Digite o nome acima'}
-                </span>
-              </div>
-            </div>
-
-            {/* Erro */}
-              {erro && (
-              <p className="text-pequeno text-vermelho">⚠️ {erro}</p>
-            )}
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="secondary"
-              onClick={() => setDialogOpen(false)}
-              disabled={isSaving}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleCriarCategoria}
-              disabled={isSaving || !novoNome.trim()}
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Criando...
-                </>
-              ) : (
-                'Criar e usar categoria'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
   )
 }

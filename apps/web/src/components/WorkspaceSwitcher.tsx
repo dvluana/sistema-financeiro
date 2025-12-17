@@ -143,7 +143,6 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
         carregarDashboard(mesSelecionado),
       ])
     } catch (error) {
-      console.error('Erro ao trocar workspace:', error)
     } finally {
       setIsSwitching(false)
     }
@@ -192,7 +191,6 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
         ])
       }
     } catch (error) {
-      console.error('Erro ao excluir workspace:', error)
       setDeleteError(
         error instanceof Error
           ? error.message
@@ -233,12 +231,9 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
   }
 
   // Debug: log do perfilAtual
-  console.log('[WorkspaceSwitcher] perfilAtual:', perfilAtual)
-  console.log('[WorkspaceSwitcher] perfis:', perfis)
 
   // Verifica se o perfil tem os dados completos (não apenas o id)
   if (!perfilAtual || !perfilAtual.nome || !perfilAtual.icone) {
-    console.log('[WorkspaceSwitcher] Retornando null - perfil incompleto')
     return null
   }
 
