@@ -343,8 +343,8 @@ const KEYWORDS_CATEGORIAS: Record<string, string[]> = {
 function normalizarParaComparacao(texto: string): string {
   return texto
     .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
 /**
@@ -436,7 +436,9 @@ function validarCategoria(
 function isCartaoCredito(texto: string): boolean {
   const textoL = normalizarParaComparacao(texto);
   const keywordsCartao = KEYWORDS_CATEGORIAS[CATEGORIAS.CARTAO];
-  return keywordsCartao.some((keyword) => textoL.includes(normalizarParaComparacao(keyword)));
+  return keywordsCartao.some((keyword) =>
+    textoL.includes(normalizarParaComparacao(keyword))
+  );
 }
 
 const SYSTEM_PROMPT = `Você é um assistente de finanças pessoais. Extraia lançamentos financeiros do texto.
@@ -566,7 +568,34 @@ export class AIService {
   private preprocessTexto(texto: string): string {
     let result = texto;
 
-    // PRIMEIRO: Normaliza valores em formato brasileiro ANTES de separar por vírgula
+    // PRIMEIRO: Detecta se é formato de tabela (com tabs) e preserva estrutura
+    const temTabs = result.includes('\t');
+    if (temTabs) {
+      // Formato de tabela com tabs - apenas normaliza valores, não mexe na estrutura
+      // Normaliza valores em formato brasileiro R$ 3.817,55 -> R$ 3817.55
+      result = result.replace(
+        /R\$\s*(\d{1,3}(?:\.\d{3})+),(\d{2})/g,
+        (_, inteiro, decimal) => {
+          const valorSemPonto = inteiro.replace(/\./g, "");
+          return `R$ ${valorSemPonto}.${decimal}`;
+        }
+      );
+      
+      // Normaliza valores sem R$ (3.750,00 -> 3750.00)
+      result = result.replace(
+        /(\d{1,3}(?:\.\d{3})+),(\d{2})\b/g,
+        (_, inteiro, decimal) => {
+          const valorSemPonto = inteiro.replace(/\./g, "");
+          return `${valorSemPonto}.${decimal}`;
+        }
+      );
+      
+      // Não faz mais transformações se for tabela
+      return result;
+    }
+
+    // Caso não seja tabela, processa normalmente
+    // Normaliza valores em formato brasileiro ANTES de separar por vírgula
     // R$ 3.817,55 -> R$ 3817.55
     result = result.replace(
       /R\$\s*(\d{1,3}(?:\.\d{3})+),(\d{2})/g,
@@ -604,7 +633,8 @@ export class AIService {
 
     // Também separa por "e" quando parece ser múltiplos itens
     // Ex: "paguei nubank 3000 e gastei 50 no ifood" → 2 linhas
-    const ePattern = /(\d+[\.,]?\d*)\s+e\s+(gastei|paguei|comprei|recebi|ganhei)/gi;
+    const ePattern =
+      /(\d+[\.,]?\d*)\s+e\s+(gastei|paguei|comprei|recebi|ganhei)/gi;
     result = result.replace(ePattern, "$1\n$2");
 
     // Converte "5k" para "5000", "2k" para "2000", etc.
@@ -718,8 +748,8 @@ export class AIService {
   private normalizarTexto(texto: string): string {
     return texto
       .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, ''); // Remove combining diacritical marks
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, ""); // Remove combining diacritical marks
   }
 
   /**
@@ -859,12 +889,48 @@ export class AIService {
       "cliente",
       "projeto",
       "venda",
+      "recebimento",
+      "pagamento recebido",
+      "servicos",
+      "servico",
+      "honorarios",
+      "hora extra",
+      "horas extras",
+      "manutencao", // quando é serviço prestado
     ];
 
     // Verifica palavras-chave de entrada primeiro (mais importante)
     for (const palavra of PALAVRAS_ENTRADA) {
       if (textoN.includes(palavra)) {
         return "entrada";
+      }
+    }
+    
+    // HEURÍSTICA: Detecta padrões de nomes de empresas/projetos (geralmente recebimentos)
+    // Nomes próprios com maiúsculas ou padrões comuns
+    const padroesProjetos = [
+      /^[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*/, // Nome próprio (Loumar, WKM, Stant)
+      /\bltda\b/i,
+      /\bs\.?a\.?\b/i,
+      /\bme\b$/i, 
+      /\bepp\b$/i,
+      /\beireli\b/i,
+      /\bservicos?\b/i,
+      /\b(?:projeto|proj\.?)\b/i,
+      /\b\d+\/\d+\b/, // Parcelas como "1/2", "2/2"
+      /^[A-Z]{2,}/, // Siglas (WKM, MSD)
+    ];
+    
+    for (const padrao of padroesProjetos) {
+      if (padrao.test(textoOriginal)) {
+        // Se tem padrão de empresa/projeto E tem valor alto (>500), provável entrada
+        const valorMatch = textoOriginal.match(/(\d+(?:[.,]\d+)?)/);
+        if (valorMatch) {
+          const valor = parseFloat(valorMatch[1].replace(',', '.'));
+          if (valor >= 500) {
+            return "entrada";
+          }
+        }
       }
     }
 
@@ -880,6 +946,12 @@ export class AIService {
       if (textoN.includes(verbo)) {
         return "saida";
       }
+    }
+    
+    // HEURÍSTICA FINAL: Se tem valor >= 1000 e parece nome de empresa, provável entrada
+    const valorAltoMatch = textoOriginal.match(/(\d{4,}(?:[.,]\d+)?)/);
+    if (valorAltoMatch && /^[A-Z]/.test(textoOriginal.trim())) {
+      return "entrada";
     }
 
     // Default: saída (mais comum)
@@ -963,7 +1035,10 @@ export class AIService {
 
           // Validação adicional: se o nome contém palavras-chave de entrada, força entrada
           // Usa normalização para remover acentos e garantir match
-          const nomeNormalizado = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          const nomeNormalizado = nome
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "");
           const palavrasEntradaNoNome = [
             "salario",
             "freela",
@@ -1055,8 +1130,11 @@ export class AIService {
     } catch (err) {
       // Fallback silencioso para parsing básico quando Gemini falha
       // Log apenas em desenvolvimento para debug
-      if (process.env.NODE_ENV !== 'production') {
-        console.warn('Erro ao chamar IA, usando fallback:', err instanceof Error ? err.message : err);
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(
+          "Erro ao chamar IA, usando fallback:",
+          err instanceof Error ? err.message : err
+        );
       }
       return this.parseBasico(textoProcessado, texto);
     }
@@ -1084,8 +1162,19 @@ export class AIService {
       const linhaTrim = linha.trim();
       if (!linhaTrim) continue;
 
-      // Extrai valor monetário da linha (último número com formato de valor)
-      const valorMatch = linhaTrim.match(/(\d+(?:\.\d{1,2})?)\s*$/);
+      // Extrai valor monetário da linha - suporta diferentes formatos
+      // Procura por: R$ X.XXX,XX ou R$ XXX ou apenas XXX no final
+      let valorMatch = linhaTrim.match(/R?\$?\s*(\d+(?:\.\d+)?)\s*$/);
+      
+      // Se não encontrou, tenta encontrar valor com vírgula (765,90)
+      if (!valorMatch) {
+        valorMatch = linhaTrim.match(/(\d+,\d{2})\s*$/);
+        if (valorMatch) {
+          // Converte vírgula para ponto
+          valorMatch[1] = valorMatch[1].replace(',', '.');
+        }
+      }
+      
       if (!valorMatch) continue;
 
       const valor = parseFloat(valorMatch[1]);
@@ -1141,17 +1230,16 @@ export class AIService {
       // Corrige o nome se for apenas um verbo
       nome = this.corrigirNome(nome, textoOriginal);
 
-      // Determina o tipo baseado no texto (fallback sem IA)
-      const tipo = this.determinarTipoSemIA(textoOriginal);
+      // Determina o tipo baseado na linha atual, não no texto completo
+      // Isso permite processar múltiplas linhas com tipos diferentes
+      const tipo = this.determinarTipoSemIA(linhaTrim);
 
       // Categoriza por keywords
       const categoriaId = categorizarPorKeywords(nome, tipo);
 
-      // Evita duplicatas pelo nome
-      const jaExiste = lancamentos.some(
-        (l) => l.nome.toLowerCase() === nome.toLowerCase()
-      );
-      if (jaExiste) continue;
+      // Permite duplicatas com mesmo nome (ex: múltiplas parcelas)
+      // O usuário pode ter vários lançamentos com mesmo nome
+      // Como "Horas Extras" em diferentes dias
 
       lancamentos.push({
         tipo,
