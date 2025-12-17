@@ -212,7 +212,8 @@ export function WorkspaceSwitcher({ className }: WorkspaceSwitcherProps) {
     )
   }
 
-  if (!perfilAtual) {
+  // Verifica se o perfil tem os dados completos (não apenas o id)
+  if (!perfilAtual || !perfilAtual.nome || !perfilAtual.icone) {
     return null
   }
 

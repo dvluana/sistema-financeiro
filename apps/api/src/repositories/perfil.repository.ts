@@ -95,6 +95,29 @@ export const perfilRepository = {
   },
 
   /**
+   * Cria perfil padrao para contas legadas que nao tem perfil
+   * Usa o nome do usuario como nome do perfil
+   */
+  async criarPerfilPadraoLegado(usuarioId: string, nomeUsuario: string): Promise<Perfil> {
+    const { data, error } = await supabase
+      .from('perfis')
+      .insert({
+        nome: nomeUsuario,
+        descricao: null,
+        cor: '#6366F1',
+        icone: 'User',
+        usuario_id: usuarioId,
+        is_perfil_padrao: true,
+        ativo: true,
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  /**
    * Cria novo perfil para um usuario
    * Nota: O trigger no banco ja cria as configuracoes padrao automaticamente
    */

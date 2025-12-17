@@ -269,8 +269,8 @@ export const usePerfilStore = create<PerfilState>()(
     {
       name: PERFIL_KEY,
       partialize: (state) => ({
-        // Persiste apenas o ID do perfil atual
-        perfilAtual: state.perfilAtual ? { id: state.perfilAtual.id } : null,
+        // Persiste o perfil atual completo para exibição imediata
+        perfilAtual: state.perfilAtual,
       }),
     }
   )

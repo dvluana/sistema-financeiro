@@ -131,8 +131,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const usuario = await authApi.me()
 
-      // Carrega perfis do usuário
-      usePerfilStore.getState().carregarPerfis()
+      // Carrega perfis do usuário (aguarda para garantir que perfilAtual seja definido)
+      await usePerfilStore.getState().carregarPerfis()
 
       set({
         usuario,

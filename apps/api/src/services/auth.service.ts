@@ -77,10 +77,11 @@ export const authService = {
       throw new Error('Email ou senha incorretos')
     }
 
-    // Busca o perfil padrão
-    const perfilPadrao = await perfilRepository.findPerfilPadrao(usuario.id)
+    // Busca o perfil padrão, ou cria um para contas legadas
+    let perfilPadrao = await perfilRepository.findPerfilPadrao(usuario.id)
     if (!perfilPadrao) {
-      throw new Error('Perfil padrão não encontrado')
+      // Conta legada sem perfil - cria automaticamente
+      perfilPadrao = await perfilRepository.criarPerfilPadraoLegado(usuario.id, usuario.nome)
     }
 
     // Cria sessão
