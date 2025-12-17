@@ -12,10 +12,6 @@ import {
   Sparkles,
   Repeat,
   Calendar,
-  DollarSign,
-  TrendingUp,
-  TrendingDown,
-  Edit3,
   Trash2,
   CheckCircle2,
   Loader2,
@@ -37,7 +33,6 @@ import {
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Tooltip,
@@ -54,7 +49,7 @@ interface QuickInputSheetProps {
   onConfirm: (lancamentos: ParsedLancamento[]) => Promise<void>
 }
 
-// Componente para cada item de lançamento
+// Componente para cada item de lançamento - Design compacto e limpo
 const LancamentoItem = ({
   lancamento,
   index,
@@ -68,14 +63,22 @@ const LancamentoItem = ({
   onRemove: (index: number) => void
   onToggleRecorrencia: (index: number) => void
 }) => {
-  const [isEditing, setIsEditing] = useState(false)
+  const [isEditingNome, setIsEditingNome] = useState(false)
+  const [isEditingValor, setIsEditingValor] = useState(false)
+  const [valorTemp, setValorTemp] = useState('')
   const temRecorrencia = !!lancamento.recorrencia
 
-  const handleValueEdit = (valor: string) => {
-    const numValue = parseFloat(valor.replace(',', '.'))
-    if (!isNaN(numValue)) {
+  const handleValueSave = () => {
+    const numValue = parseFloat(valorTemp.replace(',', '.'))
+    if (!isNaN(numValue) && numValue > 0) {
       onEdit(index, 'valor', numValue)
     }
+    setIsEditingValor(false)
+  }
+
+  const startEditValor = () => {
+    setValorTemp((lancamento.valor || 0).toFixed(2).replace('.', ','))
+    setIsEditingValor(true)
   }
 
   return (
@@ -84,151 +87,104 @@ const LancamentoItem = ({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -50 }}
-      transition={{
-        duration: 0.15,
-        delay: Math.min(index * 0.02, 0.1) // Max 100ms total delay
-      }}
+      transition={{ duration: 0.15 }}
       className={cn(
-        "group relative p-4 rounded-xl border transition-all duration-200",
-        "hover:shadow-md hover:border-primary/30",
-        lancamento.tipo === 'entrada' 
-          ? "bg-gradient-to-r from-verde/5 to-transparent border-verde/20"
-          : "bg-gradient-to-r from-rosa/5 to-transparent border-rosa/20"
+        "group flex items-center gap-3 p-3 rounded-xl border bg-card",
+        "transition-shadow hover:shadow-sm",
+        lancamento.tipo === 'entrada' ? "border-verde/20" : "border-rosa/20"
       )}
     >
-      {/* Badge de tipo no canto */}
-      <Badge 
-        variant="outline" 
-        className={cn(
-          "absolute -top-2 -right-2 text-xs px-1.5 py-0.5",
-          lancamento.tipo === 'entrada'
-            ? "text-verde border-verde/30 bg-verde/10"
-            : "text-rosa border-rosa/30 bg-rosa/10"
-        )}
-      >
-        {lancamento.tipo === 'entrada' ? (
-          <TrendingUp className="w-3 h-3 mr-0.5" />
-        ) : (
-          <TrendingDown className="w-3 h-3 mr-0.5" />
-        )}
-        {lancamento.tipo}
-      </Badge>
+      {/* Barra indicadora de tipo */}
+      <div className={cn(
+        "shrink-0 w-1 h-12 rounded-full",
+        lancamento.tipo === 'entrada' ? "bg-verde" : "bg-rosa"
+      )} />
 
       {/* Conteúdo principal */}
-      <div className="space-y-3">
-        {/* Nome */}
-        <div className="flex items-start gap-3">
-          <div className={cn(
-            "p-2 rounded-lg shrink-0",
-            lancamento.tipo === 'entrada' 
-              ? "bg-verde/10 text-verde"
-              : "bg-rosa/10 text-rosa"
-          )}>
-            <DollarSign className="w-4 h-4" />
-          </div>
-          
-          <div className="flex-1 space-y-1">
-            {isEditing ? (
-              <Input
-                value={lancamento.nome}
-                onChange={(e) => onEdit(index, 'nome', e.target.value)}
-                onBlur={() => setIsEditing(false)}
-                className="h-8 text-sm font-medium"
-                autoFocus
-              />
-            ) : (
-              <button
-                onClick={() => setIsEditing(true)}
-                className="text-left w-full group/edit"
-              >
-                <p className="font-medium text-sm flex items-center gap-1">
-                  {lancamento.nome}
-                  <Edit3 className="w-3 h-3 opacity-0 group-hover/edit:opacity-50 transition-opacity" />
-                </p>
-              </button>
+      <div className="flex-1 min-w-0">
+        {/* Nome - clicável para editar */}
+        {isEditingNome ? (
+          <Input
+            value={lancamento.nome}
+            onChange={(e) => onEdit(index, 'nome', e.target.value)}
+            onBlur={() => setIsEditingNome(false)}
+            onKeyDown={(e) => e.key === 'Enter' && setIsEditingNome(false)}
+            className="h-7 text-sm font-medium px-2"
+            autoFocus
+          />
+        ) : (
+          <button
+            onClick={() => setIsEditingNome(true)}
+            className="text-left w-full"
+          >
+            <p className="font-medium text-sm truncate hover:text-primary transition-colors">
+              {lancamento.nome}
+            </p>
+          </button>
+        )}
+
+        {/* Tags: dia e recorrência */}
+        <div className="flex items-center gap-1.5 mt-1.5">
+          {lancamento.diaPrevisto && (
+            <span className="inline-flex items-center text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+              <Calendar className="w-2.5 h-2.5 mr-0.5" />
+              dia {lancamento.diaPrevisto}
+            </span>
+          )}
+          <button
+            onClick={() => onToggleRecorrencia(index)}
+            className={cn(
+              "inline-flex items-center text-[10px] px-1.5 py-0.5 rounded transition-colors",
+              temRecorrencia
+                ? "bg-blue-500/10 text-blue-600"
+                : "bg-muted text-muted-foreground hover:bg-blue-500/10 hover:text-blue-600"
             )}
-            
-            {/* Categoria */}
-            {lancamento.categoriaId && (
-              <p className="text-xs text-muted-foreground">
-                Categoria definida
-              </p>
-            )}
-          </div>
-
-          {/* Valor */}
-          <div className="text-right">
-            <Input
-              value={(lancamento.valor || 0).toFixed(2).replace('.', ',')}
-              onChange={(e) => handleValueEdit(e.target.value)}
-              className={cn(
-                "h-8 w-24 text-sm font-bold text-right",
-                lancamento.tipo === 'entrada' ? "text-verde" : "text-rosa"
-              )}
-            />
-          </div>
-        </div>
-
-        {/* Informações adicionais */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Data */}
-            {lancamento.diaPrevisto && (
-              <Badge variant="secondary" className="text-xs">
-                <Calendar className="w-3 h-3 mr-1" />
-                Dia {lancamento.diaPrevisto}
-              </Badge>
-            )}
-
-            {/* Recorrência */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="sm"
-                  variant={temRecorrencia ? "default" : "outline"}
-                  onClick={() => onToggleRecorrencia(index)}
-                  className={cn(
-                    "h-6 px-2 text-xs",
-                    temRecorrencia 
-                      ? "bg-blue-500 hover:bg-blue-600 text-white"
-                      : "hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200"
-                  )}
-                >
-                  <Repeat className="w-3 h-3 mr-1" />
-                  {temRecorrencia ? (
-                    lancamento.recorrencia?.tipo === 'mensal'
-                      ? '12 meses'
-                      : `${lancamento.recorrencia?.quantidade}x`
-                  ) : (
-                    'Repetir'
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {temRecorrencia 
-                  ? 'Clique para remover recorrência'
-                  : 'Adicionar recorrência'
-                }
-              </TooltipContent>
-            </Tooltip>
-          </div>
-
-          {/* Botão remover */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => onRemove(index)}
-                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Remover item</TooltipContent>
-          </Tooltip>
+          >
+            <Repeat className="w-2.5 h-2.5 mr-0.5" />
+            {temRecorrencia
+              ? (lancamento.recorrencia?.tipo === 'mensal' ? '12x' : `${lancamento.recorrencia?.quantidade}x`)
+              : 'repetir'
+            }
+          </button>
         </div>
       </div>
+
+      {/* Valor - clicável para editar */}
+      {isEditingValor ? (
+        <Input
+          value={valorTemp}
+          onChange={(e) => setValorTemp(e.target.value.replace(/[^0-9,]/g, ''))}
+          onBlur={handleValueSave}
+          onKeyDown={(e) => e.key === 'Enter' && handleValueSave()}
+          className={cn(
+            "h-8 w-24 text-sm font-bold text-right px-2",
+            lancamento.tipo === 'entrada' ? "text-verde" : "text-rosa"
+          )}
+          autoFocus
+        />
+      ) : (
+        <button
+          onClick={startEditValor}
+          className={cn(
+            "shrink-0 text-sm font-bold tabular-nums hover:opacity-70 transition-opacity",
+            lancamento.tipo === 'entrada' ? "text-verde" : "text-rosa"
+          )}
+        >
+          R$ {(lancamento.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+        </button>
+      )}
+
+      {/* Botão remover */}
+      <button
+        onClick={() => onRemove(index)}
+        className={cn(
+          "shrink-0 p-1.5 rounded-lg transition-all",
+          "opacity-0 group-hover:opacity-100",
+          "text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+        )}
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
     </motion.div>
   )
 }
@@ -267,27 +223,42 @@ export function QuickInputSheet({
     }
   }, [open])
 
-  // Configura reconhecimento de voz
+  // Configura reconhecimento de voz (apenas uma vez)
   useEffect(() => {
     if (!speechSupported) return
 
-    const SpeechRecognition = (window as any).SpeechRecognition || 
+    const SpeechRecognition = (window as any).SpeechRecognition ||
                               (window as any).webkitSpeechRecognition
-    
+
     const recognition = new SpeechRecognition()
     recognition.continuous = true
     recognition.interimResults = true
     recognition.lang = 'pt-BR'
 
     recognition.onresult = (event: any) => {
-      const transcript = Array.from(event.results)
-        .map((result: any) => result[0].transcript)
-        .join(' ')
-      
-      setInput(transcript)
+      let finalTranscript = ''
+      let interimTranscript = ''
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript
+        } else {
+          interimTranscript = transcript
+        }
+      }
+
+      // Mostra resultado intermediário enquanto fala, ou final quando termina frase
+      if (finalTranscript) {
+        setInput(prev => prev ? `${prev}, ${finalTranscript}` : finalTranscript)
+      } else if (interimTranscript) {
+        // Para interim, só mostra se não tiver texto final ainda
+        setInput(interimTranscript)
+      }
     }
 
-    recognition.onerror = () => {
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error)
       setIsListening(false)
     }
 
@@ -296,18 +267,42 @@ export function QuickInputSheet({
     }
 
     recognitionRef.current = recognition
+
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop()
+        } catch {
+          // Ignore errors on cleanup
+        }
+      }
+    }
   }, [speechSupported])
 
   // Toggle reconhecimento de voz
-  const toggleVoiceRecognition = () => {
-    if (!recognitionRef.current) return
+  const toggleVoiceRecognition = async () => {
+    if (!recognitionRef.current) {
+      console.error('Speech recognition not available')
+      return
+    }
 
     if (isListening) {
-      recognitionRef.current.stop()
+      try {
+        recognitionRef.current.stop()
+      } catch {
+        // Ignore stop errors
+      }
       setIsListening(false)
     } else {
-      recognitionRef.current.start()
-      setIsListening(true)
+      try {
+        // Pede permissão do microfone primeiro
+        await navigator.mediaDevices.getUserMedia({ audio: true })
+        recognitionRef.current.start()
+        setIsListening(true)
+      } catch (err) {
+        console.error('Microphone permission denied or error:', err)
+        setIsListening(false)
+      }
     }
   }
 
