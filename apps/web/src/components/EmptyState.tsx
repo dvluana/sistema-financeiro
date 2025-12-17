@@ -66,8 +66,11 @@ export function EmptyState({
         <Icon className="w-5 h-5 text-muted-foreground" />
       </div>
 
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm font-medium text-foreground mb-1">
         {title || config.title}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        {description || config.description}
       </p>
     </div>
   )

@@ -6,13 +6,12 @@
  * - Mobile: Bottom tab bar
  */
 
-import { Home, Bell, BarChart3, Settings, Menu, X } from 'lucide-react'
+import { Home, Bell, BarChart3, Settings } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useIsDesktop } from '@/hooks/useMediaQuery'
-import { useState } from 'react'
 import {
   Tooltip,
   TooltipContent,
@@ -44,7 +43,6 @@ export function NavigationBar({
   onOpenSettings 
 }: NavigationBarProps) {
   const isDesktop = useIsDesktop()
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   
   const tabs: Tab[] = [
     {

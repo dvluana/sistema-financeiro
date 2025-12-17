@@ -20,7 +20,7 @@ const optionalUuid = z
 export const criarLancamentoSchema = z.object({
   tipo: tipoLancamento,
   nome: z.string().min(1, 'Nome é obrigatório').max(100, 'Nome muito longo'),
-  valor: z.number().positive('Valor deve ser maior que zero'),
+  valor: z.number().min(0, 'Valor deve ser zero ou maior'), // Permite 0 para agrupadores com soma
   mes: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Formato de mês inválido (YYYY-MM)'),
   concluido: z.boolean().optional().default(false),
   data_prevista: z.string().nullable().optional(),
@@ -32,10 +32,12 @@ export const criarLancamentoSchema = z.object({
 
 export const atualizarLancamentoSchema = z.object({
   nome: z.string().min(1).max(100).optional(),
-  valor: z.number().positive().optional(),
+  valor: z.number().min(0).optional(), // Permite 0 para agrupadores com soma
   data_prevista: z.string().nullable().optional(),
+  data_vencimento: z.string().nullable().optional(),
   concluido: z.boolean().optional(),
   categoria_id: optionalUuid,
+  is_agrupador: z.boolean().optional(),
   valor_modo: valorModo.optional(),
 })
 

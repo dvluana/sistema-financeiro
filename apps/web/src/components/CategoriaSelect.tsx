@@ -16,11 +16,6 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
 import { categoriasApi } from '@/lib/api'
 import type { Categoria } from '@/lib/api'
 
@@ -30,6 +25,7 @@ interface CategoriaSelectProps {
   onCreateNew?: () => void
   onCategoriaDeleted?: (id: string) => void
   categorias?: Categoria[]
+  tipo?: 'entrada' | 'saida'
   className?: string
 }
 
@@ -62,23 +58,29 @@ export function CategoriaSelect({
   onCreateNew,
   onCategoriaDeleted,
   categorias: categoriasExternas,
+  tipo: _tipo,
   className,
 }: CategoriaSelectProps) {
+  void _tipo // Reservado - filtragem feita no componente pai
   const [open, setOpen] = useState(false)
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
-  // Handler para scroll com trackpad/mousewheel
-  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    const container = scrollRef.current
-    if (!container) return
+  // Fecha dropdown ao clicar fora
+  useEffect(() => {
+    if (!open) return
 
-    // Permite scroll nativo dentro do container
-    e.stopPropagation()
-    container.scrollTop += e.deltaY
-  }
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [open])
 
   // Usa categorias externas se fornecidas, senão carrega
   useEffect(() => {
@@ -146,46 +148,45 @@ export function CategoriaSelect({
   }
 
   return (
-    <div className={className}>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            className={cn(
-              "w-full min-h-touch justify-between px-4 font-normal rounded-input border-input",
-              !value && "text-muted-foreground"
+    <div ref={containerRef} className={cn("relative", className)}>
+      {/* Trigger button */}
+      <Button
+        type="button"
+        variant="outline"
+        role="combobox"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        className={cn(
+          "w-full min-h-touch justify-between px-4 font-normal rounded-input border-input",
+          !value && "text-muted-foreground"
+        )}
+      >
+        {selectedCategoria ? (
+          <div className="flex items-center gap-2">
+            <span>{getCategoryIcon(selectedCategoria.nome)}</span>
+            <span className="truncate">{selectedCategoria.nome}</span>
+            {selectedCategoria.cor && (
+              <div
+                className="w-2.5 h-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: selectedCategoria.cor }}
+              />
             )}
-          >
-            {selectedCategoria ? (
-              <div className="flex items-center gap-2">
-                <span>{getCategoryIcon(selectedCategoria.nome)}</span>
-                <span className="truncate">{selectedCategoria.nome}</span>
-                {selectedCategoria.cor && (
-                  <div
-                    className="w-2.5 h-2.5 rounded-full shrink-0"
-                    style={{ backgroundColor: selectedCategoria.cor }}
-                  />
-                )}
-              </div>
-            ) : (
-              <span className="flex items-center gap-2">
-                <Tag className="w-4 h-4" />
-                Categoria
-              </span>
-            )}
-            <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-          </Button>
-        </PopoverTrigger>
+          </div>
+        ) : (
+          <span className="flex items-center gap-2">
+            <Tag className="w-4 h-4" />
+            Categoria
+          </span>
+        )}
+        <ChevronDown className={cn(
+          "ml-2 h-4 w-4 shrink-0 opacity-50 transition-transform",
+          open && "rotate-180"
+        )} />
+      </Button>
 
-        <PopoverContent
-          className="w-[280px] p-0"
-          align="start"
-          sideOffset={4}
-          onOpenAutoFocus={(e) => e.preventDefault()}
-        >
+      {/* Dropdown */}
+      {open && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border border-border rounded-lg shadow-lg">
           {/* Lista de categorias */}
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
@@ -196,69 +197,62 @@ export function CategoriaSelect({
               Nenhuma categoria
             </div>
           ) : (
-            <div
-              ref={scrollRef}
-              onWheel={handleWheel}
-              className="max-h-[220px] overflow-y-auto scroll-smooth"
-              style={{ overscrollBehavior: 'contain' }}
-            >
-              <div className="p-1.5">
-                {categorias.map((categoria) => (
-                  <div
-                    key={categoria.id}
-                    className={cn(
-                      "group flex items-center rounded-lg transition-colors",
-                      "hover:bg-accent",
-                      value === categoria.id && "bg-accent"
-                    )}
+            <div className="max-h-[220px] overflow-y-auto p-1.5">
+              {categorias.map((categoria) => (
+                <div
+                  key={categoria.id}
+                  className={cn(
+                    "group flex items-center rounded-lg transition-colors",
+                    "hover:bg-accent",
+                    value === categoria.id && "bg-accent"
+                  )}
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleSelect(categoria.id)}
+                    className="flex-1 flex items-center gap-2.5 px-3 py-2.5 text-left"
                   >
+                    <span className="text-base shrink-0">
+                      {getCategoryIcon(categoria.nome)}
+                    </span>
+                    <span className="flex-1 text-sm truncate">
+                      {categoria.nome}
+                    </span>
+                    {categoria.cor && (
+                      <div
+                        className="w-3 h-3 rounded-full shrink-0"
+                        style={{ backgroundColor: categoria.cor }}
+                      />
+                    )}
+                    {value === categoria.id && (
+                      <Check className="h-4 w-4 text-primary shrink-0" />
+                    )}
+                  </button>
+
+                  {/* Botão deletar - apenas para categorias customizadas */}
+                  {!categoria.is_default && (
                     <button
                       type="button"
-                      onClick={() => handleSelect(categoria.id)}
-                      className="flex-1 flex items-center gap-2.5 px-3 py-2.5 text-left"
-                    >
-                      <span className="text-base shrink-0">
-                        {getCategoryIcon(categoria.nome)}
-                      </span>
-                      <span className="flex-1 text-sm truncate">
-                        {categoria.nome}
-                      </span>
-                      {categoria.cor && (
-                        <div
-                          className="w-3 h-3 rounded-full shrink-0"
-                          style={{ backgroundColor: categoria.cor }}
-                        />
+                      onClick={(e) => handleDelete(e, categoria)}
+                      disabled={deletingId === categoria.id}
+                      className={cn(
+                        "p-2 mr-1 rounded-md transition-all",
+                        "opacity-0 group-hover:opacity-100",
+                        "text-muted-foreground hover:text-destructive hover:bg-destructive/10",
+                        "disabled:opacity-50"
                       )}
-                      {value === categoria.id && (
-                        <Check className="h-4 w-4 text-primary shrink-0" />
+                      title="Excluir categoria"
+                    >
+                      {deletingId === categoria.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-3.5 h-3.5" />
                       )}
                     </button>
-
-                    {/* Botão deletar - apenas para categorias customizadas */}
-                    {!categoria.is_default && (
-                      <button
-                        type="button"
-                        onClick={(e) => handleDelete(e, categoria)}
-                        disabled={deletingId === categoria.id}
-                        className={cn(
-                          "p-2 mr-1 rounded-md transition-all",
-                          "opacity-0 group-hover:opacity-100",
-                          "text-muted-foreground hover:text-destructive hover:bg-destructive/10",
-                          "disabled:opacity-50"
-                        )}
-                        title="Excluir categoria"
-                      >
-                        {deletingId === categoria.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
 
           {/* Botão criar nova */}
@@ -278,8 +272,8 @@ export function CategoriaSelect({
               </button>
             </div>
           )}
-        </PopoverContent>
-      </Popover>
+        </div>
+      )}
     </div>
   )
 }

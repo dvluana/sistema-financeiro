@@ -314,22 +314,19 @@ export function QuickInputSheet({
   }
 
   // Processa o input
-  const handleProcess = async () => {
+  const handleProcess = () => {
     if (!input.trim() || isParsing) return
 
     setIsParsing(true)
-    
-    // Simula processamento com delay visual
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
+
     const result = parseInput(input, mesAtual)
     const parsed = result.lancamentos
-    
+
     setLancamentos(prev => [...prev, ...parsed])
     setInput('')
     setIsParsing(false)
     setShowTips(false)
-    
+
     // Foca no input novamente
     inputRef.current?.focus()
   }

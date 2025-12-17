@@ -18,7 +18,6 @@ import { LoadingSkeleton } from '@/components/LoadingSkeleton'
 import { useDashboardStore } from '@/stores/useDashboardStore'
 import { useFinanceiroStore } from '@/stores/useFinanceiroStore'
 import { useAuthStore } from '@/stores/useAuthStore'
-import { usePerfilStore } from '@/stores/usePerfilStore'
 import type { Lancamento } from '@/lib/api'
 
 type LancamentoFilter = 'todos' | 'entradas' | 'saidas'
@@ -46,7 +45,6 @@ export function Dashboard({
   const [lancamentoFilter, setLancamentoFilter] = useState<LancamentoFilter>('todos')
 
   const { logout } = useAuthStore()
-  const { perfilAtual } = usePerfilStore()
   const {
     mesSelecionado,
     totais: dashboardTotais,
@@ -89,6 +87,11 @@ export function Dashboard({
     toggleConcluido(lancamento.id)
   }
 
+  // Wrapper para RecentList (recebe apenas id)
+  const handleToggleById = (id: string) => {
+    toggleConcluido(id)
+  }
+
   // Carrega dados iniciais
   useEffect(() => {
     carregarConfiguracoes()
@@ -125,9 +128,6 @@ export function Dashboard({
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     )
   }, [entradas, saidas, agrupadores])
-
-  // Usa nome do workspace atual
-  const nomeWorkspace = perfilAtual?.nome || 'Workspace'
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-background to-background pb-20 lg:pb-8">
@@ -248,7 +248,7 @@ export function Dashboard({
                   <RecentList
                     lancamentos={lancamentosOrdenados}
                     onItemClick={onEditLancamento}
-                    onToggle={handleToggleLancamento}
+                    onToggle={handleToggleById}
                     onVerTodos={() => {}}
                     showVerTodos={false}
                     onAddEntrada={onAddEntrada}

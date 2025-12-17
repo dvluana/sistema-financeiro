@@ -18,7 +18,6 @@ import {
   Calculator,
   Settings2,
   Check,
-  Plus,
   Loader2,
   Tag
 } from 'lucide-react'
@@ -81,7 +80,7 @@ interface LancamentoSheetProps {
 export function LancamentoSheet({
   open,
   onOpenChange,
-  mesAtual,
+  mesAtual: _mesAtual,
   lancamento,
   tipoInicial = 'saida',
   autoMarcarConcluido = { entrada: false, saida: false },
@@ -89,6 +88,7 @@ export function LancamentoSheet({
   onDelete,
   isLoading = false,
 }: LancamentoSheetProps) {
+  void _mesAtual // Reservado para uso futuro
   const isEditing = !!lancamento
 
   // Estado do tipo (entrada/saída)
@@ -112,7 +112,7 @@ export function LancamentoSheet({
   const [qtdParcelas, setQtdParcelas] = useState('2')
 
   // Validação
-  const [errors, setErrors] = useState<{ [key: string]: string }>({})
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({})
 
   // Estado para categorias
   const [categorias, setCategorias] = useState<Categoria[]>([])

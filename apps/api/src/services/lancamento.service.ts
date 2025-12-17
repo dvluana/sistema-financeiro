@@ -132,11 +132,25 @@ export const lancamentoService = {
 
   /**
    * Atualiza lançamento existente
+   *
+   * VALIDAÇÕES:
+   * - Não pode desgrupar (is_agrupador: false) se tiver filhos
    */
   async atualizar(id: string, input: AtualizarLancamentoInput, ctx: Contexto): Promise<LancamentoResponse> {
     const lancamento = await lancamentoRepository.findById(id, ctx)
     if (!lancamento) {
       throw new Error('Lançamento não encontrado')
+    }
+
+    // Validação: não pode desgrupar se tiver filhos
+    if (input.is_agrupador === false && lancamento.is_agrupador === true) {
+      const filhos = await lancamentoRepository.findFilhos(id, ctx)
+      if (filhos.length > 0) {
+        throw new Error(
+          `Não é possível remover o status de grupo pois existem ${filhos.length} ${filhos.length === 1 ? 'item' : 'itens'} vinculados. ` +
+          `Exclua os itens primeiro ou exclua o grupo inteiro.`
+        )
+      }
     }
 
     await lancamentoRepository.update(id, input, ctx)

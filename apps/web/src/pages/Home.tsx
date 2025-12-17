@@ -189,6 +189,8 @@ export function Home() {
           data_prevista: data.data_prevista,
           concluido: data.concluido,
           categoria_id: data.categoria_id,
+          is_agrupador: data.is_agrupador,
+          valor_modo: data.valor_modo,
         })
       } else if (data.recorrencia) {
         // Recorrência (suporta agrupadores também)

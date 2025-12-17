@@ -111,6 +111,7 @@ export interface Lancamento {
   valor: number
   concluido: boolean
   data_prevista: string | null
+  data_vencimento?: string | null
   mes: string
   categoria_id: string | null
   parent_id: string | null
@@ -184,6 +185,7 @@ export interface AtualizarLancamentoInput {
   data_prevista?: string | null
   concluido?: boolean
   categoria_id?: string | null
+  is_agrupador?: boolean
   valor_modo?: 'soma' | 'fixo'
 }
 
