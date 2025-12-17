@@ -5,8 +5,14 @@
  * Design clean e minimalista com UX clara que é powered by AI.
  */
 
-import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  useMemo,
+} from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp,
   TrendingDown,
@@ -21,30 +27,37 @@ import {
   Repeat,
   Trash2,
   Wand2,
-} from 'lucide-react'
-import { Drawer as DrawerPrimitive } from 'vaul'
-import { useDebouncedCallback } from 'use-debounce'
-import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui'
-import { useIsDesktop } from '@/hooks/useMediaQuery'
-import { aiApi, getCategoriasPadraoByTipo } from '@/lib/api'
+} from "lucide-react";
+import { Drawer as DrawerPrimitive } from "vaul";
+import { useDebouncedCallback } from "use-debounce";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui";
+import { useIsDesktop } from "@/hooks/useMediaQuery";
+import { aiApi, getCategoriasPadraoByTipo } from "@/lib/api";
 import {
   formatarValor,
   formatarMesExibicao,
   gerarListaMeses,
   extrairMesGlobal,
   type ParsedLancamento,
-} from '@/lib/parser'
+} from "@/lib/parser";
 
 // Props do card de lançamento compacto
 interface LancamentoItemProps {
-  item: ParsedLancamento
-  onToggleTipo: (id: string) => void
-  onUpdateLancamento: (id: string, campo: 'valor' | 'nome' | 'mes', valor: string) => void
-  onUpdateRecorrencia: (id: string, recorrencia: ParsedLancamento['recorrencia']) => void
-  onUpdateCategoria: (id: string, categoriaId: string | null) => void
-  onRemoveLancamento: (id: string) => void
-  mesesDisponiveis: Array<{ value: string; label: string }>
+  item: ParsedLancamento;
+  onToggleTipo: (id: string) => void;
+  onUpdateLancamento: (
+    id: string,
+    campo: "valor" | "nome" | "mes",
+    valor: string
+  ) => void;
+  onUpdateRecorrencia: (
+    id: string,
+    recorrencia: ParsedLancamento["recorrencia"]
+  ) => void;
+  onUpdateCategoria: (id: string, categoriaId: string | null) => void;
+  onRemoveLancamento: (id: string) => void;
+  mesesDisponiveis: Array<{ value: string; label: string }>;
 }
 
 // Componente de item individual - ultra compacto
@@ -57,20 +70,21 @@ const LancamentoItem = React.memo(function LancamentoItem({
   onRemoveLancamento,
   mesesDisponiveis,
 }: LancamentoItemProps) {
-  const isEntrada = item.tipo === 'entrada'
-  const temRecorrencia = !!item.recorrencia
-  const [showOptions, setShowOptions] = useState(false)
+  const isEntrada = item.tipo === "entrada";
+  const temRecorrencia = !!item.recorrencia;
+  const [showOptions, setShowOptions] = useState(false);
 
   // Memoiza categorias por tipo para evitar recálculo
   const categoriasDoTipo = useMemo(
     () => getCategoriasPadraoByTipo(item.tipo),
     [item.tipo]
-  )
+  );
 
   // Formata valor para exibição
-  const valorFormatado = item.valor !== null
-    ? item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
-    : ''
+  const valorFormatado =
+    item.valor !== null
+      ? item.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })
+      : "";
 
   return (
     <motion.div
@@ -81,23 +95,25 @@ const LancamentoItem = React.memo(function LancamentoItem({
       transition={{ duration: 0.15 }}
       className="group"
     >
-      <div className={cn(
-        'flex items-center gap-2 py-2.5 px-3 rounded-xl',
-        'bg-secondary/50 border border-transparent',
-        'hover:border-border/50 transition-all',
-      )}>
+      <div
+        className={cn(
+          "flex items-center gap-2 py-2.5 px-3 rounded-xl",
+          "bg-secondary/50 border border-transparent",
+          "hover:border-border/50 transition-all"
+        )}
+      >
         {/* Indicador de tipo - clicável */}
         <button
           type="button"
           onClick={() => onToggleTipo(item.id)}
           className={cn(
-            'shrink-0 w-7 h-7 rounded-lg flex items-center justify-center',
-            'transition-all hover:scale-105 active:scale-95',
+            "shrink-0 w-7 h-7 rounded-lg flex items-center justify-center",
+            "transition-all hover:scale-105 active:scale-95",
             isEntrada
-              ? 'bg-verde/15 text-verde'
-              : 'bg-vermelho/15 text-vermelho'
+              ? "bg-verde/15 text-verde"
+              : "bg-vermelho/15 text-vermelho"
           )}
-          title={isEntrada ? 'Entrada' : 'Saída'}
+          title={isEntrada ? "Entrada" : "Saída"}
         >
           {isEntrada ? (
             <TrendingUp className="w-4 h-4" />
@@ -110,33 +126,35 @@ const LancamentoItem = React.memo(function LancamentoItem({
         <input
           type="text"
           value={item.nome}
-          onChange={(e) => onUpdateLancamento(item.id, 'nome', e.target.value)}
+          onChange={(e) => onUpdateLancamento(item.id, "nome", e.target.value)}
           placeholder="Descrição"
           className={cn(
-            'flex-1 min-w-0 bg-transparent text-corpo',
-            'focus:outline-none placeholder:text-muted-foreground/40',
+            "flex-1 min-w-0 bg-transparent text-corpo",
+            "focus:outline-none placeholder:text-muted-foreground/40"
           )}
         />
 
         {/* Valor */}
-        <div className={cn(
-          'shrink-0 flex items-center',
-          isEntrada ? 'text-verde' : 'text-vermelho'
-        )}>
+        <div
+          className={cn(
+            "shrink-0 flex items-center",
+            isEntrada ? "text-verde" : "text-vermelho"
+          )}
+        >
           <span className="text-micro opacity-50 mr-0.5">R$</span>
           <input
             type="text"
             inputMode="decimal"
             value={valorFormatado}
             onChange={(e) => {
-              const raw = e.target.value.replace(/[^\d.,]/g, '')
-              onUpdateLancamento(item.id, 'valor', raw)
+              const raw = e.target.value.replace(/[^\d.,]/g, "");
+              onUpdateLancamento(item.id, "valor", raw);
             }}
             placeholder="0,00"
             className={cn(
-              'w-20 text-right bg-transparent text-corpo font-medium tabular-nums',
-              'focus:outline-none placeholder:text-current placeholder:opacity-30',
-              isEntrada ? 'text-verde' : 'text-vermelho',
+              "w-20 text-right bg-transparent text-corpo font-medium tabular-nums",
+              "focus:outline-none placeholder:text-current placeholder:opacity-30",
+              isEntrada ? "text-verde" : "text-vermelho"
             )}
           />
         </div>
@@ -146,13 +164,17 @@ const LancamentoItem = React.memo(function LancamentoItem({
           type="button"
           onClick={() => setShowOptions(!showOptions)}
           className={cn(
-            'shrink-0 p-1.5 rounded-lg transition-colors',
+            "shrink-0 p-1.5 rounded-lg transition-colors",
             showOptions
-              ? 'bg-accent text-foreground'
-              : 'text-muted-foreground/40 hover:text-muted-foreground'
+              ? "bg-accent text-foreground"
+              : "text-muted-foreground/40 hover:text-muted-foreground"
           )}
         >
-          {showOptions ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          {showOptions ? (
+            <ChevronUp className="w-4 h-4" />
+          ) : (
+            <ChevronDown className="w-4 h-4" />
+          )}
         </button>
 
         {/* Remover */}
@@ -160,8 +182,8 @@ const LancamentoItem = React.memo(function LancamentoItem({
           type="button"
           onClick={() => onRemoveLancamento(item.id)}
           className={cn(
-            'shrink-0 p-1.5 rounded-lg transition-colors',
-            'text-muted-foreground/30 hover:text-vermelho hover:bg-vermelho/10'
+            "shrink-0 p-1.5 rounded-lg transition-colors",
+            "text-muted-foreground/30 hover:text-vermelho hover:bg-vermelho/10"
           )}
         >
           <X className="w-4 h-4" />
@@ -173,7 +195,7 @@ const LancamentoItem = React.memo(function LancamentoItem({
         {showOptions && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
+            animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.12 }}
             className="overflow-hidden"
@@ -182,10 +204,12 @@ const LancamentoItem = React.memo(function LancamentoItem({
               {/* Mês */}
               <select
                 value={item.mes}
-                onChange={(e) => onUpdateLancamento(item.id, 'mes', e.target.value)}
+                onChange={(e) =>
+                  onUpdateLancamento(item.id, "mes", e.target.value)
+                }
                 className={cn(
-                  'bg-card border border-border rounded-lg px-2 py-1',
-                  'text-micro text-foreground cursor-pointer focus:outline-none',
+                  "bg-card border border-border rounded-lg px-2 py-1",
+                  "text-micro text-foreground cursor-pointer focus:outline-none"
                 )}
               >
                 {mesesDisponiveis.map((mes) => (
@@ -197,11 +221,13 @@ const LancamentoItem = React.memo(function LancamentoItem({
 
               {/* Categoria */}
               <select
-                value={item.categoriaId || ''}
-                onChange={(e) => onUpdateCategoria(item.id, e.target.value || null)}
+                value={item.categoriaId || ""}
+                onChange={(e) =>
+                  onUpdateCategoria(item.id, e.target.value || null)
+                }
                 className={cn(
-                  'bg-card border border-border rounded-lg px-2 py-1',
-                  'text-micro text-foreground cursor-pointer focus:outline-none',
+                  "bg-card border border-border rounded-lg px-2 py-1",
+                  "text-micro text-foreground cursor-pointer focus:outline-none"
                 )}
               >
                 <option value="">Sem categoria</option>
@@ -217,35 +243,38 @@ const LancamentoItem = React.memo(function LancamentoItem({
                 type="button"
                 onClick={() => {
                   if (temRecorrencia) {
-                    onUpdateRecorrencia(item.id, undefined)
+                    onUpdateRecorrencia(item.id, undefined);
                   } else {
-                    onUpdateRecorrencia(item.id, { tipo: 'mensal', quantidade: 12 })
+                    onUpdateRecorrencia(item.id, {
+                      tipo: "mensal",
+                      quantidade: 12,
+                    });
                   }
                 }}
                 className={cn(
-                  'inline-flex items-center gap-1 px-2 py-1 rounded-lg text-micro',
-                  'transition-colors',
+                  "inline-flex items-center gap-1 px-2 py-1 rounded-lg text-micro",
+                  "transition-colors",
                   temRecorrencia
-                    ? 'bg-rosa/15 text-rosa'
-                    : 'bg-card border border-border text-muted-foreground hover:text-foreground'
+                    ? "bg-rosa/15 text-rosa"
+                    : "bg-card border border-border text-muted-foreground hover:text-foreground"
                 )}
               >
                 <Repeat className="w-3 h-3" />
-                {temRecorrencia ? 'Mensal' : 'Repetir'}
+                {temRecorrencia ? "Mensal" : "Repetir"}
               </button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
     </motion.div>
-  )
-})
+  );
+});
 
 interface QuickInputSheetProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  mesAtual: string
-  onConfirm: (lancamentos: ParsedLancamento[]) => Promise<void>
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  mesAtual: string;
+  onConfirm: (lancamentos: ParsedLancamento[]) => Promise<void>;
 }
 
 export function QuickInputSheet({
@@ -254,149 +283,161 @@ export function QuickInputSheet({
   mesAtual,
   onConfirm,
 }: QuickInputSheetProps) {
-  const isDesktop = useIsDesktop()
+  const isDesktop = useIsDesktop();
 
   // Estado do input - texto local para feedback imediato
-  const [textoLocal, setTextoLocal] = useState('')
-  const [_texto, setTexto] = useState('')
-  const [lancamentos, setLancamentos] = useState<ParsedLancamento[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [isParsing, setIsParsing] = useState(false)
-  const [erro, setErro] = useState<string | null>(null)
+  const [textoLocal, setTextoLocal] = useState("");
+  const [_texto, setTexto] = useState("");
+  const [lancamentos, setLancamentos] = useState<ParsedLancamento[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
   // Debounce para atualização do texto (reduz re-renders)
   const debouncedSetTexto = useDebouncedCallback(
     (value: string) => setTexto(value),
     150
-  )
+  );
 
   // Handler otimizado para input
-  const handleTextoChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    setTextoLocal(value) // Atualiza imediatamente para feedback visual
-    debouncedSetTexto(value) // Propaga com debounce
-  }, [debouncedSetTexto])
+  const handleTextoChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      setTextoLocal(value); // Atualiza imediatamente para feedback visual
+      debouncedSetTexto(value); // Propaga com debounce
+    },
+    [debouncedSetTexto]
+  );
 
   // Estado do reconhecimento de voz
-  const [isListening, setIsListening] = useState(false)
-  const [speechSupported, setSpeechSupported] = useState(false)
-  const recognitionRef = useRef<SpeechRecognition | null>(null)
+  const [isListening, setIsListening] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   // Ref para o input
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Verifica suporte a Speech Recognition
   useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    setSpeechSupported(!!SpeechRecognition)
-  }, [])
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+    setSpeechSupported(!!SpeechRecognition);
+  }, []);
 
   // Foca no input quando abre
   useEffect(() => {
     if (open && inputRef.current) {
-      setTimeout(() => inputRef.current?.focus(), 100)
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [open])
+  }, [open]);
 
   // Limpa estado quando fecha
   useEffect(() => {
     if (!open) {
-      setTextoLocal('')
-      setTexto('')
-      setLancamentos([])
-      setErro(null)
+      setTextoLocal("");
+      setTexto("");
+      setLancamentos([]);
+      setErro(null);
       if (recognitionRef.current) {
-        recognitionRef.current.stop()
-        setIsListening(false)
+        recognitionRef.current.stop();
+        setIsListening(false);
       }
     }
-  }, [open])
+  }, [open]);
 
   /**
    * Inicia/para reconhecimento de voz
    */
   const toggleVoiceRecognition = useCallback(() => {
     if (!speechSupported) {
-      setErro('Navegador não suporta reconhecimento de voz')
-      return
+      setErro("Navegador não suporta reconhecimento de voz");
+      return;
     }
 
     if (isListening) {
-      recognitionRef.current?.stop()
-      setIsListening(false)
-      return
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
     }
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    const recognition = new SpeechRecognition()
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
 
-    recognition.lang = 'pt-BR'
-    recognition.continuous = true
-    recognition.interimResults = true
+    recognition.lang = "pt-BR";
+    recognition.continuous = true;
+    recognition.interimResults = true;
 
     recognition.onstart = () => {
-      setIsListening(true)
-      setErro(null)
-    }
+      setIsListening(true);
+      setErro(null);
+    };
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let finalTranscript = ''
+      let finalTranscript = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript
+        const transcript = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
-          finalTranscript += transcript
+          finalTranscript += transcript;
         }
       }
       if (finalTranscript) {
-        const newValue = textoLocal ? `${textoLocal} ${finalTranscript}` : finalTranscript
-        setTextoLocal(newValue)
-        setTexto(newValue)
+        const newValue = textoLocal
+          ? `${textoLocal} ${finalTranscript}`
+          : finalTranscript;
+        setTextoLocal(newValue);
+        setTexto(newValue);
       }
-    }
+    };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      setIsListening(false)
-      if (event.error !== 'no-speech' && event.error !== 'aborted') {
-        setErro('Erro no microfone. Tente novamente.')
+      setIsListening(false);
+      if (event.error !== "no-speech" && event.error !== "aborted") {
+        setErro("Erro no microfone. Tente novamente.");
       }
-    }
+    };
 
-    recognition.onend = () => setIsListening(false)
+    recognition.onend = () => setIsListening(false);
 
-    recognitionRef.current = recognition
+    recognitionRef.current = recognition;
     try {
-      recognition.start()
+      recognition.start();
     } catch {
-      setIsListening(false)
+      setIsListening(false);
     }
-  }, [speechSupported, isListening, textoLocal])
+  }, [speechSupported, isListening, textoLocal]);
 
   /**
    * Processa texto com IA
    */
   const handleProcess = useCallback(async () => {
-    const textoParaProcessar = textoLocal.trim()
-    if (!textoParaProcessar) return
+    const textoParaProcessar = textoLocal.trim();
+    if (!textoParaProcessar) return;
 
-    setIsParsing(true)
-    setErro(null)
+    setIsParsing(true);
+    setErro(null);
 
     try {
-      const mesGlobal = extrairMesGlobal(textoParaProcessar)
-      const mesParaUsar = mesGlobal?.mes || mesAtual
-      const result = await aiApi.parseLancamentos(textoParaProcessar, mesParaUsar)
+      const mesGlobal = extrairMesGlobal(textoParaProcessar);
+      const mesParaUsar = mesGlobal?.mes || mesAtual;
+      const result = await aiApi.parseLancamentos(
+        textoParaProcessar,
+        mesParaUsar
+      );
 
       if (result.erro) {
-        setErro(result.erro)
-        return
+        setErro(result.erro);
+        return;
       }
 
       if (result.lancamentos.length === 0) {
-        setErro('Não consegui entender. Tente algo como: "Netflix 55,90" ou "salário 5000"')
-        return
+        setErro(
+          'Não consegui entender. Tente algo como: "Netflix 55,90" ou "salário 5000"'
+        );
+        return;
       }
 
-      const timestamp = Date.now()
+      const timestamp = Date.now();
       const novos: ParsedLancamento[] = result.lancamentos.map((l, i) => ({
         id: `ia-${timestamp}-${i}`,
         tipo: l.tipo,
@@ -405,112 +446,126 @@ export function QuickInputSheet({
         mes: mesParaUsar,
         diaPrevisto: l.diaPrevisto,
         categoriaId: l.categoriaId,
-        status: 'completo' as const,
+        status: "completo" as const,
         camposFaltantes: [],
         groupId: `ia-${timestamp}-${i}`,
-      }))
+      }));
 
-      setLancamentos(prev => [...prev, ...novos])
-      setTextoLocal('')
-      setTexto('')
+      setLancamentos((prev) => [...prev, ...novos]);
+      setTextoLocal("");
+      setTexto("");
     } catch {
-      setErro('Erro ao processar. Tente novamente.')
+      setErro("Erro ao processar. Tente novamente.");
     } finally {
-      setIsParsing(false)
+      setIsParsing(false);
     }
-  }, [textoLocal, mesAtual])
+  }, [textoLocal, mesAtual]);
 
   // Handlers para atualizar lançamentos
   const handleUpdateLancamento = useCallback(
-    (id: string, campo: 'valor' | 'nome' | 'mes', valor: string) => {
-      setLancamentos(prev =>
-        prev.map(l => {
-          if (l.id !== id) return l
-          const updated = { ...l }
-          if (campo === 'valor') {
-            const num = parseFloat(valor.replace(/[^\d.,]/g, '').replace(',', '.'))
-            updated.valor = isNaN(num) ? null : num
-          } else if (campo === 'mes') {
-            updated.mes = valor
+    (id: string, campo: "valor" | "nome" | "mes", valor: string) => {
+      setLancamentos((prev) =>
+        prev.map((l) => {
+          if (l.id !== id) return l;
+          const updated = { ...l };
+          if (campo === "valor") {
+            const num = parseFloat(
+              valor.replace(/[^\d.,]/g, "").replace(",", ".")
+            );
+            updated.valor = isNaN(num) ? null : num;
+          } else if (campo === "mes") {
+            updated.mes = valor;
           } else {
-            updated.nome = valor
+            updated.nome = valor;
           }
-          return updated
+          return updated;
         })
-      )
+      );
     },
     []
-  )
+  );
 
   const handleToggleTipo = useCallback((id: string) => {
-    setLancamentos(prev =>
-      prev.map(l => l.id === id ? { ...l, tipo: l.tipo === 'entrada' ? 'saida' : 'entrada' } : l)
-    )
-  }, [])
+    setLancamentos((prev) =>
+      prev.map((l) =>
+        l.id === id
+          ? { ...l, tipo: l.tipo === "entrada" ? "saida" : "entrada" }
+          : l
+      )
+    );
+  }, []);
 
   const handleRemove = useCallback((id: string) => {
-    setLancamentos(prev => prev.filter(l => l.id !== id))
-  }, [])
+    setLancamentos((prev) => prev.filter((l) => l.id !== id));
+  }, []);
 
   const handleUpdateRecorrencia = useCallback(
-    (id: string, recorrencia: ParsedLancamento['recorrencia']) => {
-      setLancamentos(prev => prev.map(l => l.id === id ? { ...l, recorrencia } : l))
+    (id: string, recorrencia: ParsedLancamento["recorrencia"]) => {
+      setLancamentos((prev) =>
+        prev.map((l) => (l.id === id ? { ...l, recorrencia } : l))
+      );
     },
     []
-  )
+  );
 
   const handleUpdateCategoria = useCallback(
     (id: string, categoriaId: string | null) => {
-      setLancamentos(prev => prev.map(l => l.id === id ? { ...l, categoriaId } : l))
+      setLancamentos((prev) =>
+        prev.map((l) => (l.id === id ? { ...l, categoriaId } : l))
+      );
     },
     []
-  )
+  );
 
   const handleClearAll = useCallback(() => {
-    setLancamentos([])
-    setErro(null)
-  }, [])
+    setLancamentos([]);
+    setErro(null);
+  }, []);
 
   /**
    * Confirma lançamentos
    */
   const handleConfirm = async () => {
-    if (lancamentos.length === 0) return
+    if (lancamentos.length === 0) return;
 
-    const incompletos = lancamentos.filter(l => !l.nome || !l.valor)
+    const incompletos = lancamentos.filter((l) => !l.nome || !l.valor);
     if (incompletos.length > 0) {
-      setErro('Preencha nome e valor de todos os itens')
-      return
+      setErro("Preencha nome e valor de todos os itens");
+      return;
     }
 
-    setIsLoading(true)
-    setErro(null)
+    setIsLoading(true);
+    setErro(null);
 
     try {
-      await onConfirm(lancamentos)
-      onOpenChange(false)
+      await onConfirm(lancamentos);
+      onOpenChange(false);
     } catch (e) {
-      setErro(e instanceof Error ? e.message : 'Erro ao salvar')
+      setErro(e instanceof Error ? e.message : "Erro ao salvar");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   // Lista de meses disponíveis
-  const mesesDisponiveis = useMemo(() => gerarListaMeses(), [])
+  const mesesDisponiveis = useMemo(() => gerarListaMeses(), []);
 
   // Totais
   const totais = useMemo(() => {
-    const entradas = lancamentos.filter(l => l.tipo === 'entrada' && l.valor).reduce((s, l) => s + (l.valor || 0), 0)
-    const saidas = lancamentos.filter(l => l.tipo === 'saida' && l.valor).reduce((s, l) => s + (l.valor || 0), 0)
-    return { entradas, saidas }
-  }, [lancamentos])
+    const entradas = lancamentos
+      .filter((l) => l.tipo === "entrada" && l.valor)
+      .reduce((s, l) => s + (l.valor || 0), 0);
+    const saidas = lancamentos
+      .filter((l) => l.tipo === "saida" && l.valor)
+      .reduce((s, l) => s + (l.valor || 0), 0);
+    return { entradas, saidas };
+  }, [lancamentos]);
 
-  const podeConfirmar = lancamentos.length > 0 && !isLoading
+  const podeConfirmar = lancamentos.length > 0 && !isLoading;
 
   // Conteúdo do drawer
   const content = (
-    <div className={cn('flex flex-col h-full', isDesktop ? 'p-6' : 'p-4')}>
+    <div className={cn("flex flex-col h-full", isDesktop ? "p-6" : "p-4")}>
       {/* Header minimalista */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -534,15 +589,17 @@ export function QuickInputSheet({
 
       {/* Input principal - clean e moderno */}
       <div className="relative mb-4">
-        <div className={cn(
-          'flex items-center gap-3 rounded-2xl border-2 bg-card p-4',
-          'transition-all duration-200',
-          isListening
-            ? 'border-rosa bg-rosa/5 shadow-lg shadow-rosa/10'
-            : isParsing
-              ? 'border-rosa/50'
-              : 'border-border focus-within:border-rosa focus-within:shadow-lg focus-within:shadow-rosa/10'
-        )}>
+        <div
+          className={cn(
+            "flex items-center gap-3 rounded-2xl border-2 bg-card p-4",
+            "transition-all duration-200",
+            isListening
+              ? "border-rosa bg-rosa/5 shadow-lg shadow-rosa/10"
+              : isParsing
+              ? "border-rosa/50"
+              : "border-border focus-within:border-rosa focus-within:shadow-lg focus-within:shadow-rosa/10"
+          )}
+        >
           {/* Input */}
           <input
             ref={inputRef}
@@ -550,17 +607,19 @@ export function QuickInputSheet({
             value={textoLocal}
             onChange={handleTextoChange}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                handleProcess()
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleProcess();
               }
             }}
-            placeholder={isListening ? 'Ouvindo...' : 'Netflix 55,90, salário 5000...'}
+            placeholder={
+              isListening ? "Ouvindo..." : "Netflix 55,90, salário 5000..."
+            }
             disabled={isParsing}
             className={cn(
-              'flex-1 bg-transparent text-corpo text-foreground',
-              'placeholder:text-muted-foreground/50',
-              'focus:outline-none',
+              "flex-1 bg-transparent text-corpo text-foreground",
+              "placeholder:text-muted-foreground/50",
+              "focus:outline-none"
             )}
           />
 
@@ -573,13 +632,17 @@ export function QuickInputSheet({
                 onClick={toggleVoiceRecognition}
                 disabled={isParsing}
                 className={cn(
-                  'p-2.5 rounded-xl transition-all',
+                  "p-2.5 rounded-xl transition-all",
                   isListening
-                    ? 'bg-rosa text-white animate-pulse'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                    ? "bg-rosa text-white animate-pulse"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent"
                 )}
               >
-                {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                {isListening ? (
+                  <MicOff className="w-5 h-5" />
+                ) : (
+                  <Mic className="w-5 h-5" />
+                )}
               </button>
             )}
 
@@ -589,10 +652,10 @@ export function QuickInputSheet({
               onClick={handleProcess}
               disabled={!textoLocal.trim() || isParsing}
               className={cn(
-                'p-2.5 rounded-xl transition-all',
+                "p-2.5 rounded-xl transition-all",
                 textoLocal.trim() && !isParsing
-                  ? 'bg-rosa text-white hover:bg-rosa/90 shadow-md shadow-rosa/20 active:scale-95'
-                  : 'bg-muted text-muted-foreground cursor-not-allowed'
+                  ? "bg-rosa text-white hover:bg-rosa/90 shadow-md shadow-rosa/20 active:scale-95"
+                  : "bg-muted text-muted-foreground cursor-not-allowed"
               )}
             >
               {isParsing ? (
@@ -617,7 +680,7 @@ export function QuickInputSheet({
         {isParsing && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
+            animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             className="mb-4"
           >
@@ -626,8 +689,12 @@ export function QuickInputSheet({
                 <Sparkles className="w-5 h-5 text-rosa animate-pulse" />
               </div>
               <div>
-                <p className="text-corpo font-medium text-foreground">Analisando...</p>
-                <p className="text-micro text-muted-foreground">A IA está identificando seus lançamentos</p>
+                <p className="text-corpo font-medium text-foreground">
+                  Analisando...
+                </p>
+                <p className="text-micro text-muted-foreground">
+                  A IA está identificando seus lançamentos
+                </p>
               </div>
             </div>
           </motion.div>
@@ -649,20 +716,30 @@ export function QuickInputSheet({
       </AnimatePresence>
 
       {/* Lista de lançamentos */}
-      <div className={cn('flex-1 overflow-y-auto -mx-4 px-4', isDesktop && '-mx-6 px-6')}>
+      <div
+        className={cn(
+          "flex-1 overflow-y-auto -mx-4 px-4",
+          isDesktop && "-mx-6 px-6"
+        )}
+      >
         {lancamentos.length > 0 && (
           <>
             {/* Header da lista */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3 text-micro">
                 <span className="text-muted-foreground font-medium">
-                  {lancamentos.length} {lancamentos.length === 1 ? 'item' : 'itens'}
+                  {lancamentos.length}{" "}
+                  {lancamentos.length === 1 ? "item" : "itens"}
                 </span>
                 {totais.entradas > 0 && (
-                  <span className="text-verde">+{formatarValor(totais.entradas)}</span>
+                  <span className="text-verde">
+                    +{formatarValor(totais.entradas)}
+                  </span>
                 )}
                 {totais.saidas > 0 && (
-                  <span className="text-vermelho">-{formatarValor(totais.saidas)}</span>
+                  <span className="text-vermelho">
+                    -{formatarValor(totais.saidas)}
+                  </span>
                 )}
               </div>
               <button
@@ -697,7 +774,12 @@ export function QuickInputSheet({
       </div>
 
       {/* Footer com ações */}
-      <div className={cn('flex gap-3 pt-4 mt-auto border-t border-border', !isDesktop && 'pb-safe')}>
+      <div
+        className={cn(
+          "flex gap-3 pt-4 mt-auto border-t border-border",
+          !isDesktop && "pb-safe"
+        )}
+      >
         <Button
           variant="secondary"
           className="flex-1"
@@ -726,25 +808,25 @@ export function QuickInputSheet({
         </Button>
       </div>
     </div>
-  )
+  );
 
   return (
     <DrawerPrimitive.Root
       open={open}
       onOpenChange={onOpenChange}
-      direction={isDesktop ? 'right' : 'bottom'}
+      direction={isDesktop ? "right" : "bottom"}
       shouldScaleBackground={!isDesktop}
     >
       <DrawerPrimitive.Portal>
         <DrawerPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50" />
         <DrawerPrimitive.Content
           className={cn(
-            'fixed z-50 flex flex-col bg-card',
+            "fixed z-50 flex flex-col bg-card",
             isDesktop
-              ? 'inset-y-0 right-0 h-full w-full max-w-md border-l border-border rounded-l-2xl shadow-xl'
-              : 'inset-x-0 bottom-0 rounded-t-2xl border-t border-border shadow-xl'
+              ? "inset-y-0 right-0 h-full w-full max-w-md border-l border-border rounded-l-2xl shadow-xl"
+              : "inset-x-0 bottom-0 rounded-t-2xl border-t border-border shadow-xl"
           )}
-          style={!isDesktop ? { maxHeight: '85vh' } : undefined}
+          style={!isDesktop ? { maxHeight: "85vh" } : undefined}
         >
           {!isDesktop && (
             <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-muted" />
@@ -753,5 +835,5 @@ export function QuickInputSheet({
         </DrawerPrimitive.Content>
       </DrawerPrimitive.Portal>
     </DrawerPrimitive.Root>
-  )
+  );
 }

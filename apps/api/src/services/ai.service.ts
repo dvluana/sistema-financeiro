@@ -5,179 +5,428 @@
  * de lançamentos financeiros a partir de texto livre.
  */
 
-import { GoogleGenAI } from '@google/genai'
+import { GoogleGenAI } from "@google/genai";
 
 interface ParsedLancamento {
-  tipo: 'entrada' | 'saida'
-  nome: string
-  valor: number
-  diaPrevisto: number | null
-  categoriaId: string | null // ID da categoria padrão
+  tipo: "entrada" | "saida";
+  nome: string;
+  valor: number;
+  diaPrevisto: number | null;
+  categoriaId: string | null; // ID da categoria padrão
 }
 
 interface ParseResult {
-  lancamentos: ParsedLancamento[]
-  erro?: string
+  lancamentos: ParsedLancamento[];
+  erro?: string;
 }
 
 // Limite máximo de lançamentos por requisição (segurança)
-const MAX_LANCAMENTOS_POR_REQUEST = 20
+const MAX_LANCAMENTOS_POR_REQUEST = 20;
 
 // IDs das categorias padrão do sistema
 const CATEGORIAS = {
   // Entradas
-  SALARIO: 'default-salario',
-  INVESTIMENTOS: 'default-investimentos',
-  OUTROS_ENTRADA: 'default-outros-entrada',
+  SALARIO: "default-salario",
+  INVESTIMENTOS: "default-investimentos",
+  OUTROS_ENTRADA: "default-outros-entrada",
   // Saídas
-  MORADIA: 'default-moradia',
-  ALIMENTACAO: 'default-alimentacao',
-  TRANSPORTE: 'default-transporte',
-  SAUDE: 'default-saude',
-  LAZER: 'default-lazer',
-  CARTAO: 'default-cartao',
-  OUTROS_SAIDA: 'default-outros-saida',
-}
+  MORADIA: "default-moradia",
+  ALIMENTACAO: "default-alimentacao",
+  TRANSPORTE: "default-transporte",
+  SAUDE: "default-saude",
+  LAZER: "default-lazer",
+  CARTAO: "default-cartao",
+  OUTROS_SAIDA: "default-outros-saida",
+};
 
 // Lista de todas as categorias válidas para validação
-const CATEGORIAS_VALIDAS = Object.values(CATEGORIAS)
+const CATEGORIAS_VALIDAS = Object.values(CATEGORIAS);
 
 // Keywords para categorização automática (fallback)
 const KEYWORDS_CATEGORIAS: Record<string, string[]> = {
   // Entradas
   [CATEGORIAS.SALARIO]: [
-    'salário', 'salario', 'sal', 'holerite', 'clt', '13º', 'décimo terceiro',
-    'décimo', 'ferias', 'férias', 'pagamento trabalho', 'folha'
+    "salário",
+    "salario",
+    "sal",
+    "holerite",
+    "clt",
+    "13º",
+    "décimo terceiro",
+    "décimo",
+    "ferias",
+    "férias",
+    "pagamento trabalho",
+    "folha",
   ],
   [CATEGORIAS.INVESTIMENTOS]: [
-    'dividendo', 'dividendos', 'rendimento', 'rendimentos', 'juros', 'juro',
-    'resgate', 'ações', 'acoes', 'fii', 'fiis', 'cdb', 'poupança', 'poupanca',
-    'tesouro', 'lci', 'lca', 'debenture', 'investimento'
+    "dividendo",
+    "dividendos",
+    "rendimento",
+    "rendimentos",
+    "juros",
+    "juro",
+    "resgate",
+    "ações",
+    "acoes",
+    "fii",
+    "fiis",
+    "cdb",
+    "poupança",
+    "poupanca",
+    "tesouro",
+    "lci",
+    "lca",
+    "debenture",
+    "investimento",
   ],
   // Saídas
   [CATEGORIAS.MORADIA]: [
-    'aluguel', 'condomínio', 'condominio', 'iptu', 'luz', 'energia', 'elétrica',
-    'água', 'agua', 'gás', 'gas', 'internet', 'wifi', 'manutenção casa',
-    'conserto casa', 'móveis', 'moveis', 'eletrodoméstico', 'eletrodomestico',
-    'geladeira', 'fogão', 'microondas', 'máquina lavar', 'tv', 'televisão'
+    "aluguel",
+    "condomínio",
+    "condominio",
+    "iptu",
+    "luz",
+    "energia",
+    "elétrica",
+    "água",
+    "agua",
+    "gás",
+    "gas",
+    "internet",
+    "wifi",
+    "manutenção casa",
+    "conserto casa",
+    "móveis",
+    "moveis",
+    "eletrodoméstico",
+    "eletrodomestico",
+    "geladeira",
+    "fogão",
+    "microondas",
+    "máquina lavar",
+    "tv",
+    "televisão",
   ],
   [CATEGORIAS.ALIMENTACAO]: [
-    'mercado', 'supermercado', 'feira', 'açougue', 'acougue', 'padaria',
-    'restaurante', 'ifood', 'rappi', 'delivery', 'lanche', 'café', 'cafe',
-    'almoço', 'almoco', 'jantar', 'comida', 'pizza', 'hamburguer', 'sushi',
-    'mcdonald', 'burger', 'subway', 'starbucks', 'hortifruti'
+    "mercado",
+    "supermercado",
+    "feira",
+    "açougue",
+    "acougue",
+    "padaria",
+    "restaurante",
+    "ifood",
+    "rappi",
+    "delivery",
+    "lanche",
+    "café",
+    "cafe",
+    "almoço",
+    "almoco",
+    "jantar",
+    "comida",
+    "pizza",
+    "hamburguer",
+    "sushi",
+    "mcdonald",
+    "burger",
+    "subway",
+    "starbucks",
+    "hortifruti",
   ],
   [CATEGORIAS.TRANSPORTE]: [
-    'combustível', 'combustivel', 'gasolina', 'álcool', 'alcool', 'etanol',
-    'uber', '99', 'táxi', 'taxi', 'ônibus', 'onibus', 'metrô', 'metro',
-    'estacionamento', 'pedágio', 'pedagio', 'ipva', 'seguro auto', 'seguro carro',
-    'manutenção carro', 'oficina', 'mecânico', 'mecanico', 'parcela carro',
-    'parcela moto', 'moto', 'sem parar', 'conectcar', 'veloe'
+    // Combustível PRIMEIRO (mais específico)
+    "combustível",
+    "combustivel",
+    "gasolina",
+    "álcool",
+    "alcool",
+    "etanol",
+    "uber",
+    "99",
+    "táxi",
+    "taxi",
+    "ônibus",
+    "onibus",
+    "metrô",
+    "metro",
+    "estacionamento",
+    "pedágio",
+    "pedagio",
+    "ipva",
+    "seguro auto",
+    "seguro carro",
+    "manutenção carro",
+    "oficina",
+    "mecânico",
+    "mecanico",
+    "parcela carro",
+    "parcela moto",
+    "moto",
+    "sem parar",
+    "conectcar",
+    "veloe",
   ],
   [CATEGORIAS.SAUDE]: [
-    'farmácia', 'farmacia', 'remédio', 'remedio', 'medicamento', 'médico',
-    'medico', 'consulta', 'exame', 'plano de saúde', 'plano saude', 'unimed',
-    'bradesco saúde', 'sulamerica', 'dentista', 'odonto', 'psicólogo',
-    'psicologo', 'academia', 'smartfit', 'suplemento', 'whey', 'vitamina',
-    'hospital', 'clínica', 'clinica', 'fisioterapia', 'drogaria', 'droga raia',
-    'drogasil', 'pague menos'
+    "farmácia",
+    "farmacia",
+    "remédio",
+    "remedio",
+    "medicamento",
+    "médico",
+    "medico",
+    "consulta",
+    "exame",
+    "plano de saúde",
+    "plano saude",
+    "unimed",
+    "bradesco saúde",
+    "sulamerica",
+    "dentista",
+    "odonto",
+    "psicólogo",
+    "psicologo",
+    "academia",
+    "smartfit",
+    "suplemento",
+    "whey",
+    "vitamina",
+    "hospital",
+    "clínica",
+    "clinica",
+    "fisioterapia",
+    "drogaria",
+    "droga raia",
+    "drogasil",
+    "pague menos",
   ],
   [CATEGORIAS.LAZER]: [
-    'netflix', 'spotify', 'disney', 'hbo', 'amazon prime', 'prime video',
-    'youtube premium', 'twitch', 'deezer', 'apple music', 'xbox', 'playstation',
-    'steam', 'jogos', 'game', 'cinema', 'teatro', 'show', 'viagem', 'hotel',
-    'airbnb', 'bar', 'festa', 'hobby', 'streaming', 'globoplay', 'paramount',
-    'crunchyroll', 'max', 'apple tv'
+    "netflix",
+    "spotify",
+    "disney",
+    "hbo",
+    "amazon prime",
+    "prime video",
+    "youtube premium",
+    "twitch",
+    "deezer",
+    "apple music",
+    "xbox",
+    "playstation",
+    "steam",
+    "jogos",
+    "game",
+    "cinema",
+    "teatro",
+    "show",
+    "viagem",
+    "hotel",
+    "airbnb",
+    "bar",
+    "festa",
+    "hobby",
+    "streaming",
+    "globoplay",
+    "paramount",
+    "crunchyroll",
+    "max",
+    "apple tv",
   ],
   [CATEGORIAS.CARTAO]: [
     // Bancos e fintechs (cartões)
-    'nubank', 'nu bank', 'roxinho', 'cartão nubank', 'fatura nubank',
-    'c6', 'c6 bank', 'cartão c6', 'fatura c6',
-    'inter', 'banco inter', 'cartão inter', 'fatura inter',
-    'itaú', 'itau', 'cartão itaú', 'fatura itaú', 'cartao itau', 'fatura itau',
-    'bradesco', 'cartão bradesco', 'fatura bradesco',
-    'santander', 'cartão santander', 'fatura santander',
-    'bb', 'banco do brasil', 'cartão bb', 'fatura bb',
-    'caixa', 'cartão caixa', 'fatura caixa',
-    'original', 'banco original', 'cartão original',
-    'next', 'cartão next', 'fatura next',
-    'picpay', 'pic pay', 'cartão picpay',
-    'mercado pago', 'cartão mercado pago',
-    'will bank', 'willbank', 'will',
-    'neon', 'cartão neon', 'fatura neon',
-    'pagbank', 'pagseguro', 'cartão pagbank',
-    'btg', 'btg pactual', 'cartão btg',
-    'xp', 'cartão xp',
-    'modal', 'banco modal',
-    'sofisa', 'banco sofisa',
-    'pan', 'banco pan', 'cartão pan',
-    'bv', 'banco bv', 'cartão bv',
-    'digio', 'cartão digio',
-    'credicard', 'cartão credicard',
-    'ourocard', 'cartão ourocard',
-    'elo', 'cartão elo',
-    'mastercard', 'master card', 'master',
-    'visa',
-    'amex', 'american express',
-    'hipercard', 'hiper',
+    "nubank",
+    "nu bank",
+    "roxinho",
+    "cartão nubank",
+    "fatura nubank",
+    "c6",
+    "c6 bank",
+    "cartão c6",
+    "fatura c6",
+    "inter",
+    "banco inter",
+    "cartão inter",
+    "fatura inter",
+    "itaú",
+    "itau",
+    "cartão itaú",
+    "fatura itaú",
+    "cartao itau",
+    "fatura itau",
+    "bradesco",
+    "cartão bradesco",
+    "fatura bradesco",
+    "santander",
+    "cartão santander",
+    "fatura santander",
+    "bb",
+    "banco do brasil",
+    "cartão bb",
+    "fatura bb",
+    "caixa",
+    "cartão caixa",
+    "fatura caixa",
+    "original",
+    "banco original",
+    "cartão original",
+    "next",
+    "cartão next",
+    "fatura next",
+    "picpay",
+    "pic pay",
+    "cartão picpay",
+    "mercado pago",
+    "cartão mercado pago",
+    "will bank",
+    "willbank",
+    "will",
+    "neon",
+    "cartão neon",
+    "fatura neon",
+    "pagbank",
+    "pagseguro",
+    "cartão pagbank",
+    "btg",
+    "btg pactual",
+    "cartão btg",
+    "xp",
+    "cartão xp",
+    "modal",
+    "banco modal",
+    "sofisa",
+    "banco sofisa",
+    "pan",
+    "banco pan",
+    "cartão pan",
+    "bv",
+    "banco bv",
+    "cartão bv",
+    "digio",
+    "cartão digio",
+    "credicard",
+    "cartão credicard",
+    "ourocard",
+    "cartão ourocard",
+    "elo",
+    "cartão elo",
+    "mastercard",
+    "master card",
+    "master",
+    "visa",
+    "amex",
+    "american express",
+    "hipercard",
+    "hiper",
     // Termos genéricos de cartão
-    'cartão de crédito', 'cartao de credito', 'cartão crédito', 'cartao credito',
-    'fatura cartão', 'fatura cartao', 'fatura do cartão', 'fatura do cartao',
-    'cartão', 'cartao', 'fatura', 'parcela cartão', 'parcela cartao',
-    'anuidade', 'anuidade cartão',
+    "cartão de crédito",
+    "cartao de credito",
+    "cartão crédito",
+    "cartao credito",
+    "fatura cartão",
+    "fatura cartao",
+    "fatura do cartão",
+    "fatura do cartao",
+    "cartão",
+    "cartao",
+    "fatura",
+    "parcela cartão",
+    "parcela cartao",
+    "anuidade",
+    "anuidade cartão",
   ],
+};
+
+/**
+ * Normaliza texto removendo acentos para comparação robusta
+ */
+function normalizarParaComparacao(texto: string): string {
+  return texto
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
 }
 
 /**
  * Categoriza um lançamento baseado em keywords
  * Usado como fallback quando IA não categoriza ou para validação
+ * Ordem importa: categorias mais específicas primeiro
  */
-function categorizarPorKeywords(nome: string, tipo: 'entrada' | 'saida'): string {
-  const nomeL = nome.toLowerCase()
+function categorizarPorKeywords(
+  nome: string,
+  tipo: "entrada" | "saida"
+): string {
+  const nomeL = normalizarParaComparacao(nome);
 
-  // Busca em todas as categorias
-  for (const [categoriaId, keywords] of Object.entries(KEYWORDS_CATEGORIAS)) {
-    // Verifica se a categoria é compatível com o tipo
-    const isEntrada = tipo === 'entrada'
-    const isCategoriaEntrada = categoriaId.includes('salario') ||
-                               categoriaId.includes('investimentos') ||
-                               categoriaId.includes('outros-entrada')
+  // Ordem específica para saídas: transporte antes de moradia (gasolina → transporte, não moradia)
+  const ordemCategoriasSaida = [
+    CATEGORIAS.TRANSPORTE, // Gasolina, combustível
+    CATEGORIAS.ALIMENTACAO,
+    CATEGORIAS.SAUDE,
+    CATEGORIAS.LAZER,
+    CATEGORIAS.CARTAO,
+    CATEGORIAS.MORADIA, // Por último (mais genérica)
+  ];
 
-    // Pula categorias incompatíveis com o tipo
-    if (isEntrada !== isCategoriaEntrada) continue
+  if (tipo === "saida") {
+    // Verifica categorias específicas primeiro
+    for (const categoriaId of ordemCategoriasSaida) {
+      const keywords = KEYWORDS_CATEGORIAS[categoriaId];
+      for (const keyword of keywords) {
+        // Normaliza a keyword também para comparação robusta
+        if (nomeL.includes(normalizarParaComparacao(keyword))) {
+          return categoriaId;
+        }
+      }
+    }
+  } else {
+    // Para entradas, verifica na ordem normal
+    for (const [categoriaId, keywords] of Object.entries(KEYWORDS_CATEGORIAS)) {
+      const isCategoriaEntrada =
+        categoriaId.includes("salario") ||
+        categoriaId.includes("investimentos") ||
+        categoriaId.includes("outros-entrada");
+      if (!isCategoriaEntrada) continue;
 
-    // Verifica se alguma keyword está presente no nome
-    for (const keyword of keywords) {
-      if (nomeL.includes(keyword)) {
-        return categoriaId
+      for (const keyword of keywords) {
+        // Normaliza a keyword também para comparação robusta
+        if (nomeL.includes(normalizarParaComparacao(keyword))) {
+          return categoriaId;
+        }
       }
     }
   }
 
   // Fallback: categoria "Outros" do tipo correspondente
-  return tipo === 'entrada' ? CATEGORIAS.OUTROS_ENTRADA : CATEGORIAS.OUTROS_SAIDA
+  return tipo === "entrada"
+    ? CATEGORIAS.OUTROS_ENTRADA
+    : CATEGORIAS.OUTROS_SAIDA;
 }
 
 /**
  * Valida se uma categoriaId é válida e compatível com o tipo
  */
-function validarCategoria(categoriaId: string | null | undefined, tipo: 'entrada' | 'saida'): string | null {
+function validarCategoria(
+  categoriaId: string | null | undefined,
+  tipo: "entrada" | "saida"
+): string | null {
   // Se não tem categoria, retorna null (será categorizado depois)
-  if (!categoriaId) return null
+  if (!categoriaId) return null;
 
   // Verifica se é uma categoria válida
-  if (!CATEGORIAS_VALIDAS.includes(categoriaId)) return null
+  if (!CATEGORIAS_VALIDAS.includes(categoriaId)) return null;
 
   // Verifica compatibilidade de tipo
-  const isEntrada = tipo === 'entrada'
-  const isCategoriaEntrada = categoriaId.includes('salario') ||
-                             categoriaId.includes('investimentos') ||
-                             categoriaId.includes('outros-entrada')
+  const isEntrada = tipo === "entrada";
+  const isCategoriaEntrada =
+    categoriaId.includes("salario") ||
+    categoriaId.includes("investimentos") ||
+    categoriaId.includes("outros-entrada");
 
   // Se tipo não bate, retorna null
-  if (isEntrada !== isCategoriaEntrada) return null
+  if (isEntrada !== isCategoriaEntrada) return null;
 
-  return categoriaId
+  return categoriaId;
 }
 
 /**
@@ -185,99 +434,85 @@ function validarCategoria(categoriaId: string | null | undefined, tipo: 'entrada
  * Usado para priorizar a categoria de cartão
  */
 function isCartaoCredito(texto: string): boolean {
-  const textoL = texto.toLowerCase()
-  const keywordsCartao = KEYWORDS_CATEGORIAS[CATEGORIAS.CARTAO]
-  return keywordsCartao.some(keyword => textoL.includes(keyword))
+  const textoL = normalizarParaComparacao(texto);
+  const keywordsCartao = KEYWORDS_CATEGORIAS[CATEGORIAS.CARTAO];
+  return keywordsCartao.some((keyword) => textoL.includes(normalizarParaComparacao(keyword)));
 }
 
-const SYSTEM_PROMPT = `Você é um assistente de finanças pessoais especializado em classificar transações financeiras.
+const SYSTEM_PROMPT = `Você é um assistente de finanças pessoais. Extraia lançamentos financeiros do texto.
 
-## SUA TAREFA
-Extrair lançamentos financeiros do texto do usuário, identificando:
-1. **tipo**: "entrada" (dinheiro ENTRANDO) ou "saida" (dinheiro SAINDO)
-2. **nome**: descrição clara do que é o lançamento
-3. **valor**: valor numérico
-4. **diaPrevisto**: dia do mês se mencionado (1-31 ou null)
-5. **categoriaId**: categoria do lançamento (use EXATAMENTE um dos IDs abaixo)
+## EXEMPLOS CRÍTICOS (MEMORIZE!)
 
-## FORMATO DE TABELA (IMPORTANTE)
-O texto pode vir em formato de tabela com colunas separadas por TAB ou espaços:
-- NOME [TAB/espaços] DIA [TAB/espaços] VALOR
-- Exemplo: "Salário  06  R$ 3.817,55" = nome "Salário", dia 6, valor 3817.55
-- Cada LINHA completa é UM único lançamento
-- NÃO separe as colunas em lançamentos diferentes
-- NUNCA use números isolados como nome (06, 3817.55 NÃO são nomes válidos)
+INPUT: "salário 5000"
+OUTPUT: {"lancamentos":[{"tipo":"entrada","nome":"Salário","valor":5000,"diaPrevisto":null,"categoriaId":"default-salario"}]}
 
-## CATEGORIAS DISPONÍVEIS
+INPUT: "freela 5k"
+OUTPUT: {"lancamentos":[{"tipo":"entrada","nome":"Freelance","valor":5000,"diaPrevisto":null,"categoriaId":"default-outros-entrada"}]}
 
-### Para ENTRADAS (tipo="entrada"):
-- "default-salario" → Salário, CLT, holerite, pagamento de trabalho fixo, 13º, férias
-- "default-investimentos" → Dividendos, rendimentos, juros, resgate de investimento, ações, FIIs, CDB, poupança
-- "default-outros-entrada" → Freelance, bico, venda, reembolso, presente, prêmio, rifa, cashback, qualquer outra entrada
+INPUT: "dividendos 150"
+OUTPUT: {"lancamentos":[{"tipo":"entrada","nome":"Dividendos","valor":150,"diaPrevisto":null,"categoriaId":"default-investimentos"}]}
 
-### Para SAÍDAS (tipo="saida"):
-- "default-moradia" → Aluguel, condomínio, IPTU, luz, água, gás, internet, manutenção casa, móveis, eletrodomésticos
-- "default-alimentacao" → Mercado, supermercado, feira, açougue, padaria, restaurante, iFood, delivery, lanche, café
-- "default-transporte" → Combustível, gasolina, álcool, Uber, 99, táxi, ônibus, metrô, estacionamento, pedágio, manutenção carro, IPVA, seguro auto, parcela carro/moto
-- "default-saude" → Farmácia, remédio, médico, consulta, exame, plano de saúde, dentista, psicólogo, academia, suplemento
-- "default-lazer" → Netflix, Spotify, Disney+, HBO, Amazon Prime, jogos, cinema, teatro, viagem, hotel, bar, festa, hobby, streaming
-- "default-cartao" → QUALQUER menção a banco, cartão ou fatura: Nubank, C6, Inter, Itaú, Bradesco, Santander, fatura, cartão de crédito, anuidade
-- "default-outros-saida" → Roupas, calçados, eletrônicos, celular, presentes, educação, cursos, escola, faculdade, qualquer outra saída que NÃO seja cartão
+INPUT: "gastei 50 em pizza"
+OUTPUT: {"lancamentos":[{"tipo":"saida","nome":"Pizza","valor":50,"diaPrevisto":null,"categoriaId":"default-alimentacao"}]}
 
-## REGRA DE CATEGORIZAÇÃO
-- SEMPRE escolha a categoria mais específica possível
-- **IMPORTANTE**: Se mencionar nome de banco (Nubank, C6, Inter, Itaú, etc.) ou "cartão", "fatura" → use "default-cartao"
-- Se não souber, use "default-outros-entrada" ou "default-outros-saida"
-- Parcelas sem contexto → "default-outros-saida"
+INPUT: "recebi 500 do cliente"
+OUTPUT: {"lancamentos":[{"tipo":"entrada","nome":"Cliente","valor":500,"diaPrevisto":null,"categoriaId":"default-outros-entrada"}]}
 
-## REGRA FUNDAMENTAL DE TIPO
+INPUT: "paguei a fatura do nubank de 3000 reais e também gastei 50 no ifood"
+OUTPUT: {"lancamentos":[{"tipo":"saida","nome":"Fatura Nubank","valor":3000,"diaPrevisto":null,"categoriaId":"default-cartao"},{"tipo":"saida","nome":"iFood","valor":50,"diaPrevisto":null,"categoriaId":"default-alimentacao"}]}
 
-### ENTRADA = Dinheiro ENTRANDO no bolso
-- Verbos: ganhei, recebi, vendi, lucrei, faturei, entrou
-- Contextos: salário, freelance, venda, comissão, bônus, dividendos
+INPUT: "netflix 55, mercado 500, uber 45"
+OUTPUT: {"lancamentos":[{"tipo":"saida","nome":"Netflix","valor":55,"diaPrevisto":null,"categoriaId":"default-lazer"},{"tipo":"saida","nome":"Mercado","valor":500,"diaPrevisto":null,"categoriaId":"default-alimentacao"},{"tipo":"saida","nome":"Uber","valor":45,"diaPrevisto":null,"categoriaId":"default-transporte"}]}
 
-### SAÍDA = Dinheiro SAINDO do bolso
-- Verbos: paguei, gastei, comprei, perdi
-- Contextos: contas, parcelas, compras, assinaturas, aluguel
+INPUT: "gasolina 200"
+OUTPUT: {"lancamentos":[{"tipo":"saida","nome":"Gasolina","valor":200,"diaPrevisto":null,"categoriaId":"default-transporte"}]}
 
-## VALORES
-- Valores podem vir em formato brasileiro: R$ 3.817,55 (ponto = milhar, vírgula = decimal)
-- Abreviados: "5k" = 5000, "1.5k" = 1500, "mil" = 1000
-- Retorne o valor como número decimal (ex: 3817.55)
+INPUT: "fatura c6 2500"
+OUTPUT: {"lancamentos":[{"tipo":"saida","nome":"Fatura C6","valor":2500,"diaPrevisto":null,"categoriaId":"default-cartao"}]}
 
-## NOME DO LANÇAMENTO
-- Extraia O QUE é, não a ação: "gastei 50 em pizza" → nome: "Pizza"
+INPUT: "Loumar	R$ 3.750,00" (formato planilha com TAB)
+OUTPUT: {"lancamentos":[{"tipo":"entrada","nome":"Loumar","valor":3750,"diaPrevisto":null,"categoriaId":"default-outros-entrada"}]}
+
+## REGRAS FUNDAMENTAIS
+
+### TIPO (CRÍTICO!)
+- **ENTRADA** = dinheiro ENTRANDO: salário, freela, dividendos, vendas, recebimentos, clientes
+- **SAÍDA** = dinheiro SAINDO: contas, compras, assinaturas, faturas, despesas
+
+### VERBOS
+- "gastei", "paguei", "comprei" = SEMPRE saída
+- "ganhei", "recebi", "vendi" = SEMPRE entrada
+
+### FORMATO DE PLANILHA (TAB entre nome e valor)
+- Se tem TAB e NÃO é serviço conhecido = provavelmente ENTRADA (cliente/projeto)
+- Serviços conhecidos (Netflix, Aluguel, etc.) = SAÍDA
+
+## CATEGORIAS
+
+### Entradas:
+- "default-salario": salário, holerite, 13º, férias
+- "default-investimentos": dividendos, rendimentos, juros, FIIs, ações
+- "default-outros-entrada": freelance, vendas, reembolso, clientes
+
+### Saídas:
+- "default-transporte": gasolina, combustível, Uber, pedágio, IPVA
+- "default-alimentacao": mercado, restaurante, iFood, delivery, pizza
+- "default-saude": farmácia, médico, academia, plano de saúde
+- "default-lazer": Netflix, Spotify, cinema, viagem, streaming
+- "default-cartao": Nubank, C6, Inter, Itaú, fatura, cartão
+- "default-moradia": aluguel, condomínio, luz, água, internet
+- "default-outros-saida": outros gastos
+
+## NOME
+- Extraia O QUE é: "gastei 50 em pizza" → "Pizza"
+- Preserve nomes completos: "Fatura C6" (não "Fatura c"), "Stant 1" (não "Stant")
 - Primeira letra maiúscula
 
-## IGNORAR (NÃO são lançamentos)
-- Linhas que são apenas indicadores de mês/período: "tudo de julho", "julho de 2025", "mês de janeiro", "referente a março"
-- Linhas que são apenas cabeçalhos: "Cartões", "Despesas fixas", "Entradas"
-- Linhas vazias ou só com espaços
-
-## EXEMPLOS
-
-- "salário 5000" → tipo: "entrada", categoriaId: "default-salario", nome: "Salário"
-- "freela 1200" → tipo: "entrada", categoriaId: "default-outros-entrada", nome: "Freelance"
-- "dividendos 150" → tipo: "entrada", categoriaId: "default-investimentos", nome: "Dividendos"
-- "aluguel 2400" → tipo: "saida", categoriaId: "default-moradia", nome: "Aluguel"
-- "luz 150" → tipo: "saida", categoriaId: "default-moradia", nome: "Luz"
-- "mercado 500" → tipo: "saida", categoriaId: "default-alimentacao", nome: "Mercado"
-- "ifood 80" → tipo: "saida", categoriaId: "default-alimentacao", nome: "iFood"
-- "uber 45" → tipo: "saida", categoriaId: "default-transporte", nome: "Uber"
-- "gasolina 200" → tipo: "saida", categoriaId: "default-transporte", nome: "Gasolina"
-- "farmácia 120" → tipo: "saida", categoriaId: "default-saude", nome: "Farmácia"
-- "netflix 55" → tipo: "saida", categoriaId: "default-lazer", nome: "Netflix"
-- "nubank 3000" → tipo: "saida", categoriaId: "default-cartao", nome: "Nubank"
-- "fatura c6 2500" → tipo: "saida", categoriaId: "default-cartao", nome: "Fatura C6"
-- "cartão itaú 1800" → tipo: "saida", categoriaId: "default-cartao", nome: "Cartão Itaú"
-- "inter 500" → tipo: "saida", categoriaId: "default-cartao", nome: "Inter"
-- "parcela carro 800" → tipo: "saida", categoriaId: "default-transporte", nome: "Parcela carro"
-
 ## FORMATO DE RESPOSTA
-Retorne APENAS JSON válido, sem markdown:
-{"lancamentos":[{"tipo":"entrada","nome":"Salário","valor":5000,"diaPrevisto":5,"categoriaId":"default-salario"}]}
+APENAS JSON, sem markdown:
+{"lancamentos":[...]}
 
-Máximo ${MAX_LANCAMENTOS_POR_REQUEST} lançamentos por requisição.`
+Máximo ${MAX_LANCAMENTOS_POR_REQUEST} lançamentos.`;
 
 /**
  * Pós-processamento MÍNIMO de segurança
@@ -290,71 +525,99 @@ Máximo ${MAX_LANCAMENTOS_POR_REQUEST} lançamentos por requisição.`
 
 // Verbos que indicam INEQUIVOCAMENTE entrada (dinheiro vindo para o usuário)
 const VERBOS_ENTRADA_INEQUIVOCOS = [
-  'ganhei', 'ganha', 'ganhar', 'ganhou',
-  'recebi', 'receber', 'recebeu',
-  'vendi', 'vender', 'vendeu',
-]
+  "ganhei",
+  "ganha",
+  "ganhar",
+  "ganhou",
+  "recebi",
+  "receber",
+  "recebeu",
+  "vendi",
+  "vender",
+  "vendeu",
+];
 
 // Verbos que indicam INEQUIVOCAMENTE saída (dinheiro saindo do usuário)
 const VERBOS_SAIDA_INEQUIVOCOS = [
-  'paguei', 'pagar', 'pagou',
-  'gastei', 'gastar', 'gastou',
-  'comprei', 'comprar', 'comprou',
-]
+  "paguei",
+  "pagar",
+  "pagou",
+  "gastei",
+  "gastar",
+  "gastou",
+  "comprei",
+  "comprar",
+  "comprou",
+];
 
 export class AIService {
-  private ai: GoogleGenAI | null = null
+  private ai: GoogleGenAI | null = null;
 
   constructor() {
-    const apiKey = process.env.GEMINI_API_KEY
+    const apiKey = process.env.GEMINI_API_KEY;
     if (apiKey) {
-      this.ai = new GoogleGenAI({ apiKey })
+      this.ai = new GoogleGenAI({ apiKey });
     }
   }
 
   /**
-   * Pré-processa o texto para normalizar valores
+   * Pré-processa o texto para normalizar valores e separar múltiplos lançamentos
    */
   private preprocessTexto(texto: string): string {
-    let result = texto
+    let result = texto;
 
-    // Normaliza valores em formato brasileiro (R$ 3.817,55 -> 3817.55)
-    // Padrão: R$ seguido de número com separador de milhar (ponto) e decimal (vírgula)
+    // PRIMEIRO: Normaliza valores em formato brasileiro ANTES de separar por vírgula
+    // R$ 3.817,55 -> R$ 3817.55
     result = result.replace(
       /R\$\s*(\d{1,3}(?:\.\d{3})+),(\d{2})/g,
       (_, inteiro, decimal) => {
-        const valorSemPonto = inteiro.replace(/\./g, '')
-        return `${valorSemPonto}.${decimal}`
+        const valorSemPonto = inteiro.replace(/\./g, "");
+        return `R$ ${valorSemPonto}.${decimal}`;
       }
-    )
+    );
 
-    // Normaliza valores brasileiros sem R$ (ex: 3.817,55 -> 3817.55)
-    // Só aplica se tiver ponto como separador de milhar E vírgula como decimal
+    // Normaliza valores brasileiros sem R$ mas com formato 3.817,55 -> 3817.55
     result = result.replace(
       /\b(\d{1,3}(?:\.\d{3})+),(\d{2})\b/g,
       (_, inteiro, decimal) => {
-        const valorSemPonto = inteiro.replace(/\./g, '')
-        return `${valorSemPonto}.${decimal}`
+        const valorSemPonto = inteiro.replace(/\./g, "");
+        return `${valorSemPonto}.${decimal}`;
       }
-    )
+    );
 
     // Normaliza valores simples com vírgula decimal (ex: 150,99 -> 150.99)
-    result = result.replace(
-      /\b(\d+),(\d{2})\b/g,
-      '$1.$2'
-    )
+    // MAS só se for seguido de espaço, fim de linha, ou letra (não outro número)
+    result = result.replace(/\b(\d+),(\d{2})(?=\s|$|[a-zA-Z])/g, "$1.$2");
+
+    // DEPOIS: Separa múltiplos lançamentos por vírgula
+    // Padrão: vírgula + espaço + palavra (não número)
+    // Ex: "netflix 55, mercado 500, uber 45" → quebra em linhas
+    // Mas NÃO quebra se for formato de valor (R$ 1.234,56)
+    if (result.includes(",")) {
+      // Verifica se parece ter múltiplos itens separados por vírgula
+      // Padrão: palavra + número + vírgula + espaço + palavra
+      const multipleItemsPattern = /\w+\s+\d+[\.,]?\d*\s*,\s*\w+/;
+      if (multipleItemsPattern.test(result)) {
+        result = result.replace(/,\s+/g, "\n");
+      }
+    }
+
+    // Também separa por "e" quando parece ser múltiplos itens
+    // Ex: "paguei nubank 3000 e gastei 50 no ifood" → 2 linhas
+    const ePattern = /(\d+[\.,]?\d*)\s+e\s+(gastei|paguei|comprei|recebi|ganhei)/gi;
+    result = result.replace(ePattern, "$1\n$2");
 
     // Converte "5k" para "5000", "2k" para "2000", etc.
     result = result.replace(/(\d+(?:\.\d+)?)\s*k\b/gi, (_, num) => {
-      return String(parseFloat(num) * 1000)
-    })
+      return String(parseFloat(num) * 1000);
+    });
 
     // Converte "2mil" para "2000"
     result = result.replace(/(\d+)\s*mil\b/gi, (_, num) => {
-      return String(parseInt(num) * 1000)
-    })
+      return String(parseInt(num) * 1000);
+    });
 
-    return result
+    return result;
   }
 
   /**
@@ -362,37 +625,38 @@ export class AIService {
    * Ex: "tudo de julho", "julho de 2025", "referente a março"
    */
   private isIndicadorMes(nome: string): boolean {
-    const meses = 'janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez'
+    const meses =
+      "janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez";
 
     // Padrões que indicam que é um indicador de mês, não um lançamento
     const padroes = [
       // "tudo de julho", "tudo de março 2025", "tudo de julho de"
-      new RegExp(`^tudo\\s+de\\s+(${meses})`, 'i'),
+      new RegExp(`^tudo\\s+de\\s+(${meses})`, "i"),
       // "julho de 2025", "março 2025", "julho de" (parcial sem ano)
-      new RegExp(`^(${meses})\\s+(de\\s*)?\\d{0,4}$`, 'i'),
+      new RegExp(`^(${meses})\\s+(de\\s*)?\\d{0,4}$`, "i"),
       // apenas o nome do mês
-      new RegExp(`^(${meses})$`, 'i'),
+      new RegExp(`^(${meses})$`, "i"),
       // "referente a julho", "ref março"
-      new RegExp(`^(?:referente|ref\\.?)\\s+(?:a\\s+)?(${meses})`, 'i'),
+      new RegExp(`^(?:referente|ref\\.?)\\s+(?:a\\s+)?(${meses})`, "i"),
       // "mês de julho", "mês: julho"
-      new RegExp(`^m[êe]s\\s*[:de]+\\s*(${meses})`, 'i'),
+      new RegExp(`^m[êe]s\\s*[:de]+\\s*(${meses})`, "i"),
       // "para julho", "pra março"
-      new RegExp(`^(?:para|pra)\\s+(${meses})`, 'i'),
+      new RegExp(`^(?:para|pra)\\s+(${meses})`, "i"),
       // Cabeçalhos comuns
       /^cart[õo]es$/i,
       /^despesas?\s*(fixas?)?$/i,
       /^entradas?$/i,
       /^sa[íi]das?$/i,
       /^receitas?$/i,
-    ]
+    ];
 
     for (const padrao of padroes) {
       if (padrao.test(nome)) {
-        return true
+        return true;
       }
     }
 
-    return false
+    return false;
   }
 
   /**
@@ -400,14 +664,23 @@ export class AIService {
    * Corrige quando a IA retorna apenas o verbo (gastei, paguei, comprei)
    */
   private corrigirNome(nomeIA: string, textoOriginal: string): string {
-    const nomeL = nomeIA.toLowerCase().trim()
+    const nomeL = nomeIA.toLowerCase().trim();
 
     // Verbos que não devem ser usados como nome
-    const verbosAcao = ['gastei', 'gasto', 'paguei', 'pago', 'comprei', 'compra', 'recebi', 'recebido']
+    const verbosAcao = [
+      "gastei",
+      "gasto",
+      "paguei",
+      "pago",
+      "comprei",
+      "compra",
+      "recebi",
+      "recebido",
+    ];
 
     // Se o nome é apenas um verbo, tenta extrair o contexto do texto original
     if (verbosAcao.includes(nomeL)) {
-      const textoL = textoOriginal.toLowerCase()
+      const textoL = textoOriginal.toLowerCase();
 
       // Padrões para extrair o objeto/contexto - ordem importa, do mais específico ao menos
       const padroes = [
@@ -417,180 +690,331 @@ export class AIService {
         /(?:gastei|paguei|comprei)\s+\d+(?:[.,]\d+)?\s*(?:com|de|em|no|na)\s+(.+)$/i,
         // "recebi 500 do cliente" -> "Cliente"
         /(?:recebi|recebido)\s+\d+(?:[.,]\d+)?\s*(?:do|da|de)\s+(.+)$/i,
-      ]
+      ];
 
       for (const padrao of padroes) {
-        const match = textoL.match(padrao)
+        const match = textoL.match(padrao);
         if (match && match[1]) {
           // Remove o valor se estiver no final
-          let nome = match[1].replace(/\s*\d+(?:[.,]\d+)?\s*(?:reais|real|r\$)?$/i, '').trim()
+          let nome = match[1]
+            .replace(/\s*\d+(?:[.,]\d+)?\s*(?:reais|real|r\$)?$/i, "")
+            .trim();
           // Remove artigos do início
-          nome = nome.replace(/^(?:um|uma|o|a|os|as)\s+/i, '').trim()
+          nome = nome.replace(/^(?:um|uma|o|a|os|as)\s+/i, "").trim();
           if (nome.length > 1) {
-            return nome.charAt(0).toUpperCase() + nome.slice(1)
+            return nome.charAt(0).toUpperCase() + nome.slice(1);
           }
         }
       }
     }
 
     // Retorna o nome original se não conseguiu melhorar
-    return nomeIA
+    return nomeIA;
+  }
+
+  /**
+   * Normaliza texto removendo acentos para comparação robusta
+   */
+  private normalizarTexto(texto: string): string {
+    return texto
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, ''); // Remove combining diacritical marks
   }
 
   /**
    * Verifica se o tipo retornado pela IA está correto
    *
-   * IMPORTANTE: Confiamos na IA para a classificação principal.
-   * Este método só corrige quando há verbos INEQUÍVOCOS no texto
-   * que contradizem a classificação da IA.
+   * IMPORTANTE: Este método corrige a classificação da IA quando há
+   * palavras-chave ou verbos que indicam claramente o tipo correto.
    *
    * @param tipoIA - O tipo retornado pela IA
    * @param textoOriginal - O texto original do usuário
+   * @param nome - O nome do lançamento (opcional, para validação adicional)
    * @returns O tipo corrigido (ou o original se não houver contradição)
    */
-  private validarTipo(tipoIA: 'entrada' | 'saida', textoOriginal: string): 'entrada' | 'saida' {
-    const textoL = textoOriginal.toLowerCase()
+  private validarTipo(
+    tipoIA: "entrada" | "saida",
+    textoOriginal: string,
+    nome?: string
+  ): "entrada" | "saida" {
+    // Normaliza texto e nome removendo acentos para comparação robusta
+    const textoN = this.normalizarTexto(textoOriginal);
+    const nomeN = nome ? this.normalizarTexto(nome) : "";
+
+    // PALAVRAS-CHAVE QUE SEMPRE INDICAM ENTRADA (crítico!)
+    // Versões SEM acento para comparação após normalização
+    const PALAVRAS_ENTRADA_CRITICAS = [
+      "salario",
+      "holerite",
+      "13o",
+      "decimo terceiro",
+      "ferias",
+      "freela",
+      "freelance",
+      "freelancer",
+      "dividendo",
+      "dividendos",
+      "rendimento",
+      "rendimentos",
+      "juros",
+      "resgate",
+      "investimento",
+      "investimentos",
+      "acoes",
+      "fii",
+      "fiis",
+      "cdb",
+      "poupanca",
+      "lucro",
+      "comissao",
+      "bonus",
+      "reembolso",
+    ];
+
+    // Verifica palavras-chave críticas de entrada no TEXTO
+    for (const palavra of PALAVRAS_ENTRADA_CRITICAS) {
+      if (textoN.includes(palavra)) {
+        // Se a IA disse saída mas tem palavra de entrada, SEMPRE corrige
+        if (tipoIA === "saida") {
+          return "entrada";
+        }
+        return tipoIA;
+      }
+    }
+
+    // Verifica também no NOME (mais importante para casos como "Salário" extraído)
+    if (nomeN) {
+      for (const palavra of PALAVRAS_ENTRADA_CRITICAS) {
+        if (nomeN.includes(palavra)) {
+          if (tipoIA === "saida") {
+            return "entrada";
+          }
+          return tipoIA;
+        }
+      }
+    }
 
     // Verifica se há verbos INEQUÍVOCOS de entrada
     for (const verbo of VERBOS_ENTRADA_INEQUIVOCOS) {
-      if (textoL.includes(verbo)) {
+      if (textoN.includes(verbo)) {
         // Se a IA disse saída mas tem "ganhei/vendi", corrige para entrada
-        if (tipoIA === 'saida') {
-          return 'entrada'
+        if (tipoIA === "saida") {
+          return "entrada";
         }
-        return tipoIA
+        return tipoIA;
       }
     }
 
     // Verifica se há verbos INEQUÍVOCOS de saída
     for (const verbo of VERBOS_SAIDA_INEQUIVOCOS) {
-      if (textoL.includes(verbo)) {
+      if (textoN.includes(verbo)) {
         // Se a IA disse entrada mas tem "paguei/gastei/comprei", corrige para saída
-        if (tipoIA === 'entrada') {
-          return 'saida'
+        if (tipoIA === "entrada") {
+          return "saida";
         }
-        return tipoIA
+        return tipoIA;
       }
     }
 
     // Sem contradição clara - confia na IA
-    return tipoIA
+    return tipoIA;
   }
 
   /**
    * Determina o tipo quando não há IA disponível (fallback)
    * Baseado apenas em verbos de ação no texto
    */
-  private determinarTipoSemIA(textoOriginal: string): 'entrada' | 'saida' {
-    const textoL = textoOriginal.toLowerCase()
+  private determinarTipoSemIA(textoOriginal: string): "entrada" | "saida" {
+    const textoL = textoOriginal.toLowerCase();
 
     // Verifica verbos de entrada
     for (const verbo of VERBOS_ENTRADA_INEQUIVOCOS) {
       if (textoL.includes(verbo)) {
-        return 'entrada'
+        return "entrada";
       }
     }
 
     // Verifica verbos de saída
     for (const verbo of VERBOS_SAIDA_INEQUIVOCOS) {
       if (textoL.includes(verbo)) {
-        return 'saida'
+        return "saida";
       }
     }
 
     // Default: saída (mais comum)
-    return 'saida'
+    return "saida";
   }
 
   async parseLancamentos(texto: string, mes: string): Promise<ParseResult> {
     // Pré-processa o texto
-    const textoProcessado = this.preprocessTexto(texto)
+    const textoProcessado = this.preprocessTexto(texto);
 
     if (!this.ai) {
       // Fallback: tenta parsing básico sem IA
-      return this.parseBasico(textoProcessado, texto)
+      return this.parseBasico(textoProcessado, texto);
     }
 
     try {
-      const prompt = `${SYSTEM_PROMPT}\n\nTexto do usuário: "${textoProcessado}"\n\nJSON:`
+      const prompt = `${SYSTEM_PROMPT}\n\nTexto do usuário: "${textoProcessado}"\n\nJSON:`;
 
       const response = await this.ai.models.generateContent({
-        model: 'gemini-2.0-flash',
+        model: "gemini-2.0-flash",
         contents: prompt,
-      })
+      });
 
-      let responseText = response.text || ''
+      let responseText = response.text || "";
 
       // Remove possíveis marcadores de código markdown
-      responseText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+      responseText = responseText
+        .replace(/```json\n?/g, "")
+        .replace(/```\n?/g, "")
+        .trim();
 
       // Tenta fazer parse do JSON
-      const parsed = JSON.parse(responseText)
+      const parsed = JSON.parse(responseText);
 
       // Valida e normaliza os lançamentos
-      const lancamentos: ParsedLancamento[] = []
+      const lancamentos: ParsedLancamento[] = [];
 
       for (const l of parsed.lancamentos || []) {
         // Limite de segurança
         if (lancamentos.length >= MAX_LANCAMENTOS_POR_REQUEST) {
-          break
+          break;
         }
 
-        if (l.nome && typeof l.valor === 'number' && l.valor > 0) {
+        if (l.nome && typeof l.valor === "number" && l.valor > 0) {
           // Normaliza o nome (primeira letra maiúscula, limita tamanho)
-          let nome = String(l.nome).trim()
+          let nome = String(l.nome).trim();
+
+          // Remove aspas extras que podem vir de planilhas
+          nome = nome.replace(/^["']|["']$/g, "").trim();
+
           if (nome.length > 50) {
-            nome = nome.substring(0, 50)
+            nome = nome.substring(0, 50);
           }
 
           // Filtra nomes que são apenas números (IA errou ao separar colunas)
-          const regexNumero = /^\d+(\.\d+)?$/
+          const regexNumero = /^\d+(\.\d+)?$/;
           if (regexNumero.test(nome)) {
-            continue
+            continue;
           }
 
           // Filtra indicadores de mês/período que não são lançamentos
-          const nomeL = nome.toLowerCase()
+          const nomeL = nome.toLowerCase();
           if (this.isIndicadorMes(nomeL)) {
-            continue
+            continue;
           }
 
           // Corrige o nome se a IA retornou apenas o verbo
-          nome = this.corrigirNome(nome, texto)
+          nome = this.corrigirNome(nome, texto);
 
-          // Capitaliza primeira letra
-          nome = nome.charAt(0).toUpperCase() + nome.slice(1)
+          // Preserva números e caracteres especiais no nome (ex: "Stant 1", "C6", "50%")
+          // Capitaliza primeira letra mas preserva resto
+          if (nome.length > 0) {
+            nome = nome.charAt(0).toUpperCase() + nome.slice(1);
+          }
 
           // Valida o tipo da IA (corrige apenas se houver contradição óbvia)
-          const tipoIA = l.tipo === 'entrada' ? 'entrada' : 'saida'
-          const tipoValidado = this.validarTipo(tipoIA, texto)
+          const tipoIA = l.tipo === "entrada" ? "entrada" : "saida";
+          // Usa texto ORIGINAL (não processado) para validação de palavras-chave
+          // Passa também o nome para validação adicional
+          let tipoValidado = this.validarTipo(tipoIA, texto, nome);
+
+          // Validação adicional: se o nome contém palavras-chave de entrada, força entrada
+          // Usa normalização para remover acentos e garantir match
+          const nomeNormalizado = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          const palavrasEntradaNoNome = [
+            "salario",
+            "freela",
+            "freelance",
+            "dividendo",
+            "dividendos",
+            "projeto",
+            "cliente",
+          ];
+          if (
+            tipoValidado === "saida" &&
+            palavrasEntradaNoNome.some((p) => nomeNormalizado.includes(p))
+          ) {
+            tipoValidado = "entrada";
+          }
+
+          // Validação para formato de planilha: se tem TAB e nome não é serviço conhecido, é entrada
+          const temTab = texto.includes("\t");
+          const servicosConhecidos = [
+            "netflix",
+            "aluguel",
+            "mercado",
+            "farmacia",
+            "uber",
+            "ifood",
+            "nubank",
+            "cartao",
+            "fatura",
+            "luz",
+            "agua",
+            "gas",
+            "internet",
+          ];
+          const nomeEServico = servicosConhecidos.some((s) =>
+            nomeNormalizado.includes(s)
+          );
+          if (temTab && !nomeEServico && tipoValidado === "saida") {
+            // Formato planilha sem serviço conhecido = provavelmente recebimento
+            tipoValidado = "entrada";
+          }
 
           // Valida categoria da IA ou usa fallback por keywords
-          let categoriaId = validarCategoria(l.categoriaId, tipoValidado)
+          let categoriaId = validarCategoria(l.categoriaId, tipoValidado);
+
+          // Sempre verifica categorização por keywords para validar/corrigir
+          const categoriaPorKeywords = categorizarPorKeywords(
+            nome,
+            tipoValidado
+          );
+
+          // Se não tem categoria válida da IA, usa keywords
           if (!categoriaId) {
-            categoriaId = categorizarPorKeywords(nome, tipoValidado)
+            categoriaId = categoriaPorKeywords;
+          } else {
+            // Validação adicional: se keywords sugerem categoria diferente e mais específica,
+            // usa keywords (evita casos como "gasolina" → "moradia", "salário" → "outros")
+            const categoriaOutros =
+              tipoValidado === "entrada"
+                ? CATEGORIAS.OUTROS_ENTRADA
+                : CATEGORIAS.OUTROS_SAIDA;
+
+            // Se keywords retornam categoria específica (não "outros"), sempre usa keywords
+            // Isso garante que "gasolina" → "transporte", "salário" → "salario", etc.
+            if (
+              categoriaPorKeywords !== categoriaOutros &&
+              categoriaPorKeywords !== categoriaId
+            ) {
+              categoriaId = categoriaPorKeywords;
+            }
           }
 
           lancamentos.push({
             tipo: tipoValidado,
             nome,
             valor: Math.round(Number(l.valor) * 100) / 100,
-            diaPrevisto: l.diaPrevisto && l.diaPrevisto >= 1 && l.diaPrevisto <= 31
-              ? Number(l.diaPrevisto)
-              : null,
-            categoriaId
-          })
+            diaPrevisto:
+              l.diaPrevisto && l.diaPrevisto >= 1 && l.diaPrevisto <= 31
+                ? Number(l.diaPrevisto)
+                : null,
+            categoriaId,
+          });
         }
       }
 
       return {
         lancamentos,
-        erro: parsed.erro
-      }
-
+        erro: parsed.erro,
+      };
     } catch {
       // Fallback silencioso para parsing básico quando Gemini falha
-      return this.parseBasico(textoProcessado, texto)
+      return this.parseBasico(textoProcessado, texto);
     }
   }
 
@@ -598,97 +1022,104 @@ export class AIService {
    * Parser básico como fallback (sem IA)
    * Usa parsing linha por linha para formato de tabela
    */
-  private parseBasico(textoProcessado: string, textoOriginal: string): ParseResult {
-    const lancamentos: ParsedLancamento[] = []
+  private parseBasico(
+    textoProcessado: string,
+    textoOriginal: string
+  ): ParseResult {
+    const lancamentos: ParsedLancamento[] = [];
 
     // Processa linha por linha para pegar formato de tabela
-    const linhas = textoProcessado.split('\n')
+    const linhas = textoProcessado.split("\n");
 
     for (const linha of linhas) {
       // Limite de segurança
       if (lancamentos.length >= MAX_LANCAMENTOS_POR_REQUEST) {
-        break
+        break;
       }
 
-      const linhaTrim = linha.trim()
-      if (!linhaTrim) continue
+      const linhaTrim = linha.trim();
+      if (!linhaTrim) continue;
 
       // Extrai valor monetário da linha (último número com formato de valor)
-      const valorMatch = linhaTrim.match(/(\d+(?:\.\d{1,2})?)\s*$/)
-      if (!valorMatch) continue
+      const valorMatch = linhaTrim.match(/(\d+(?:\.\d{1,2})?)\s*$/);
+      if (!valorMatch) continue;
 
-      const valor = parseFloat(valorMatch[1])
-      if (isNaN(valor) || valor <= 0) continue
+      const valor = parseFloat(valorMatch[1]);
+      if (isNaN(valor) || valor <= 0) continue;
 
       // Extrai dia da linha ANTES de modificar (número de 1-2 dígitos entre nome e valor)
       // Padrão: nome [espaços/tabs] DIA [espaços/tabs] valor
-      const diaMatch = linhaTrim.match(/\s(\d{1,2})[\s\t]+\d+(?:\.\d{1,2})?\s*$/)
-      let diaPrevisto: number | null = null
+      const diaMatch = linhaTrim.match(
+        /\s(\d{1,2})[\s\t]+\d+(?:\.\d{1,2})?\s*$/
+      );
+      let diaPrevisto: number | null = null;
       if (diaMatch) {
-        const dia = parseInt(diaMatch[1])
+        const dia = parseInt(diaMatch[1]);
         if (dia >= 1 && dia <= 31) {
-          diaPrevisto = dia
+          diaPrevisto = dia;
         }
       }
 
       // Remove o valor e o dia (se existir) do final
       let resto = linhaTrim
-        .replace(/\s*(\d{1,2})?\s*(\d+(?:\.\d{1,2})?)\s*$/, '') // Remove dia + valor
-        .trim()
+        .replace(/\s*(\d{1,2})?\s*(\d+(?:\.\d{1,2})?)\s*$/, "") // Remove dia + valor
+        .trim();
 
       // Remove tabs extras e espaços múltiplos
-      resto = resto.replace(/\t+/g, ' ').replace(/\s+/g, ' ').trim()
+      resto = resto.replace(/\t+/g, " ").replace(/\s+/g, " ").trim();
 
       // Remove possível "R$" que sobrou
-      resto = resto.replace(/R\$\s*$/i, '').trim()
+      resto = resto.replace(/R\$\s*$/i, "").trim();
 
       // Remove número de dia que possa ter ficado no final do nome
       // Ex: "Vale alimentacao 10" -> "Vale alimentacao"
-      resto = resto.replace(/\s+\d{1,2}$/, '').trim()
+      resto = resto.replace(/\s+\d{1,2}$/, "").trim();
 
-      if (!resto) continue
+      if (!resto) continue;
 
-      let nome = resto
+      let nome = resto;
 
       // Filtra nomes que são apenas números (IA errou ao separar colunas)
-      const regexNumero = /^\d+(\.\d+)?$/
+      const regexNumero = /^\d+(\.\d+)?$/;
       if (regexNumero.test(nome)) {
-        continue
+        continue;
       }
 
       // Filtra indicadores de mês/período
-      const nomeL = nome.toLowerCase()
+      const nomeL = nome.toLowerCase();
       if (this.isIndicadorMes(nomeL)) {
-        continue
+        continue;
       }
 
       // Normaliza o nome (primeira letra maiúscula)
-      nome = nome.charAt(0).toUpperCase() + nome.slice(1)
+      nome = nome.charAt(0).toUpperCase() + nome.slice(1);
 
       // Corrige o nome se for apenas um verbo
-      nome = this.corrigirNome(nome, textoOriginal)
+      nome = this.corrigirNome(nome, textoOriginal);
 
       // Determina o tipo baseado no texto (fallback sem IA)
-      const tipo = this.determinarTipoSemIA(textoOriginal)
+      const tipo = this.determinarTipoSemIA(textoOriginal);
 
       // Categoriza por keywords
-      const categoriaId = categorizarPorKeywords(nome, tipo)
+      const categoriaId = categorizarPorKeywords(nome, tipo);
 
       // Evita duplicatas pelo nome
-      const jaExiste = lancamentos.some(l => l.nome.toLowerCase() === nome.toLowerCase())
-      if (jaExiste) continue
+      const jaExiste = lancamentos.some(
+        (l) => l.nome.toLowerCase() === nome.toLowerCase()
+      );
+      if (jaExiste) continue;
 
       lancamentos.push({
         tipo,
         nome,
         valor: Math.round(valor * 100) / 100,
         diaPrevisto,
-        categoriaId
-      })
+        categoriaId,
+      });
     }
 
-    return { lancamentos }
+    return { lancamentos };
   }
 }
 
-export const aiService = new AIService()
+export const aiService = new AIService();
