@@ -316,6 +316,11 @@ async function request<T>(
     throw new ApiError(response.status, error.error || 'Erro na requisição')
   }
 
+  // 204 No Content - retorna undefined
+  if (response.status === 204) {
+    return undefined as T
+  }
+
   return response.json()
 }
 
