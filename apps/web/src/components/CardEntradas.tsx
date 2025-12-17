@@ -11,7 +11,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { cn, formatarMoeda } from '@/lib/utils'
 import { ItemListaWrapper } from './ItemListaWrapper'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Card,
@@ -58,26 +57,25 @@ export function CardEntradas({
     : 0
 
   return (
-    <Card className="overflow-hidden border-verde/20 shadow-sm">
-      <CardHeader className="pb-4 bg-gradient-to-r from-verde/5 to-verde/10">
+    <Card className="overflow-hidden border-border shadow-sm">
+      <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-verde/10">
-              <TrendingUp className="w-5 h-5 text-verde" />
+            <div className="p-2 rounded-lg bg-verde/10">
+              <TrendingUp className="w-4 h-4 text-verde" />
             </div>
             <div>
-              <CardTitle className="text-lg font-semibold">Entradas</CardTitle>
-              <CardDescription className="text-xs">
+              <CardTitle className="text-base font-semibold">Entradas</CardTitle>
+              <CardDescription className="text-xs text-muted-foreground">
                 {entradas.length} {entradas.length === 1 ? 'item' : 'itens'}
               </CardDescription>
             </div>
           </div>
-          
+
           <Button
             onClick={onAdd}
             size="sm"
-            variant="ghost"
-            className="text-verde hover:text-verde hover:bg-verde/10"
+            className="bg-verde hover:bg-verde/90 text-white"
           >
             <Plus className="w-4 h-4 mr-1" />
             Adicionar
@@ -122,18 +120,18 @@ export function CardEntradas({
 
         {/* Lista de entradas */}
         {entradas.length === 0 ? (
-          <div className="p-8 text-center">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-verde/10 mb-3">
-              <DollarSign className="w-6 h-6 text-verde" />
+          <div className="py-10 px-4 text-center">
+            <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-muted mb-3">
+              <DollarSign className="w-5 h-5 text-muted-foreground" />
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground mb-4">
               Nenhuma entrada neste mês
             </p>
             <Button
               onClick={onAdd}
               size="sm"
               variant="outline"
-              className="mt-3"
+              className="border-verde/30 text-verde hover:bg-verde/5"
             >
               <Plus className="w-4 h-4 mr-1" />
               Adicionar entrada
@@ -195,18 +193,18 @@ export function CardEntradas({
 
         {/* Indicadores de status */}
         {entradas.length > 0 && (
-          <div className="px-4 py-3 border-t bg-muted/30 flex items-center justify-center gap-4">
+          <div className="px-4 py-2.5 border-t bg-muted/20 flex items-center justify-center gap-3">
             {entradasPendentes.length > 0 && (
-              <Badge variant="outline" className="text-xs">
-                <Clock className="w-3 h-3 mr-1" />
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <Clock className="w-3 h-3" />
                 {entradasPendentes.length} pendente{entradasPendentes.length > 1 ? 's' : ''}
-              </Badge>
+              </span>
             )}
             {entradasRecebidas.length > 0 && (
-              <Badge variant="outline" className="text-xs text-verde border-verde/30">
-                <Check className="w-3 h-3 mr-1" />
+              <span className="text-xs text-verde flex items-center gap-1">
+                <Check className="w-3 h-3" />
                 {entradasRecebidas.length} recebida{entradasRecebidas.length > 1 ? 's' : ''}
-              </Badge>
+              </span>
             )}
           </div>
         )}

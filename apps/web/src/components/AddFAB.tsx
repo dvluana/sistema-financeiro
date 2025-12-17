@@ -118,31 +118,18 @@ export function AddFAB({ onQuickInput, onManualInput, className }: AddFABProps) 
         <AnimatePresence>
           {isOpen && (
             <motion.div
-              initial={{ opacity: 0, y: 10, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.95 }}
-              transition={{ 
-                type: "spring",
-                stiffness: 400,
-                damping: 30
-              }}
-              className="absolute bottom-20 right-0 w-72 p-2 bg-card border border-border rounded-2xl shadow-2xl"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.15 }}
+              className="absolute bottom-20 right-0 w-72 p-2 bg-card border border-border rounded-2xl shadow-2xl origin-bottom-right"
             >
               <div className="space-y-1">
-                {menuItems.map((item, index) => {
+                {menuItems.map((item) => {
                   const Icon = item.icon
                   return (
-                    <motion.button
+                    <button
                       key={item.id}
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 20 }}
-                      transition={{ 
-                        delay: index * 0.05,
-                        type: "spring",
-                        stiffness: 400,
-                        damping: 30
-                      }}
                       onClick={item.onClick}
                       className={cn(
                         "w-full p-3 rounded-xl",
@@ -168,7 +155,7 @@ export function AddFAB({ onQuickInput, onManualInput, className }: AddFABProps) 
                         </p>
                       </div>
                       <ChevronUp className="w-4 h-4 text-muted-foreground mt-1 rotate-90" />
-                    </motion.button>
+                    </button>
                   )
                 })}
               </div>

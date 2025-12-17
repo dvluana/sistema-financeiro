@@ -99,16 +99,16 @@ export function CardSaidas({
   // const totalSaidasSimples = saidas.length
 
   return (
-    <Card className="overflow-hidden border-rosa/20 shadow-sm">
-      <CardHeader className="pb-4 bg-gradient-to-r from-rosa/5 to-rosa/10">
+    <Card className="overflow-hidden border-border shadow-sm">
+      <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-rosa/10">
-              <TrendingDown className="w-5 h-5 text-rosa" />
+            <div className="p-2 rounded-lg bg-rosa/10">
+              <TrendingDown className="w-4 h-4 text-rosa" />
             </div>
             <div>
-              <CardTitle className="text-lg font-semibold">Saídas</CardTitle>
-              <CardDescription className="text-xs">
+              <CardTitle className="text-base font-semibold">Saídas</CardTitle>
+              <CardDescription className="text-xs text-muted-foreground">
                 {todosItens.length} {todosItens.length === 1 ? 'item' : 'itens'}
                 {totalAgrupadores > 0 && (
                   <span className="ml-1">
@@ -118,12 +118,11 @@ export function CardSaidas({
               </CardDescription>
             </div>
           </div>
-          
+
           <Button
             onClick={onAdd}
             size="sm"
-            variant="ghost"
-            className="text-rosa hover:text-rosa hover:bg-rosa/10"
+            className="bg-rosa hover:bg-rosa/90 text-white"
           >
             <Plus className="w-4 h-4 mr-1" />
             Adicionar

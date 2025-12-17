@@ -23,7 +23,8 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import { type ParsedLancamento } from '@/lib/parser'
+import { useIsDesktop } from '@/hooks/useMediaQuery'
+import { type ParsedLancamento, parseInput } from '@/lib/parser'
 
 // Componentes shadcn/ui
 import {
@@ -244,6 +245,7 @@ export function QuickInputSheet({
   mesAtual,
   onConfirm,
 }: QuickInputSheetProps) {
+  const isDesktop = useIsDesktop()
   const [input, setInput] = useState('')
   const [lancamentos, setLancamentos] = useState<ParsedLancamento[]>([])
   const [isParsing, setIsParsing] = useState(false)
@@ -324,7 +326,8 @@ export function QuickInputSheet({
     // Simula processamento com delay visual
     await new Promise(resolve => setTimeout(resolve, 500))
     
-    const parsed = parseMultipleEntries(input, mesAtual)
+    const result = parseInput(input, mesAtual)
+    const parsed = result.lancamentos
     
     setLancamentos(prev => [...prev, ...parsed])
     setInput('')
@@ -395,9 +398,14 @@ export function QuickInputSheet({
   return (
     <TooltipProvider>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent 
-          side="bottom" 
-          className="h-[85vh] p-0 rounded-t-3xl flex flex-col"
+        <SheetContent
+          side={isDesktop ? "right" : "bottom"}
+          className={cn(
+            "p-0 flex flex-col",
+            isDesktop
+              ? "w-full sm:max-w-lg h-full"
+              : "h-[85vh] rounded-t-3xl"
+          )}
         >
           {/* Header com gradiente */}
           <div className="relative overflow-hidden border-b">

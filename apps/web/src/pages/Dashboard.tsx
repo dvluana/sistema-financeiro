@@ -258,8 +258,8 @@ export function Dashboard({
               {lancamentoFilter === 'entradas' && (
                 <CardEntradas
                   entradas={entradas}
-                  jaEntrou={financeiroTotais?.jaEntrou ?? 0}
-                  faltaEntrar={financeiroTotais?.faltaEntrar ?? 0}
+                  totalRecebido={financeiroTotais?.jaEntrou ?? 0}
+                  totalPendente={financeiroTotais?.faltaEntrar ?? 0}
                   mostrarConcluidosDiscretos={mostrarConcluidosDiscretos}
                   onToggle={handleToggleLancamento}
                   onEdit={onEditLancamento}
@@ -271,8 +271,8 @@ export function Dashboard({
                 <CardSaidas
                   saidas={saidas}
                   agrupadores={agrupadores}
-                  jaPaguei={financeiroTotais?.jaPaguei ?? 0}
-                  faltaPagar={financeiroTotais?.faltaPagar ?? 0}
+                  totalPago={financeiroTotais?.jaPaguei ?? 0}
+                  totalPendente={financeiroTotais?.faltaPagar ?? 0}
                   mostrarConcluidosDiscretos={mostrarConcluidosDiscretos}
                   onToggle={handleToggleLancamento}
                   onEdit={onEditLancamento}
