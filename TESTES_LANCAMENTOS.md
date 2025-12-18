@@ -219,12 +219,12 @@
 ## 6. VALIDAÇÕES E ERROS
 
 ### Campos Obrigatórios
-- [ ] Descrição vazia
-- [ ] Valor vazio (exceto grupo soma)
-- [ ] Valor zero (exceto grupo soma)
-- [ ] Valor negativo
-- [ ] Parcelas < 2
-- [ ] Parcelas > 60
+- [x] Descrição vazia
+- [x] Valor vazio (exceto grupo soma)
+- [x] Valor zero (exceto grupo soma)
+- [x] Valor negativo
+- [x] Parcelas < 2
+- [x] Parcelas > 60
 
 ### Categoria
 - [ ] Criar categoria duplicada
@@ -240,8 +240,8 @@
 ### Erros de API - Recorrência
 - [ ] Timeout em operação em lote
 - [ ] Erro ao buscar infoRecorrencia (API offline)
-- [ ] ID de lançamento inexistente
-- [ ] Escopo inválido na query string
+- [x] ID de lançamento inexistente
+- [x] Escopo inválido na query string
 - [ ] Tentar editar lançamento de outro perfil (403)
 - [ ] Tentar excluir lançamento de outro usuário (403)
 
@@ -265,10 +265,10 @@ Netflix 55,90, Spotify 19,90, Aluguel 2500 dia 5
 - [ ] Verificar no dashboard
 
 ### Criar grupo recorrente
-- [ ] Manual: Cartão de Crédito, grupo soma, mensal
-- [ ] Verificar 12 grupos criados (um por mês)
-- [ ] Adicionar filho no mês atual
-- [ ] Navegar para próximo mês, verificar grupo vazio
+- [x] Manual: Cartão de Crédito, grupo soma, mensal
+- [x] Verificar 12 grupos criados (um por mês)
+- [x] Adicionar filho no mês atual
+- [x] Navegar para próximo mês, verificar grupo vazio
 
 ### Editar lançamento existente
 - [ ] Abrir drawer de edição
@@ -285,28 +285,28 @@ Netflix 55,90, Spotify 19,90, Aluguel 2500 dia 5
 - [ ] Verificar totais atualizados (já paguei vs falta pagar)
 
 ### Fluxo Completo de Recorrência
-1. [ ] Criar "Aluguel" mensal (12x) a partir de janeiro
-2. [ ] Verificar 12 lançamentos criados
-3. [ ] Marcar jan/fev/mar como pagos (individualmente)
-4. [ ] Editar valor em abril com escopo "este e próximos"
-5. [ ] Verificar jan/fev/mar com valor antigo
-6. [ ] Verificar abr até dez com valor novo
-7. [ ] Excluir outubro com escopo "apenas este"
-8. [ ] Verificar nov/dez ainda existem
-9. [ ] Excluir novembro com escopo "este e próximos"
-10. [ ] Verificar apenas jan-set existem
+1. [x] Criar "Aluguel" mensal (12x) a partir de janeiro
+2. [x] Verificar 12 lançamentos criados
+3. [x] Marcar jan/fev/mar como pagos (individualmente)
+4. [x] Editar valor em abril com escopo "este e próximos"
+5. [x] Verificar jan/fev/mar com valor antigo
+6. [x] Verificar abr até dez com valor novo
+7. [x] Excluir outubro com escopo "apenas este"
+8. [x] Verificar nov/dez ainda existem
+9. [x] Excluir novembro com escopo "este e próximos"
+10. [x] Verificar apenas jan-set existem
 
 ### Fluxo Grupo Recorrente com Filhos
-1. [ ] Criar "Cartão Nubank" grupo soma mensal
-2. [ ] Adicionar filho "Netflix" R$55 no mês atual
-3. [ ] Adicionar filho "Spotify" R$20 no mês atual
-4. [ ] Verificar soma = R$75 no grupo
-5. [ ] Editar nome do grupo para "Nubank" com escopo "todos"
-6. [ ] Verificar filhos NÃO foram afetados (ainda "Netflix" e "Spotify")
-7. [ ] Navegar para próximo mês, verificar grupo vazio
-8. [ ] Excluir grupo do mês atual com escopo "apenas este"
-9. [ ] Verificar filhos daquele mês foram excluídos (CASCADE)
-10. [ ] Verificar grupos de outros meses permanecem
+1. [x] Criar "Cartão Nubank" grupo soma mensal
+2. [x] Adicionar filho "Netflix" R$55 no mês atual
+3. [x] Adicionar filho "Spotify" R$20 no mês atual
+4. [x] Verificar soma = R$75 no grupo
+5. [x] Editar nome do grupo para "Nubank" com escopo "todos"
+6. [x] Verificar filhos NÃO foram afetados (ainda "Netflix" e "Spotify")
+7. [x] Navegar para próximo mês, verificar grupo vazio
+8. [x] Excluir grupo do mês atual com escopo "apenas este"
+9. [x] Verificar filhos daquele mês foram excluídos (CASCADE)
+10. [x] Verificar grupos de outros meses permanecem
 
 ### Fluxo Navegação Entre Meses
 1. [ ] Criar recorrência de 6 parcelas
@@ -317,12 +317,12 @@ Netflix 55,90, Spotify 19,90, Aluguel 2500 dia 5
 6. [ ] Dashboard recarregou automaticamente
 
 ### Fluxo de ENTRADA Recorrente
-1. [ ] Criar "Salário" como ENTRADA mensal (12x)
-2. [ ] Verificar 12 entradas criadas
-3. [ ] Editar valor com escopo "todos"
-4. [ ] Verificar todas alteradas
-5. [ ] Excluir com escopo "este e próximos"
-6. [ ] Verificar comportamento idêntico a saídas
+1. [x] Criar "Salário" como ENTRADA mensal (12x)
+2. [x] Verificar 12 entradas criadas
+3. [x] Editar valor com escopo "todos"
+4. [x] Verificar todas alteradas
+5. [x] Excluir com escopo "este e próximos"
+6. [x] Verificar comportamento idêntico a saídas
 
 ---
 
@@ -393,36 +393,36 @@ Netflix 55,90, Spotify 19,90, Aluguel 2500 dia 5
 ## 11. CENÁRIOS DE BORDA
 
 ### Séries Parcialmente Excluídas
-- [ ] Criar série de 6 parcelas
-- [ ] Excluir parcelas 2 e 4 individualmente
-- [ ] Editar parcela 3 com "este e próximos"
-- [ ] Verificar: 3, 5, 6 alterados (2, 4 não existem mais)
-- [ ] Verificar contagem no dialog está correta
+- [x] Criar série de 6 parcelas
+- [x] Excluir parcelas 2 e 4 individualmente
+- [x] Editar parcela 3 com "este e próximos"
+- [x] Verificar: 3, 5, 6 alterados (2, 4 não existem mais)
+- [x] Verificar contagem no dialog está correta
 
 ### Série com Todos Pagos
-- [ ] Criar série de 3 parcelas
-- [ ] Marcar todas como pagas
-- [ ] Editar com escopo "todos"
-- [ ] Verificar warning aparece no dialog
-- [ ] Operação conclui normalmente
+- [x] Criar série de 3 parcelas
+- [x] Marcar todas como pagas
+- [x] Editar com escopo "todos"
+- [ ] Verificar warning aparece no dialog (UI)
+- [x] Operação conclui normalmente
 
 ### Operação no Limite
-- [ ] Criar série de 60 parcelas (máximo)
-- [ ] Editar primeira parcela com "todos"
-- [ ] Verificar todas 60 alteradas
-- [ ] Performance aceitável (< 3s)
+- [x] Criar série de 60 parcelas (máximo) - 369ms
+- [x] Editar primeira parcela com "todos" - 640ms
+- [x] Verificar todas 60 alteradas
+- [x] Performance aceitável (< 3s) ✓
 
 ### Concorrência
-- [ ] Abrir mesmo lançamento em duas abas
-- [ ] Editar em uma aba
-- [ ] Tentar editar na outra aba
+- [ ] Abrir mesmo lançamento em duas abas (UI)
+- [ ] Editar em uma aba (UI)
+- [ ] Tentar editar na outra aba (UI)
 - [ ] Comportamento consistente (não corrompe dados)
 
 ### Perfis Diferentes
-- [ ] Criar recorrência no Perfil A
-- [ ] Trocar para Perfil B
-- [ ] Verificar recorrência não aparece
-- [ ] Voltar para Perfil A, verificar existe
+- [x] Criar recorrência no Perfil A
+- [x] Trocar para Perfil B (simulado - perfil inválido rejeitado)
+- [x] Verificar recorrência não aparece
+- [x] Voltar para Perfil A, verificar existe
 
 ---
 
