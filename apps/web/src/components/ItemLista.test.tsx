@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { ItemLista } from './ItemLista'
 
@@ -82,7 +82,7 @@ describe('ItemLista', () => {
       tipo: 'saida' as const,
       icone: 'Film',
       cor: '#E50914',
-      ativo: true,
+      is_default: false,
       ordem: 0,
     }
 
@@ -98,7 +98,7 @@ describe('ItemLista', () => {
         <ItemLista
           {...defaultProps}
           dataPrevista="2025-01-15"
-          categoria={{ id: '1', nome: 'Streaming', tipo: 'saida', icone: null, cor: null, ativo: true, ordem: 0 }}
+          categoria={{ id: '1', nome: 'Streaming', tipo: 'saida', icone: null, cor: null, is_default: false, ordem: 0 }}
         />
       )
       // A data aparece formatada como "15 de jan" ou similar

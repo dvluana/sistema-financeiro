@@ -36,6 +36,7 @@ interface FinanceiroState {
   // Estado de UI
   isLoading: boolean
   error: string | null
+  success: string | null
 
   // Ações de navegação
   irParaMesAnterior: () => void
@@ -61,6 +62,7 @@ interface FinanceiroState {
 
   // Helpers
   limparErro: () => void
+  limparSucesso: () => void
 }
 
 /**
@@ -80,6 +82,7 @@ export const useFinanceiroStore = create<FinanceiroState>((set, get) => ({
   },
   isLoading: false,
   error: null,
+  success: null,
 
   /**
    * Navega para o mês anterior
@@ -151,7 +154,7 @@ export const useFinanceiroStore = create<FinanceiroState>((set, get) => ({
    * Cria um novo lançamento
    */
   criarLancamento: async (data: CriarLancamentoInput) => {
-    set({ isLoading: true, error: null })
+    set({ isLoading: true, error: null, success: null })
 
     try {
       const response = await lancamentosApi.criar(data)
@@ -161,6 +164,7 @@ export const useFinanceiroStore = create<FinanceiroState>((set, get) => ({
         agrupadores: response.agrupadores || [],
         totais: response.totais,
         isLoading: false,
+        success: data.is_agrupador ? 'Grupo criado com sucesso!' : 'Lançamento criado com sucesso!',
       })
     } catch (error) {
       set({
@@ -175,13 +179,14 @@ export const useFinanceiroStore = create<FinanceiroState>((set, get) => ({
    * Cria lançamentos recorrentes (mensal ou parcelas)
    */
   criarLancamentoRecorrente: async (data: CriarLancamentoRecorrenteInput) => {
-    set({ isLoading: true, error: null })
+    set({ isLoading: true, error: null, success: null })
 
     try {
       const result = await lancamentosApi.criarRecorrente(data)
       // Recarrega o mês atual para mostrar os novos lançamentos
       await get().carregarMes(get().mesAtual)
-      set({ isLoading: false })
+      const tipoLabel = data.is_agrupador ? 'grupos' : 'lançamentos'
+      set({ isLoading: false, success: `${result.criados} ${tipoLabel} criados com sucesso!` })
       return result
     } catch (error) {
       set({
@@ -196,7 +201,7 @@ export const useFinanceiroStore = create<FinanceiroState>((set, get) => ({
    * Atualiza um lançamento existente
    */
   atualizarLancamento: async (id: string, data: AtualizarLancamentoInput) => {
-    set({ isLoading: true, error: null })
+    set({ isLoading: true, error: null, success: null })
 
     try {
       const response = await lancamentosApi.atualizar(id, data)
@@ -206,6 +211,7 @@ export const useFinanceiroStore = create<FinanceiroState>((set, get) => ({
         agrupadores: response.agrupadores || [],
         totais: response.totais,
         isLoading: false,
+        success: 'Alterações salvas!',
       })
     } catch (error) {
       set({
@@ -295,7 +301,7 @@ export const useFinanceiroStore = create<FinanceiroState>((set, get) => ({
    * Exclui um lançamento
    */
   excluirLancamento: async (id: string) => {
-    set({ isLoading: true, error: null })
+    set({ isLoading: true, error: null, success: null })
 
     try {
       const response = await lancamentosApi.excluir(id)
@@ -305,6 +311,7 @@ export const useFinanceiroStore = create<FinanceiroState>((set, get) => ({
         agrupadores: response.agrupadores || [],
         totais: response.totais,
         isLoading: false,
+        success: 'Lançamento excluído!',
       })
     } catch (error) {
       set({
@@ -319,7 +326,7 @@ export const useFinanceiroStore = create<FinanceiroState>((set, get) => ({
    * Cria um filho para um agrupador
    */
   criarFilho: async (agrupadorId: string, data: { tipo: 'entrada' | 'saida'; nome: string; valor: number; concluido?: boolean; data_prevista?: string | null; categoria_id?: string | null }) => {
-    set({ isLoading: true, error: null })
+    set({ isLoading: true, error: null, success: null })
 
     try {
       const response = await lancamentosApi.criarFilho(agrupadorId, data)
@@ -329,6 +336,7 @@ export const useFinanceiroStore = create<FinanceiroState>((set, get) => ({
         agrupadores: response.agrupadores || [],
         totais: response.totais,
         isLoading: false,
+        success: 'Item adicionado ao grupo!',
       })
     } catch (error) {
       set({
@@ -362,4 +370,9 @@ export const useFinanceiroStore = create<FinanceiroState>((set, get) => ({
    * Limpa mensagem de erro
    */
   limparErro: () => set({ error: null }),
+
+  /**
+   * Limpa mensagem de sucesso
+   */
+  limparSucesso: () => set({ success: null }),
 }))

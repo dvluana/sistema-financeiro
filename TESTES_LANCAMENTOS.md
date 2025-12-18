@@ -23,11 +23,11 @@
 - [x] Criar entrada sem categoria
 - [x] Criar saída sem categoria
 - [x] Criar com categoria existente
-- [ ] Criar categoria nova inline
+- [x] Criar categoria nova inline
 - [x] Criar com data de pagamento
-- [ ] Criar saída com data de vencimento
+- [x] Criar saída com data de vencimento
 - [x] Criar marcado como pago/recebido
-- [ ] Atalhos de valor (R$ 50, 100, 200, 500, 1000)
+- [x] Atalhos de valor (R$ 50, 100, 200, 500, 1000)
 - [x] Valor com vírgula (1.234,56)
 
 ### Rápido
@@ -35,12 +35,12 @@
 - [x] Múltiplos: `Netflix 55,90, Spotify 19,90`
 - [x] Com dia: `Aluguel 2500 dia 5`
 - [x] Planilha (tab separado)
-- [ ] Editar tipo após parse (UI)
-- [ ] Editar valor após parse (UI)
-- [ ] Editar nome após parse (UI)
-- [ ] Adicionar categoria (UI)
-- [ ] Adicionar data (UI)
-- [ ] Remover item da lista (UI)
+- [x] Editar tipo após parse (UI)
+- [x] Editar valor após parse (UI)
+- [x] Editar nome após parse (UI)
+- [x] Adicionar categoria (UI)
+- [x] Adicionar data (UI)
+- [x] Remover item da lista (UI)
 
 ---
 
@@ -55,10 +55,10 @@
 - [x] Grupo saída
 
 ### Criar Grupo - Rápido
-- [ ] Marcar como grupo após parse
-- [ ] Trocar modo soma/fixo
-- [ ] Grupo + recorrência (12 grupos criados)
-- [ ] Grupo + parcelas (N grupos criados)
+- [x] Marcar como grupo após parse
+- [x] Trocar modo soma/fixo
+- [x] Grupo + recorrência (12 grupos criados)
+- [x] Grupo + parcelas (N grupos criados)
 
 ### Adicionar Filhos ao Grupo
 - [x] Adicionar filho via botão "+"
@@ -108,24 +108,24 @@
 - [x] Verificar `recorrencia_id` é o mesmo para todos
 
 ### Criar Recorrência - Rápido
-- [ ] Ativar recorrência em item
-- [ ] Trocar de mensal para parcelado
-- [ ] Ajustar quantidade parcelas
-- [ ] Múltiplos itens, alguns com recorrência outros sem
-- [ ] Recorrência como ENTRADA via QuickInput
+- [x] Ativar recorrência em item
+- [x] Trocar de mensal para parcelado
+- [x] Ajustar quantidade parcelas
+- [x] Múltiplos itens, alguns com recorrência outros sem
+- [x] Recorrência como ENTRADA via QuickInput
 
 ---
 
 ## 4. EDITAR RECORRÊNCIA EM LOTE
 
 ### Dialog de Escopo - Comportamento
-- [ ] Ao editar recorrente, dialog aparece com 3 opções
+- [x] Ao editar recorrente, dialog aparece com 3 opções
 - [x] "Apenas este" - contagem mostra 1
 - [x] "Este e próximos" - contagem mostra N restantes
 - [x] "Todos" - contagem mostra total da série
-- [ ] Dialog fecha após operação bem sucedida
-- [ ] Sheet fecha após operação bem sucedida
-- [ ] Loading spinner durante operação
+- [x] Dialog fecha após operação bem sucedida
+- [x] Sheet fecha após operação bem sucedida
+- [x] Loading spinner durante operação
 
 ### Apenas Este
 - [x] Editar nome - apenas este muda
@@ -173,12 +173,12 @@
 ## 5. EXCLUIR RECORRÊNCIA EM LOTE
 
 ### Dialog de Escopo - Comportamento
-- [ ] Ao excluir recorrente, dialog aparece com 3 opções
-- [ ] Visual vermelho (ação destrutiva)
+- [x] Ao excluir recorrente, dialog aparece com 3 opções
+- [x] Visual vermelho (ação destrutiva)
 - [x] Contagem clara de quantos serão excluídos
-- [ ] Dialog fecha após operação bem sucedida
-- [ ] Sheet fecha após operação bem sucedida
-- [ ] Loading spinner durante operação
+- [x] Dialog fecha após operação bem sucedida
+- [x] Sheet fecha após operação bem sucedida
+- [x] Loading spinner durante operação
 
 ### Apenas Este
 - [x] Exclui apenas o lançamento atual
@@ -363,30 +363,30 @@ Netflix 55,90, Spotify 19,90, Aluguel 2500 dia 5
 ## 10. UX/UI
 
 ### Dialog de Recorrência
-- [ ] Preview claro de quantos serão afetados
-- [ ] Highlight na opção selecionada
-- [ ] Radio button visual correto
-- [ ] Warning amarelo para parcelas já pagas
-- [ ] Botão vermelho para exclusão
-- [ ] Loading state durante operação
-- [ ] Opção "Este e próximos" desabilitada quando apropriado
+- [x] Preview claro de quantos serão afetados
+- [x] Highlight na opção selecionada
+- [x] Radio button visual correto
+- [x] Warning amarelo para parcelas já pagas
+- [x] Botão vermelho para exclusão
+- [x] Loading state durante operação
+- [x] Opção "Este e próximos" desabilitada quando apropriado
 
 ### Feedback
-- [ ] Toast após operação: "X lançamentos atualizados/excluídos"
-- [ ] Dashboard recarrega automaticamente
-- [ ] Totalizadores atualizados corretamente
+- [x] Toast após operação: "X lançamentos atualizados/excluídos"
+- [x] Dashboard recarrega automaticamente
+- [x] Totalizadores atualizados corretamente
 - [ ] Indicador visual se afetou outros meses (opcional)
 
 ### Acessibilidade
-- [ ] Dialog fecha com Escape
-- [ ] Foco no primeiro elemento
-- [ ] Navegação por teclado nas opções
+- [x] Dialog fecha com Escape
+- [x] Foco no primeiro elemento
+- [x] Navegação por teclado nas opções
 
 ### Estados
-- [ ] Loading enquanto busca infoRecorrencia
-- [ ] Loading enquanto executa operação em lote
-- [ ] Erro visível se API falhar
-- [ ] Botões desabilitados durante loading
+- [x] Loading enquanto busca infoRecorrencia
+- [x] Loading enquanto executa operação em lote
+- [x] Erro visível se API falhar
+- [x] Botões desabilitados durante loading
 
 ---
 
@@ -435,9 +435,9 @@ Netflix 55,90, Spotify 19,90, Aluguel 2500 dia 5
 - [ ] Logs de operação em lote
 
 ### Frontend
-- [ ] Build sem erros
-- [ ] Componentes carregam lazy
-- [ ] Sem console.log em produção
+- [x] Build sem erros
+- [x] Componentes carregam lazy
+- [x] Sem console.log em produção
 
 ### Testes Manuais Obrigatórios
 - [ ] Criar recorrência nova
@@ -451,7 +451,7 @@ Netflix 55,90, Spotify 19,90, Aluguel 2500 dia 5
 ## 13. TESTES UNITÁRIOS (Vitest + Testing Library)
 
 ### Configuração
-- [x] Vitest configurado em vite.config.ts
+- [x] Vitest configurado em vitest.config.ts
 - [x] React Testing Library instalado
 - [x] Setup com mocks (framer-motion, matchMedia, ResizeObserver, IntersectionObserver)
 

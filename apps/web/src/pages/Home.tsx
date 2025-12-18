@@ -59,6 +59,7 @@ export function Home() {
     configuracoes,
     isLoading,
     error,
+    success,
     carregarMes,
     criarLancamento,
     criarLancamentoRecorrente,
@@ -68,6 +69,7 @@ export function Home() {
     toggleConcluido,
     atualizarConfiguracao,
     limparErro,
+    limparSucesso,
   } = useFinanceiroStore()
 
   // Recarrega dashboard quando necessário
@@ -94,6 +96,9 @@ export function Home() {
   const [recorrenciaAction, setRecorrenciaAction] = useState<'editar' | 'excluir'>('editar')
   const [pendingFormData, setPendingFormData] = useState<{ tipo: 'entrada' | 'saida'; data: LancamentoFormData } | null>(null)
   const [isRecorrenciaLoading, setIsRecorrenciaLoading] = useState(false)
+
+  // Estado local para mensagens de sucesso (operações que não passam pela store)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   // Busca informações de recorrência quando um lançamento é selecionado para edição
   useEffect(() => {
@@ -328,7 +333,7 @@ export function Home() {
     try {
       if (recorrenciaAction === 'editar' && pendingFormData) {
         // Edição em lote
-        await lancamentosApi.atualizarRecorrencia(
+        const result = await lancamentosApi.atualizarRecorrencia(
           lancamentoSelecionado.id,
           escopo,
           {
@@ -340,9 +345,15 @@ export function Home() {
           }
         )
         setPendingFormData(null)
+        // Mostra toast de sucesso
+        const count = result.atualizados ?? 1
+        setSuccessMessage(`${count} lançamento${count > 1 ? 's' : ''} atualizado${count > 1 ? 's' : ''}!`)
       } else if (recorrenciaAction === 'excluir') {
         // Exclusão em lote
-        await lancamentosApi.excluirRecorrencia(lancamentoSelecionado.id, escopo)
+        const result = await lancamentosApi.excluirRecorrencia(lancamentoSelecionado.id, escopo)
+        // Mostra toast de sucesso
+        const count = result.excluidos ?? 1
+        setSuccessMessage(`${count} lançamento${count > 1 ? 's' : ''} excluído${count > 1 ? 's' : ''}!`)
       }
 
       setRecorrenciaDialogOpen(false)
@@ -415,6 +426,10 @@ export function Home() {
     // Recarrega dados
     await carregarMes(mesSelecionado)
     carregarDashboard(mesSelecionado)
+
+    // Mostra toast de sucesso
+    const total = lancamentos.length
+    setSuccessMessage(`${total} lançamento${total > 1 ? 's' : ''} criado${total > 1 ? 's' : ''}!`)
   }
 
   // Configurações do usuário para auto-marcar concluído
@@ -546,6 +561,20 @@ export function Home() {
         message={error}
         onClose={limparErro}
         onRetry={() => carregarMes(mesSelecionado)}
+      />
+
+      {/* Toast de sucesso (store) */}
+      <Toast
+        message={success}
+        onClose={limparSucesso}
+        variant="success"
+      />
+
+      {/* Toast de sucesso (local - operações em lote) */}
+      <Toast
+        message={successMessage}
+        onClose={() => setSuccessMessage(null)}
+        variant="success"
       />
 
       {/* FAB com menu de opções */}
