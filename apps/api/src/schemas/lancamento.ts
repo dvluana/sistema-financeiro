@@ -15,6 +15,7 @@ export const escopoRecorrencia = z.enum([
 ])
 
 // Helper: aceita UUID, null, undefined ou string vazia (converte vazia para null)
+// Para parent_id e recorrencia_id que são UUIDs
 const optionalUuid = z
   .string()
   .nullable()
@@ -24,6 +25,14 @@ const optionalUuid = z
     message: 'Invalid uuid',
   })
 
+// Helper para categoria_id: aceita qualquer string (default-* ou UUID)
+// A validação de existência é feita pelo banco (foreign key)
+const optionalCategoriaId = z
+  .string()
+  .nullable()
+  .optional()
+  .transform(val => (val === '' ? null : val))
+
 export const criarLancamentoSchema = z.object({
   tipo: tipoLancamento,
   nome: z.string().min(1, 'Nome é obrigatório').max(100, 'Nome muito longo'),
@@ -31,7 +40,7 @@ export const criarLancamentoSchema = z.object({
   mes: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Formato de mês inválido (YYYY-MM)'),
   concluido: z.boolean().optional().default(false),
   data_prevista: z.string().nullable().optional(),
-  categoria_id: optionalUuid,
+  categoria_id: optionalCategoriaId,
   parent_id: optionalUuid,
   is_agrupador: z.boolean().optional().default(false),
   valor_modo: valorModo.optional().default('soma'),
@@ -44,7 +53,7 @@ export const atualizarLancamentoSchema = z.object({
   data_prevista: z.string().nullable().optional(),
   data_vencimento: z.string().nullable().optional(),
   concluido: z.boolean().optional(),
-  categoria_id: optionalUuid,
+  categoria_id: optionalCategoriaId,
   is_agrupador: z.boolean().optional(),
   valor_modo: valorModo.optional(),
 })
@@ -56,7 +65,7 @@ export const criarLancamentoRecorrenteSchema = z.object({
   mes_inicial: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Formato de mês inválido (YYYY-MM)'),
   dia_previsto: z.number().min(1).max(31).nullable().optional(),
   concluido: z.boolean().optional().default(false),
-  categoria_id: optionalUuid,
+  categoria_id: optionalCategoriaId,
   is_agrupador: z.boolean().optional().default(false),
   valor_modo: valorModo.optional().default('soma'),
   recorrencia: z.object({
@@ -80,7 +89,7 @@ export const criarFilhoSchema = z.object({
   valor: z.number().positive('Valor deve ser maior que zero'),
   concluido: z.boolean().optional().default(false),
   data_prevista: z.string().nullable().optional(),
-  categoria_id: optionalUuid,
+  categoria_id: optionalCategoriaId,
 })
 
 // Schema para atualização em lote de recorrência
