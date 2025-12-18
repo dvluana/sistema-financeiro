@@ -328,9 +328,9 @@ Netflix 55,90, Spotify 19,90, Aluguel 2500 dia 5
 
 ## 8. BUGS CONHECIDOS
 
-- [ ] Parser: "Mercado Pago Emp" vira "Pago Emp" (confunde com status pago)
-- [ ] Parser: Valor 0 é filtrado (não cria grupos modo soma via texto)
-- [ ] Edição: Não mostra opção de grupo/recorrência
+- [x] Parser: "Mercado Pago Emp" vira "Pago Emp" (confunde com status pago) ✓ CORRIGIDO
+- [x] Parser: Valor 0 é filtrado (não cria grupos modo soma via texto) ✓ CORRIGIDO
+- [x] Edição: Não mostra opção de grupo/recorrência ✓ COMPORTAMENTO ESPERADO (só criação)
 
 ---
 

@@ -238,84 +238,112 @@ interface ExtraidoValor {
   valor: number
   match: string
   posicao: number
+  prioridade: number // Maior = mais específico (decimal > inteiro)
 }
 
 /**
  * Extrai valor monetário do texto com múltiplos padrões
+ * Prioridade: formatos mais específicos (decimais) > inteiros
  */
 function extrairValorRobusto(texto: string): ExtraidoValor | null {
-  const padroes: Array<{ regex: RegExp; processador: (m: RegExpMatchArray) => number | null }> = [
-    // R$ 1.500,00 ou R$1500,00
+  // Padrões ordenados por especificidade (maior prioridade primeiro)
+  const padroes: Array<{ regex: RegExp; processador: (m: RegExpMatchArray) => number | null; prioridade: number }> = [
+    // R$ 1.500,00 ou R$1500,00 (ALTA prioridade - explícito)
     {
       regex: /R\$\s*([\d.,]+)/gi,
-      processador: (m) => parseNumero(m[1])
+      processador: (m) => parseNumero(m[1]),
+      prioridade: 100
     },
-    // Abreviação: 5k, 5.5k, 10k
+    // Abreviação: 5k, 5.5k, 10k (ALTA prioridade - explícito)
     {
       regex: /\b(\d+(?:[.,]\d+)?)\s*k\b/gi,
       processador: (m) => {
         const num = parseFloat(m[1].replace(',', '.'))
         return isNaN(num) ? null : num * 1000
-      }
+      },
+      prioridade: 90
     },
-    // Abreviação: 5 mil, 5mil, 5.5 mil
+    // Abreviação: 5 mil, 5mil, 5.5 mil (ALTA prioridade - explícito)
     {
       regex: /\b(\d+(?:[.,]\d+)?)\s*mil\b/gi,
       processador: (m) => {
         const num = parseFloat(m[1].replace(',', '.'))
         return isNaN(num) ? null : num * 1000
-      }
+      },
+      prioridade: 90
     },
-    // Formato BR completo: 1.500,00
+    // Formato BR completo: 1.500,00 (ALTA prioridade - formato específico)
     {
       regex: /\b(\d{1,3}(?:\.\d{3})+,\d{2})\b/g,
-      processador: (m) => parseNumero(m[1])
+      processador: (m) => parseNumero(m[1]),
+      prioridade: 80
     },
-    // Formato BR simples: 1500,00
+    // Formato BR simples: 55,90 (MÉDIA-ALTA prioridade - decimal BR)
     {
       regex: /\b(\d+,\d{2})\b/g,
-      processador: (m) => parseNumero(m[1])
+      processador: (m) => parseNumero(m[1]),
+      prioridade: 70
     },
-    // Formato INT: 1,500.00 ou 1500.00
+    // Formato INT: 1,500.00 ou 1500.00 (MÉDIA-ALTA prioridade - formato específico)
     {
       regex: /\b(\d{1,3}(?:,\d{3})*\.\d{2})\b/g,
-      processador: (m) => parseNumero(m[1])
+      processador: (m) => parseNumero(m[1]),
+      prioridade: 70
     },
-    // Número com ponto decimal: 150.50
+    // Número com ponto decimal: 150.50 (MÉDIA prioridade)
     {
       regex: /\b(\d+\.\d{1,2})\b/g,
       processador: (m) => {
         const num = parseFloat(m[1])
         // Só aceita se for decimal (não milhar BR)
         return !isNaN(num) && num < 1000 ? num : null
-      }
+      },
+      prioridade: 60
     },
-    // Número inteiro grande (>= 10)
+    // Número inteiro grande (>= 10) (BAIXA prioridade - menos específico)
     {
       regex: /\b(\d{2,})\b/g,
       processador: (m) => {
         const num = parseInt(m[1])
         return !isNaN(num) && num >= 10 ? num : null
-      }
+      },
+      prioridade: 10
+    },
+    // Zero explícito: "0,00" ou "0.00" (para grupos modo soma)
+    {
+      regex: /\b(0[,.]00)\b/g,
+      processador: () => 0,
+      prioridade: 70
+    },
+    // Zero simples: apenas "0" isolado (para grupos modo soma)
+    {
+      regex: /\b(0)\b(?![,.\d])/g,
+      processador: () => 0,
+      prioridade: 5
     },
   ]
 
   let melhorMatch: ExtraidoValor | null = null
 
-  for (const { regex, processador } of padroes) {
+  for (const { regex, processador, prioridade } of padroes) {
     regex.lastIndex = 0
     let match: RegExpExecArray | null
 
     while ((match = regex.exec(texto)) !== null) {
       const valor = processador(match)
-      if (valor !== null && valor > 0) {
-        // Prioriza valores maiores (geralmente são os valores corretos)
-        // mas também considera a posição (valores que aparecem depois de descrição)
-        if (!melhorMatch || valor > melhorMatch.valor) {
+      // Permite valor = 0 para grupos modo soma
+      if (valor !== null && valor >= 0) {
+        // Prioriza por: 1) prioridade do padrão, 2) valor maior em caso de empate
+        const deveTrocar = !melhorMatch ||
+          prioridade > melhorMatch.prioridade ||
+          (prioridade === melhorMatch.prioridade && valor > melhorMatch.valor)
+
+        if (deveTrocar) {
           melhorMatch = {
             valor,
             match: match[0],
-            posicao: match.index
+            posicao: match.index,
+            prioridade
           }
         }
       }
@@ -819,13 +847,9 @@ function limparNome(texto: string): string {
     nome = nome.replace(regex, '')
   }
 
-  // Remove palavras-chave de tipo
-  const todasPalavras = [...PALAVRAS_ENTRADA, ...PALAVRAS_SAIDA]
-  for (const palavra of todasPalavras) {
-    // Só remove se for palavra isolada no início
-    const regex = new RegExp(`^${palavra}\\s+`, 'gi')
-    nome = nome.replace(regex, '')
-  }
+  // NOTA: NÃO removemos mais palavras-chave de tipo do nome
+  // Motivo: Causa bugs como "Mercado Pago" → "Pago" porque "mercado" está em PALAVRAS_SAIDA
+  // As palavras são usadas apenas para detectar o tipo, não para limpar o nome
 
   // Limpa novamente
   nome = nome.replace(/\s+/g, ' ').trim()
@@ -1091,7 +1115,8 @@ function parseLinha(texto: string, mesDefault: string): ParsedLancamento[] {
 
   // Extrai valor
   const valorExtraido = extrairValorRobusto(texto)
-  const valor = valorExtraido?.valor || null
+  // Usa ?? em vez de || para permitir valor 0 (para grupos modo soma)
+  const valor = valorExtraido?.valor ?? null
   if (valorExtraido) {
     textoRestante = textoRestante.replace(valorExtraido.match, ' ')
   }
@@ -1178,15 +1203,20 @@ interface ValidacaoResult {
 /**
  * Valida item e determina status
  */
-function validarItem(item: { nome?: string; valor: number | null; tipo?: TipoLancamento }): ValidacaoResult {
+function validarItem(item: { nome?: string; valor: number | null; tipo?: TipoLancamento; isAgrupador?: boolean }): ValidacaoResult {
   const erros: string[] = []
   const avisos: string[] = []
   const camposFaltantes: ('valor' | 'nome')[] = []
 
   // Campos obrigatórios
-  if (item.valor === null || item.valor <= 0) {
-    erros.push('Valor não identificado')
-    camposFaltantes.push('valor')
+  // Valor 0 é permitido para grupos modo soma
+  if (item.valor === null || (item.valor < 0) || (item.valor === 0 && !item.isAgrupador)) {
+    // Só marca como faltante se for null ou negativo
+    // Valor 0 sem ser agrupador gera aviso, não erro
+    if (item.valor === null || item.valor < 0) {
+      erros.push('Valor não identificado')
+      camposFaltantes.push('valor')
+    }
   }
 
   if (!item.nome || item.nome.length < 2) {
