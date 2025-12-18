@@ -14,6 +14,8 @@ import {
   criarLancamentosBatchSchema,
   criarFilhoSchema,
   mesQuerySchema,
+  atualizarRecorrenciaSchema,
+  excluirRecorrenciaSchema,
 } from '../schemas/lancamento.js'
 import { requireAuth, getRequiredContext } from '../middleware/auth.middleware.js'
 
@@ -299,4 +301,96 @@ export async function lancamentoRoutes(app: FastifyInstance) {
       }
     }
   )
+
+  // ========================================
+  // ROTAS DE RECORRÊNCIA (Operações em Lote)
+  // ========================================
+
+  /**
+   * GET /api/lancamentos/:id/recorrencia
+   * Retorna informações sobre a série de recorrência de um lançamento
+   * Usado para mostrar preview no dialog de edição/exclusão
+   */
+  app.get<{ Params: { id: string } }>('/api/lancamentos/:id/recorrencia', async (request, reply) => {
+    try {
+      const { id } = request.params
+      const ctx = getRequiredContext(request)
+      const result = await lancamentoService.infoRecorrencia(id, ctx)
+      return result
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === 'Lançamento não encontrado') {
+          return reply.status(404).send({ error: error.message })
+        }
+        return reply.status(400).send({ error: error.message })
+      }
+      throw error
+    }
+  })
+
+  /**
+   * PUT /api/lancamentos/:id/recorrencia
+   * Atualiza lançamentos da recorrência em lote
+   *
+   * Body: {
+   *   escopo: 'apenas_este' | 'este_e_proximos' | 'todos',
+   *   dados: { nome?, valor?, categoria_id?, data_prevista?, concluido? },
+   *   campos?: ['nome', 'valor', ...] // Opcional: quais campos propagar
+   * }
+   */
+  app.put<{ Params: { id: string } }>('/api/lancamentos/:id/recorrencia', async (request, reply) => {
+    try {
+      const { id } = request.params
+      const input = atualizarRecorrenciaSchema.parse(request.body)
+      const ctx = getRequiredContext(request)
+      const result = await lancamentoService.atualizarRecorrencia(
+        id,
+        input.escopo,
+        input.dados,
+        ctx
+      )
+      return result
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === 'Lançamento não encontrado') {
+          return reply.status(404).send({ error: error.message })
+        }
+        return reply.status(400).send({ error: error.message })
+      }
+      throw error
+    }
+  })
+
+  /**
+   * DELETE /api/lancamentos/:id/recorrencia?escopo=apenas_este|este_e_proximos|todos
+   * Exclui lançamentos da recorrência em lote
+   */
+  app.delete<{
+    Params: { id: string }
+    Querystring: { escopo?: string }
+  }>('/api/lancamentos/:id/recorrencia', async (request, reply) => {
+    try {
+      const { id } = request.params
+      const { escopo: escopoRaw } = request.query
+
+      // Valida escopo
+      const input = excluirRecorrenciaSchema.parse({ escopo: escopoRaw || 'apenas_este' })
+      const ctx = getRequiredContext(request)
+
+      const result = await lancamentoService.excluirRecorrencia(
+        id,
+        input.escopo,
+        ctx
+      )
+      return result
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === 'Lançamento não encontrado') {
+          return reply.status(404).send({ error: error.message })
+        }
+        return reply.status(400).send({ error: error.message })
+      }
+      throw error
+    }
+  })
 }

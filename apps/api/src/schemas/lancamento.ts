@@ -7,6 +7,13 @@ export const tipoLancamento = z.enum(['entrada', 'saida'])
 // Modo de cálculo do valor de um agrupador
 export const valorModo = z.enum(['soma', 'fixo'])
 
+// Escopo para operações em lote de recorrência (edição/exclusão)
+export const escopoRecorrencia = z.enum([
+  'apenas_este',      // Apenas o lançamento atual
+  'este_e_proximos',  // Este e todos com mes >= mes atual
+  'todos'             // Todos da série (passados e futuros)
+])
+
 // Helper: aceita UUID, null, undefined ou string vazia (converte vazia para null)
 const optionalUuid = z
   .string()
@@ -28,6 +35,7 @@ export const criarLancamentoSchema = z.object({
   parent_id: optionalUuid,
   is_agrupador: z.boolean().optional().default(false),
   valor_modo: valorModo.optional().default('soma'),
+  recorrencia_id: z.string().uuid().nullable().optional(), // UUID compartilhado para séries recorrentes
 })
 
 export const atualizarLancamentoSchema = z.object({
@@ -75,11 +83,29 @@ export const criarFilhoSchema = z.object({
   categoria_id: optionalUuid,
 })
 
+// Schema para atualização em lote de recorrência
+export const atualizarRecorrenciaSchema = z.object({
+  escopo: escopoRecorrencia,
+  dados: atualizarLancamentoSchema,
+  // Campos que devem ser propagados (opcional - se não informado, propaga todos os campos com valor)
+  campos: z.array(z.enum([
+    'nome', 'valor', 'data_prevista', 'categoria_id', 'concluido'
+  ])).optional(),
+})
+
+// Schema para exclusão em lote de recorrência
+export const excluirRecorrenciaSchema = z.object({
+  escopo: escopoRecorrencia,
+})
+
 export type TipoLancamento = z.infer<typeof tipoLancamento>
 export type ValorModo = z.infer<typeof valorModo>
+export type EscopoRecorrencia = z.infer<typeof escopoRecorrencia>
 export type CriarFilhoInput = z.infer<typeof criarFilhoSchema>
 export type CriarLancamentoInput = z.infer<typeof criarLancamentoSchema>
 export type AtualizarLancamentoInput = z.infer<typeof atualizarLancamentoSchema>
+export type AtualizarRecorrenciaInput = z.infer<typeof atualizarRecorrenciaSchema>
+export type ExcluirRecorrenciaInput = z.infer<typeof excluirRecorrenciaSchema>
 
 export interface Categoria {
   id: string
@@ -103,11 +129,28 @@ export interface Lancamento {
   parent_id: string | null
   is_agrupador: boolean
   valor_modo: ValorModo
+  recorrencia_id: string | null  // UUID compartilhado entre lançamentos da mesma série
   valor_calculado?: number  // Calculado no service baseado em valor_modo
   categoria?: Categoria | null
   filhos?: Lancamento[]
   created_at: string
   updated_at: string
+}
+
+// Informações sobre uma série de recorrência
+export interface InfoRecorrencia {
+  recorrenciaId: string | null
+  total: number
+  concluidos: number
+  pendentes: number
+  primeiroMes: string
+  ultimoMes: string
+  mesAtual: string
+  contagemPorEscopo: {
+    apenas_este: 1
+    este_e_proximos: number
+    todos: number
+  }
 }
 
 export interface LancamentoResponse {

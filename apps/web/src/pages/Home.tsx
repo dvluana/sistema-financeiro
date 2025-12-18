@@ -7,7 +7,7 @@
  * Performance: Usa lazy loading para componentes pesados (modais/sheets)
  */
 
-import { useState, useCallback, lazy, Suspense } from 'react'
+import { useState, useCallback, useEffect, lazy, Suspense } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useFinanceiroStore } from '@/stores/useFinanceiroStore'
 import { useDashboardStore } from '@/stores/useDashboardStore'
@@ -18,9 +18,16 @@ import { Dashboard } from './Dashboard'
 import { Insights } from './Insights'
 import { Lembretes } from './Lembretes'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { RecorrenciaActionDialog } from '@/components/RecorrenciaActionDialog'
 import { Toast } from '@/components/Toast'
 import { AddFAB } from '@/components/AddFAB'
-import { lancamentosApi, type Lancamento, type CriarLancamentoInput } from '@/lib/api'
+import {
+  lancamentosApi,
+  type Lancamento,
+  type CriarLancamentoInput,
+  type InfoRecorrencia,
+  type EscopoRecorrencia
+} from '@/lib/api'
 import type { ParsedLancamento } from '@/lib/parser'
 import type { LancamentoFormData } from '@/components/LancamentoSheet'
 import type { FilhoFormData } from '@/components/FilhoSheet'
@@ -80,6 +87,30 @@ export function Home() {
   // Estado para filhos de agrupadores
   const [agrupadorSelecionado, setAgrupadorSelecionado] = useState<Lancamento | null>(null)
   const [filhoSelecionado, setFilhoSelecionado] = useState<Lancamento | null>(null)
+
+  // Estado para operações em lote de recorrência
+  const [infoRecorrencia, setInfoRecorrencia] = useState<InfoRecorrencia | null>(null)
+  const [recorrenciaDialogOpen, setRecorrenciaDialogOpen] = useState(false)
+  const [recorrenciaAction, setRecorrenciaAction] = useState<'editar' | 'excluir'>('editar')
+  const [pendingFormData, setPendingFormData] = useState<{ tipo: 'entrada' | 'saida'; data: LancamentoFormData } | null>(null)
+  const [isRecorrenciaLoading, setIsRecorrenciaLoading] = useState(false)
+
+  // Busca informações de recorrência quando um lançamento é selecionado para edição
+  useEffect(() => {
+    async function fetchInfoRecorrencia() {
+      if (lancamentoSelecionado?.id && lancamentoSheetOpen) {
+        try {
+          const info = await lancamentosApi.infoRecorrencia(lancamentoSelecionado.id)
+          setInfoRecorrencia(info)
+        } catch {
+          setInfoRecorrencia(null)
+        }
+      } else {
+        setInfoRecorrencia(null)
+      }
+    }
+    fetchInfoRecorrencia()
+  }, [lancamentoSelecionado?.id, lancamentoSheetOpen])
 
   /**
    * Abre drawer de lançamento manual (do FAB)
@@ -185,10 +216,21 @@ export function Home() {
 
   /**
    * Submete o formulário (criar ou atualizar)
+   * Se for edição de lançamento recorrente, mostra dialog de escopo
    */
   const handleFormSubmit = async (tipo: 'entrada' | 'saida', data: LancamentoFormData) => {
     try {
       if (lancamentoSelecionado) {
+        // Edição: verificar se é recorrente
+        if (infoRecorrencia?.recorrenciaId) {
+          // Armazena dados e mostra dialog de escopo
+          setPendingFormData({ tipo, data })
+          setRecorrenciaAction('editar')
+          setRecorrenciaDialogOpen(true)
+          return
+        }
+
+        // Não é recorrente: atualiza normalmente
         await atualizarLancamento(lancamentoSelecionado.id, {
           nome: data.nome,
           valor: data.valor,
@@ -238,13 +280,21 @@ export function Home() {
 
   /**
    * Abre dialog de confirmação para exclusão
+   * Se for lançamento recorrente, mostra dialog de escopo
    */
   const handleDeleteClick = useCallback(() => {
-    setConfirmDialogOpen(true)
-  }, [])
+    if (infoRecorrencia?.recorrenciaId) {
+      // É recorrente: mostra dialog de escopo
+      setRecorrenciaAction('excluir')
+      setRecorrenciaDialogOpen(true)
+    } else {
+      // Não é recorrente: mostra dialog simples
+      setConfirmDialogOpen(true)
+    }
+  }, [infoRecorrencia?.recorrenciaId])
 
   /**
-   * Confirma exclusão do lançamento ou filho
+   * Confirma exclusão do lançamento ou filho (não recorrente)
    */
   const handleConfirmDelete = async () => {
     try {
@@ -264,6 +314,49 @@ export function Home() {
       carregarDashboard(mesSelecionado)
     } catch {
       // Erro já tratado na store
+    }
+  }
+
+  /**
+   * Confirma operação em lote de recorrência (edição ou exclusão)
+   */
+  const handleRecorrenciaConfirm = async (escopo: EscopoRecorrencia) => {
+    if (!lancamentoSelecionado) return
+
+    setIsRecorrenciaLoading(true)
+
+    try {
+      if (recorrenciaAction === 'editar' && pendingFormData) {
+        // Edição em lote
+        await lancamentosApi.atualizarRecorrencia(
+          lancamentoSelecionado.id,
+          escopo,
+          {
+            nome: pendingFormData.data.nome,
+            valor: pendingFormData.data.valor,
+            data_prevista: pendingFormData.data.data_prevista,
+            concluido: pendingFormData.data.concluido,
+            categoria_id: pendingFormData.data.categoria_id,
+          }
+        )
+        setPendingFormData(null)
+      } else if (recorrenciaAction === 'excluir') {
+        // Exclusão em lote
+        await lancamentosApi.excluirRecorrencia(lancamentoSelecionado.id, escopo)
+      }
+
+      setRecorrenciaDialogOpen(false)
+      setLancamentoSheetOpen(false)
+      setLancamentoSelecionado(null)
+      setInfoRecorrencia(null)
+
+      // Recarrega dados
+      await carregarMes(mesSelecionado)
+      carregarDashboard(mesSelecionado)
+    } catch {
+      // Erro será tratado pela API
+    } finally {
+      setIsRecorrenciaLoading(false)
     }
   }
 
@@ -428,13 +521,24 @@ export function Home() {
         )}
       </Suspense>
 
-      {/* Dialog de confirmação de exclusão */}
+      {/* Dialog de confirmação de exclusão (não recorrente) */}
       <ConfirmDialog
         open={confirmDialogOpen}
         onOpenChange={setConfirmDialogOpen}
         title="Excluir este item?"
         description={filhoSelecionado?.nome ?? lancamentoSelecionado?.nome ?? ''}
         onConfirm={handleConfirmDelete}
+      />
+
+      {/* Dialog de recorrência (edição ou exclusão em lote) */}
+      <RecorrenciaActionDialog
+        open={recorrenciaDialogOpen}
+        onOpenChange={setRecorrenciaDialogOpen}
+        lancamento={lancamentoSelecionado}
+        action={recorrenciaAction}
+        infoRecorrencia={infoRecorrencia}
+        isLoading={isRecorrenciaLoading}
+        onConfirm={handleRecorrenciaConfirm}
       />
 
       {/* Toast de erro */}

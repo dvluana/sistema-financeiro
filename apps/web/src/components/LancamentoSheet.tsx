@@ -243,7 +243,7 @@ export function LancamentoSheet({
       data_prevista: dataPrevista || null,
       data_vencimento: tipo === 'saida' ? (dataVencimento || null) : null,
       concluido,
-      categoria_id: categoriaId || undefined,
+      categoria_id: categoriaId || null,
       is_agrupador: isAgrupador,
       valor_modo: isAgrupador ? valorModo : undefined,
     }

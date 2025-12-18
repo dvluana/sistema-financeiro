@@ -5,8 +5,17 @@
  * Todas as operações requerem userId/perfilId para isolamento de dados.
  */
 
+import { randomUUID } from 'crypto'
 import { lancamentoRepository, type ContextoUsuario } from '../repositories/lancamento.repository.js'
-import type { Lancamento, CriarLancamentoInput, AtualizarLancamentoInput, LancamentoResponse, CriarFilhoInput } from '../schemas/lancamento.js'
+import type {
+  Lancamento,
+  CriarLancamentoInput,
+  AtualizarLancamentoInput,
+  LancamentoResponse,
+  CriarFilhoInput,
+  EscopoRecorrencia,
+  InfoRecorrencia
+} from '../schemas/lancamento.js'
 
 // Tipo para contexto: pode ser string (userId legado) ou ContextoUsuario completo
 type Contexto = ContextoUsuario | string
@@ -226,6 +235,10 @@ export const lancamentoService = {
    * - Se is_agrupador=true, cria agrupadores vazios para cada mês
    * - Se valor_modo='soma', valor inicial é 0 (calculado pelos filhos)
    * - Se valor_modo='fixo', usa o valor informado
+   *
+   * RECORRENCIA_ID:
+   * - Gera UUID único para vincular todos os lançamentos da série
+   * - Permite edição/exclusão em lote posteriormente
    */
   async criarRecorrente(
     input: {
@@ -247,6 +260,9 @@ export const lancamentoService = {
   ): Promise<{ criados: number }> {
     const { tipo, nome, valor, mes_inicial, dia_previsto, concluido, categoria_id, is_agrupador, valor_modo, recorrencia } = input
     const quantidade = recorrencia.quantidade
+
+    // Gera UUID único para vincular todos os lançamentos desta série
+    const recorrenciaId = randomUUID()
 
     // Gera lista de meses
     const meses: string[] = []
@@ -296,6 +312,7 @@ export const lancamentoService = {
         valor_modo: modoValor,
         data_prevista,
         categoria_id: categoria_id ?? null,
+        recorrencia_id: recorrenciaId, // Vincula todos à mesma série
       }
     })
 
@@ -361,5 +378,158 @@ export const lancamentoService = {
 
     // Retorna dados do mês para atualizar UI
     return this.listarPorMes(filhoAtualizado.mes, ctx)
+  },
+
+  // ========================================================================
+  // OPERAÇÕES EM LOTE DE RECORRÊNCIA
+  // ========================================================================
+
+  /**
+   * Busca informações sobre a série de recorrência de um lançamento
+   * Usado para mostrar preview no dialog de edição/exclusão
+   */
+  async infoRecorrencia(id: string, ctx: Contexto): Promise<InfoRecorrencia> {
+    const lancamento = await lancamentoRepository.findById(id, ctx)
+    if (!lancamento) {
+      throw new Error('Lançamento não encontrado')
+    }
+
+    // Se não tem recorrencia_id, retorna info básica (lançamento avulso/legado)
+    if (!lancamento.recorrencia_id) {
+      return {
+        recorrenciaId: null,
+        total: 1,
+        concluidos: lancamento.concluido ? 1 : 0,
+        pendentes: lancamento.concluido ? 0 : 1,
+        primeiroMes: lancamento.mes,
+        ultimoMes: lancamento.mes,
+        mesAtual: lancamento.mes,
+        contagemPorEscopo: {
+          apenas_este: 1,
+          este_e_proximos: 1,
+          todos: 1,
+        },
+      }
+    }
+
+    // Busca todos da série
+    const serie = await lancamentoRepository.findByRecorrenciaId(lancamento.recorrencia_id, ctx)
+
+    // Ordena por mês
+    const serieOrdenada = serie.sort((a, b) => a.mes.localeCompare(b.mes))
+
+    // Contagens
+    const concluidos = serieOrdenada.filter(l => l.concluido).length
+    const pendentes = serieOrdenada.length - concluidos
+
+    // Meses
+    const primeiroMes = serieOrdenada[0]?.mes || lancamento.mes
+    const ultimoMes = serieOrdenada[serieOrdenada.length - 1]?.mes || lancamento.mes
+
+    // Contagem por escopo
+    const esteEProximos = serieOrdenada.filter(l => l.mes >= lancamento.mes).length
+
+    return {
+      recorrenciaId: lancamento.recorrencia_id,
+      total: serieOrdenada.length,
+      concluidos,
+      pendentes,
+      primeiroMes,
+      ultimoMes,
+      mesAtual: lancamento.mes,
+      contagemPorEscopo: {
+        apenas_este: 1,
+        este_e_proximos: esteEProximos,
+        todos: serieOrdenada.length,
+      },
+    }
+  },
+
+  /**
+   * Atualiza lançamentos de uma recorrência em lote
+   *
+   * ESCOPOS:
+   * - apenas_este: atualiza somente o lançamento informado
+   * - este_e_proximos: atualiza este e todos com mes >= mes atual
+   * - todos: atualiza todos da série
+   *
+   * CENÁRIOS ESPECIAIS:
+   * - Lançamento sem recorrencia_id: opera apenas nele (legado)
+   * - Para edição de data_prevista: atualiza apenas o dia, mês preservado
+   */
+  async atualizarRecorrencia(
+    id: string,
+    escopo: EscopoRecorrencia,
+    dados: AtualizarLancamentoInput,
+    ctx: Contexto
+  ): Promise<{ atualizados: number; mesesAfetados: string[] }> {
+    const lancamento = await lancamentoRepository.findById(id, ctx)
+    if (!lancamento) {
+      throw new Error('Lançamento não encontrado')
+    }
+
+    // Se não tem recorrencia_id ou escopo é apenas_este, atualiza só este
+    if (!lancamento.recorrencia_id || escopo === 'apenas_este') {
+      await lancamentoRepository.update(id, dados, ctx)
+      return { atualizados: 1, mesesAfetados: [lancamento.mes] }
+    }
+
+    // Determina filtro de mês baseado no escopo
+    const filtroMes = escopo === 'este_e_proximos'
+      ? { operador: '>=' as const, mes: lancamento.mes }
+      : undefined
+
+    // Atualiza em lote
+    const resultado = await lancamentoRepository.updateByRecorrenciaId(
+      lancamento.recorrencia_id,
+      dados,
+      ctx,
+      filtroMes
+    )
+
+    return resultado
+  },
+
+  /**
+   * Exclui lançamentos de uma recorrência em lote
+   *
+   * ESCOPOS:
+   * - apenas_este: exclui somente o lançamento informado
+   * - este_e_proximos: exclui este e todos com mes >= mes atual
+   * - todos: exclui todos da série
+   *
+   * CENÁRIOS ESPECIAIS:
+   * - Lançamento sem recorrencia_id: exclui apenas ele (legado)
+   * - Agrupadores: exclui filhos junto (CASCADE no banco)
+   */
+  async excluirRecorrencia(
+    id: string,
+    escopo: EscopoRecorrencia,
+    ctx: Contexto
+  ): Promise<{ excluidos: number; mesesAfetados: string[] }> {
+    const lancamento = await lancamentoRepository.findById(id, ctx)
+    if (!lancamento) {
+      throw new Error('Lançamento não encontrado')
+    }
+
+    // Se não tem recorrencia_id ou escopo é apenas_este, exclui só este
+    if (!lancamento.recorrencia_id || escopo === 'apenas_este') {
+      await lancamentoRepository.delete(id, ctx)
+      return { excluidos: 1, mesesAfetados: [lancamento.mes] }
+    }
+
+    // Determina filtro de mês baseado no escopo
+    const filtroMes = escopo === 'este_e_proximos'
+      ? { operador: '>=' as const, mes: lancamento.mes }
+      : undefined
+
+    // Exclui em lote
+    const resultado = await lancamentoRepository.deleteByRecorrenciaId(
+      lancamento.recorrencia_id,
+      ctx,
+      filtroMes
+    )
+
+    return resultado
   },
 }

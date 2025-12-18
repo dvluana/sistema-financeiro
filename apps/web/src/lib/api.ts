@@ -117,10 +117,35 @@ export interface Lancamento {
   parent_id: string | null
   is_agrupador: boolean
   valor_modo?: 'soma' | 'fixo'
+  recorrencia_id?: string | null  // UUID compartilhado para séries recorrentes
   categoria?: Categoria | null
   filhos?: Lancamento[]
   created_at: string
   updated_at: string
+}
+
+// Tipos para operações em lote de recorrência
+export type EscopoRecorrencia = 'apenas_este' | 'este_e_proximos' | 'todos'
+
+export interface InfoRecorrencia {
+  recorrenciaId: string | null
+  total: number
+  concluidos: number
+  pendentes: number
+  primeiroMes: string
+  ultimoMes: string
+  mesAtual: string
+  contagemPorEscopo: {
+    apenas_este: 1
+    este_e_proximos: number
+    todos: number
+  }
+}
+
+export interface RecorrenciaOperationResult {
+  atualizados?: number
+  excluidos?: number
+  mesesAfetados: string[]
 }
 
 export interface Totais {
@@ -446,6 +471,46 @@ export const lancamentosApi = {
    */
   buscarAgrupador: (id: string): Promise<Lancamento> =>
     request(`/api/lancamentos/${id}/agrupador`),
+
+  // ========================================
+  // Operações em Lote de Recorrência
+  // ========================================
+
+  /**
+   * Busca informações sobre a série de recorrência de um lançamento
+   * Usado para mostrar preview no dialog de edição/exclusão
+   */
+  infoRecorrencia: (id: string): Promise<InfoRecorrencia> =>
+    request(`/api/lancamentos/${id}/recorrencia`),
+
+  /**
+   * Atualiza lançamentos da recorrência em lote
+   * @param id - ID do lançamento base
+   * @param escopo - 'apenas_este' | 'este_e_proximos' | 'todos'
+   * @param dados - Dados a serem atualizados
+   */
+  atualizarRecorrencia: (
+    id: string,
+    escopo: EscopoRecorrencia,
+    dados: AtualizarLancamentoInput
+  ): Promise<RecorrenciaOperationResult> =>
+    request(`/api/lancamentos/${id}/recorrencia`, {
+      method: 'PUT',
+      body: JSON.stringify({ escopo, dados }),
+    }),
+
+  /**
+   * Exclui lançamentos da recorrência em lote
+   * @param id - ID do lançamento base
+   * @param escopo - 'apenas_este' | 'este_e_proximos' | 'todos'
+   */
+  excluirRecorrencia: (
+    id: string,
+    escopo: EscopoRecorrencia
+  ): Promise<RecorrenciaOperationResult> =>
+    request(`/api/lancamentos/${id}/recorrencia?escopo=${escopo}`, {
+      method: 'DELETE',
+    }),
 }
 
 /**

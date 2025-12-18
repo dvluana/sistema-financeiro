@@ -7,7 +7,12 @@
  */
 
 import { supabase } from '../lib/supabase.js'
-import type { Lancamento, CriarLancamentoInput, AtualizarLancamentoInput, CriarFilhoInput } from '../schemas/lancamento.js'
+import type {
+  Lancamento,
+  CriarLancamentoInput,
+  AtualizarLancamentoInput,
+  CriarFilhoInput
+} from '../schemas/lancamento.js'
 
 // Tipo para parâmetros de contexto do usuário/perfil
 interface ContextoUsuario {
@@ -408,6 +413,148 @@ export const lancamentoRepository = {
 
     if (error) throw error
     return data
+  },
+
+  // ========================================================================
+  // OPERAÇÕES EM LOTE DE RECORRÊNCIA
+  // ========================================================================
+
+  /**
+   * Busca todos os lançamentos de uma recorrência
+   */
+  async findByRecorrenciaId(
+    recorrenciaId: string,
+    ctx: ContextoUsuario | string,
+    filtroMes?: { operador: '>=' | '>' | '='; mes: string }
+  ): Promise<Lancamento[]> {
+    const filterColumn = typeof ctx === 'string' ? 'user_id' : 'perfil_id'
+    const filterValue = typeof ctx === 'string' ? ctx : ctx.perfilId
+
+    let query = supabase
+      .from('lancamentos')
+      .select(`
+        *,
+        categoria:categorias(id, nome, tipo, icone, cor, ordem, is_default)
+      `)
+      .eq('recorrencia_id', recorrenciaId)
+      .eq(filterColumn, filterValue)
+
+    // Aplica filtro de mês se informado
+    if (filtroMes) {
+      if (filtroMes.operador === '>=') {
+        query = query.gte('mes', filtroMes.mes)
+      } else if (filtroMes.operador === '>') {
+        query = query.gt('mes', filtroMes.mes)
+      } else {
+        query = query.eq('mes', filtroMes.mes)
+      }
+    }
+
+    const { data, error } = await query.order('mes', { ascending: true })
+
+    if (error) throw error
+    return data || []
+  },
+
+  /**
+   * Atualiza múltiplos lançamentos de uma recorrência
+   * Retorna contagem de atualizados e meses afetados
+   */
+  async updateByRecorrenciaId(
+    recorrenciaId: string,
+    input: AtualizarLancamentoInput,
+    ctx: ContextoUsuario | string,
+    filtroMes?: { operador: '>=' | '>'; mes: string }
+  ): Promise<{ atualizados: number; mesesAfetados: string[] }> {
+    const filterColumn = typeof ctx === 'string' ? 'user_id' : 'perfil_id'
+    const filterValue = typeof ctx === 'string' ? ctx : ctx.perfilId
+
+    // Primeiro, busca os IDs e meses que serão afetados
+    let selectQuery = supabase
+      .from('lancamentos')
+      .select('id, mes')
+      .eq('recorrencia_id', recorrenciaId)
+      .eq(filterColumn, filterValue)
+
+    if (filtroMes) {
+      if (filtroMes.operador === '>=') {
+        selectQuery = selectQuery.gte('mes', filtroMes.mes)
+      } else {
+        selectQuery = selectQuery.gt('mes', filtroMes.mes)
+      }
+    }
+
+    const { data: toUpdate, error: selectError } = await selectQuery
+
+    if (selectError) throw selectError
+    if (!toUpdate || toUpdate.length === 0) {
+      return { atualizados: 0, mesesAfetados: [] }
+    }
+
+    // Extrai IDs e meses únicos
+    const ids = toUpdate.map(l => l.id)
+    const mesesAfetados = [...new Set(toUpdate.map(l => l.mes))].sort()
+
+    // Atualiza usando os IDs
+    const { error: updateError } = await supabase
+      .from('lancamentos')
+      .update(input)
+      .in('id', ids)
+      .eq(filterColumn, filterValue)
+
+    if (updateError) throw updateError
+
+    return { atualizados: ids.length, mesesAfetados }
+  },
+
+  /**
+   * Exclui múltiplos lançamentos de uma recorrência
+   * Retorna contagem de excluídos e meses afetados
+   */
+  async deleteByRecorrenciaId(
+    recorrenciaId: string,
+    ctx: ContextoUsuario | string,
+    filtroMes?: { operador: '>=' | '>'; mes: string }
+  ): Promise<{ excluidos: number; mesesAfetados: string[] }> {
+    const filterColumn = typeof ctx === 'string' ? 'user_id' : 'perfil_id'
+    const filterValue = typeof ctx === 'string' ? ctx : ctx.perfilId
+
+    // Primeiro, busca os IDs e meses que serão excluídos
+    let selectQuery = supabase
+      .from('lancamentos')
+      .select('id, mes')
+      .eq('recorrencia_id', recorrenciaId)
+      .eq(filterColumn, filterValue)
+
+    if (filtroMes) {
+      if (filtroMes.operador === '>=') {
+        selectQuery = selectQuery.gte('mes', filtroMes.mes)
+      } else {
+        selectQuery = selectQuery.gt('mes', filtroMes.mes)
+      }
+    }
+
+    const { data: toDelete, error: selectError } = await selectQuery
+
+    if (selectError) throw selectError
+    if (!toDelete || toDelete.length === 0) {
+      return { excluidos: 0, mesesAfetados: [] }
+    }
+
+    // Extrai IDs e meses únicos
+    const ids = toDelete.map(l => l.id)
+    const mesesAfetados = [...new Set(toDelete.map(l => l.mes))].sort()
+
+    // Exclui usando os IDs (CASCADE deleta filhos automaticamente)
+    const { error: deleteError } = await supabase
+      .from('lancamentos')
+      .delete()
+      .in('id', ids)
+      .eq(filterColumn, filterValue)
+
+    if (deleteError) throw deleteError
+
+    return { excluidos: ids.length, mesesAfetados }
   },
 }
 
