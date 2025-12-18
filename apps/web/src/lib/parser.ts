@@ -278,6 +278,16 @@ function extrairValorRobusto(texto: string): ExtraidoValor | null {
       processador: (m) => parseNumero(m[1]),
       prioridade: 80
     },
+    // Formato BR milhar sem centavos: 45.000, 1.500.000 (MÉDIA-ALTA prioridade)
+    {
+      regex: /\b(\d{1,3}(?:\.\d{3})+)\b/g,
+      processador: (m) => {
+        // Converte formato BR milhar: 45.000 → 45000
+        const num = parseInt(m[1].replace(/\./g, ''))
+        return isNaN(num) ? null : num
+      },
+      prioridade: 75
+    },
     // Formato BR simples: 55,90 (MÉDIA-ALTA prioridade - decimal BR)
     {
       regex: /\b(\d+,\d{2})\b/g,
@@ -308,6 +318,12 @@ function extrairValorRobusto(texto: string): ExtraidoValor | null {
         return !isNaN(num) && num >= 10 ? num : null
       },
       prioridade: 10
+    },
+    // Número inteiro pequeno (1-9) (MUITO BAIXA prioridade)
+    {
+      regex: /\b([1-9])\b(?![,.\d])/g,
+      processador: (m) => parseInt(m[1]),
+      prioridade: 3
     },
     // Zero explícito: "0,00" ou "0.00" (para grupos modo soma)
     {
