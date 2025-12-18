@@ -203,15 +203,25 @@ export function detectarFormato(input: string): FormatoEntrada {
     }
   }
 
+  // Detecta múltiplos itens separados por ", " ou " e "
+  // Ex: "Netflix 55,90, Spotify 19,90" ou "Netflix 55 e Spotify 20"
+  const padraoVirgula = /,\s+[A-Za-zÀ-ú]/
+  const padraoE = /\s+e\s+[A-Za-zÀ-ú]/i
+  if (padraoVirgula.test(primeiraLinha) || padraoE.test(primeiraLinha)) {
+    return 'texto-livre' // Tratado como múltiplos itens
+  }
+
   // Se tem padrão CSV (3+ campos separados por vírgula ou ponto-vírgula)
   const camposPorVirgula = primeiraLinha.split(',').length
   const camposPorPontoVirgula = primeiraLinha.split(';').length
 
   if (camposPorVirgula >= 3 || camposPorPontoVirgula >= 3) {
-    // Verifica se não é texto com vírgulas naturais (ex: "paguei 100, mercado")
+    const separador = camposPorVirgula >= 3 ? ',' : ';'
+
+    // Verifica se é CSV estruturado (todas linhas têm mesma quantidade de campos)
     const pareceCSV = linhas.every(l => {
-      const campos = l.split(camposPorVirgula >= 3 ? ',' : ';')
-      return campos.length >= 3
+      const camposLinha = l.split(separador)
+      return camposLinha.length >= 3
     })
     if (pareceCSV) return 'csv'
   }
@@ -1118,9 +1128,42 @@ function parseLinhaExtrato(linha: string, mesDefault: string): ParsedLancamento 
 }
 
 /**
+ * Divide texto em múltiplos itens separados por ", " ou " e "
+ * Cuidado: não divide valores decimais como "55,90"
+ */
+function dividirMultiplosItens(texto: string): string[] {
+  // Padrão para detectar separadores de itens (", " seguido de palavra ou número)
+  // Evita dividir valores decimais como "55,90" que não têm espaço após a vírgula
+  const partes = texto.split(/,\s+(?=[A-Za-zÀ-ú])|(?:\s+e\s+)(?=[A-Za-zÀ-ú])/i)
+  return partes.map(p => p.trim()).filter(p => p.length > 0)
+}
+
+/**
  * Parseia uma linha de texto livre
  */
 function parseLinha(texto: string, mesDefault: string): ParsedLancamento[] {
+  if (!texto.trim()) return []
+
+  // Primeiro, tenta dividir em múltiplos itens
+  const itens = dividirMultiplosItens(texto)
+
+  // Se tem múltiplos itens, processa cada um separadamente
+  if (itens.length > 1) {
+    const lancamentos: ParsedLancamento[] = []
+    for (const item of itens) {
+      lancamentos.push(...parseItemUnico(item, mesDefault))
+    }
+    return lancamentos
+  }
+
+  // Item único - processa normalmente
+  return parseItemUnico(texto, mesDefault)
+}
+
+/**
+ * Parseia um item único de texto livre
+ */
+function parseItemUnico(texto: string, mesDefault: string): ParsedLancamento[] {
   if (!texto.trim()) return []
 
   const lancamentos: ParsedLancamento[] = []

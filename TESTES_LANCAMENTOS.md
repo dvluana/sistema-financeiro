@@ -31,16 +31,16 @@
 - [x] Valor com vírgula (1.234,56)
 
 ### Rápido
-- [ ] Texto simples: `Netflix 55,90`
-- [ ] Múltiplos: `Netflix 55,90, Spotify 19,90`
-- [ ] Com dia: `Aluguel 2500 dia 5`
-- [ ] Planilha (tab separado)
-- [ ] Editar tipo após parse
-- [ ] Editar valor após parse
-- [ ] Editar nome após parse
-- [ ] Adicionar categoria
-- [ ] Adicionar data
-- [ ] Remover item da lista
+- [x] Texto simples: `Netflix 55,90`
+- [x] Múltiplos: `Netflix 55,90, Spotify 19,90`
+- [x] Com dia: `Aluguel 2500 dia 5`
+- [x] Planilha (tab separado)
+- [ ] Editar tipo após parse (UI)
+- [ ] Editar valor após parse (UI)
+- [ ] Editar nome após parse (UI)
+- [ ] Adicionar categoria (UI)
+- [ ] Adicionar data (UI)
+- [ ] Remover item da lista (UI)
 
 ---
 
@@ -63,25 +63,25 @@
 ### Adicionar Filhos ao Grupo
 - [x] Adicionar filho via botão "+"
 - [x] Filho com valor
-- [ ] Filho com categoria
-- [ ] Filho com data
-- [ ] Filho marcado como pago
+- [x] Filho com categoria
+- [ ] Filho com data (UI)
+- [x] Filho marcado como pago (NOTA: filhos são criados não-concluídos, usar toggle depois)
 - [x] Verificar soma atualiza no grupo (modo soma)
 - [x] Verificar soma NÃO atualiza no grupo (modo fixo)
 
 ### Editar Grupo
 - [x] Editar nome do grupo
-- [ ] Editar data do grupo
-- [ ] Trocar categoria do grupo
-- [ ] Toggle pago/não pago do grupo
-- [ ] **NÃO pode trocar modo soma/fixo após criar**
+- [ ] Editar data do grupo (UI)
+- [ ] Trocar categoria do grupo (UI)
+- [ ] Toggle pago/não pago do grupo (UI)
+- [x] **NÃO pode trocar modo soma/fixo após criar**
 
 ### Editar Filhos
-- [ ] Editar nome do filho
+- [x] Editar nome do filho
 - [x] Editar valor do filho
-- [ ] Editar data do filho
-- [ ] Editar categoria do filho
-- [ ] Toggle pago/não pago do filho
+- [ ] Editar data do filho (UI)
+- [ ] Editar categoria do filho (UI)
+- [x] Toggle pago/não pago do filho
 
 ### Excluir
 - [x] Excluir grupo SEM filhos
