@@ -445,3 +445,77 @@ Netflix 55,90, Spotify 19,90, Aluguel 2500 dia 5
 - [ ] Excluir com cada escopo
 - [ ] Verificar lançamento legado (sem recorrencia_id)
 - [ ] Verificar grupo recorrente com filhos
+
+---
+
+## 13. TESTES UNITÁRIOS (Vitest + Testing Library)
+
+### Configuração
+- [x] Vitest configurado em vite.config.ts
+- [x] React Testing Library instalado
+- [x] Setup com mocks (framer-motion, matchMedia, ResizeObserver, IntersectionObserver)
+
+### Parser (src/lib/parser.test.ts) - 9 testes
+- [x] Valores decimais BR ("Netflix 55,90" → 55.90)
+- [x] Valores inteiros ("Aluguel 1500" → 1500)
+- [x] Valores pequenos ("Taxa 1" → 1)
+- [x] Formato milhar BR ("Carro 45.000" → 45000)
+- [x] Formato milhões BR ("Apartamento 1.500.000" → 1500000)
+- [x] Múltiplos itens com vírgula ("Netflix 55,90, Spotify 19,90")
+- [x] Múltiplos itens com "e" ("Netflix 55 e Spotify 20")
+- [x] Nome com prefixo tipo ("Mercado Pago Emp" mantém intacto)
+- [x] Valor zero explícito ("Cortesia 0" → 0)
+
+### Utils (src/lib/utils.test.ts) - 17 testes
+- [x] formatarMoeda: valores positivos, zero, null, undefined
+- [x] getMesAtual: formato YYYY-MM
+- [x] formatarMesAno: nomes dos meses em português
+- [x] navegarMes: anterior e próximo, incluindo virada de ano
+- [x] cn: merge de classes Tailwind, valores falsy, conflitos
+
+### StatusCircle (src/components/StatusCircle.test.tsx) - 7 testes
+- [x] Renderização do botão
+- [x] aria-label correto para concluído/pendente
+- [x] Chamada onChange ao clicar
+- [x] Múltiplos cliques
+- [x] Ícone Check quando concluído
+- [x] Sem ícone quando pendente
+
+### ItemLista (src/components/ItemLista.test.tsx) - 12 testes
+- [x] Exibição do nome
+- [x] Exibição do valor formatado
+- [x] Valor zero
+- [x] Valores grandes formatados
+- [x] Badge "Pago" para saída concluída
+- [x] Badge "Recebido" para entrada concluída
+- [x] Sem badge quando não concluído
+- [x] Callback onToggle
+- [x] Callback onEdit
+- [x] Exibição de categoria
+- [x] Exibição de data prevista
+- [x] Estilo discreto para concluídos
+
+### InputMoeda (src/components/InputMoeda.test.tsx) - 8 testes
+- [x] Prefixo R$
+- [x] Label quando fornecido
+- [x] Asterisco quando required
+- [x] Placeholder
+- [x] Chamada onChange
+- [x] Mensagem de erro
+- [x] Valor formatado
+- [x] Valor zero
+
+### Rodando Testes
+```bash
+# Modo watch (desenvolvimento)
+npm run test
+
+# Rodar uma vez
+npm run test:run
+
+# Com coverage
+npm run test:coverage
+```
+
+### Total: 53 testes ✓
+
